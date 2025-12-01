@@ -166,7 +166,7 @@ deploy_github_pages() {
     fi
     
     # Deploy using npm script
-    npm run deploy
+    npm run deploy:github
     
     log_success "Deployed to GitHub Pages"
     log_info "Documentation will be available at: https://your-username.github.io/maif/"

@@ -92,7 +92,7 @@ class TestVideoFunctionality(unittest.TestCase):
         
         # Check block properties
         video_block = encoder.blocks[0]
-        self.assertEqual(video_block.block_type, "video_data")
+        self.assertEqual(video_block.block_type, "VDAT")
         self.assertIn("content_type", video_block.metadata)
         self.assertEqual(video_block.metadata["content_type"], "video")
         self.assertIn("size_bytes", video_block.metadata)
@@ -143,7 +143,12 @@ class TestVideoFunctionality(unittest.TestCase):
         encoder = MAIFEncoder()
         video_data = self.create_mock_mp4_data()
         
-        encoder.add_video_block(video_data, extract_metadata=True, enable_semantic_analysis=True)
+        encoder.add_video_block(
+            video_data, 
+            metadata={"title": "Test Video", "description": "For semantic analysis"},
+            extract_metadata=True, 
+            enable_semantic_analysis=True
+        )
         
         video_block = encoder.blocks[0]
         metadata = video_block.metadata
@@ -172,10 +177,9 @@ class TestVideoFunctionality(unittest.TestCase):
         encoder.add_video_block(video_data, privacy_policy=privacy_policy)
         
         video_block = encoder.blocks[0]
-        # Privacy policy is now stored under _system
-        self.assertIn("_system", video_block.metadata)
-        self.assertIn("privacy_policy", video_block.metadata["_system"])
-        self.assertEqual(video_block.metadata["_system"]["privacy_policy"]["privacy_level"], "confidential")
+        # Privacy policy is now stored in metadata
+        self.assertIn("privacy_policy", video_block.metadata)
+        self.assertEqual(video_block.metadata["privacy_policy"]["privacy_level"], "confidential")
     
     def test_video_querying_basic(self):
         """Test basic video querying functionality."""

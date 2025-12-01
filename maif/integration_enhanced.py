@@ -344,6 +344,20 @@ class EnhancedMAIF:
                     for key, value in metadata.items():
                         if isinstance(value, (str, int, float, bool)):
                             data[key] = [value]
+                            
+                            # Check if column exists in schema, if not add it
+                            if key not in self.columnar_file.schema:
+                                # Determine column type
+                                if isinstance(value, bool):
+                                    col_type = ColumnType.BOOLEAN
+                                elif isinstance(value, int):
+                                    col_type = ColumnType.INT64
+                                elif isinstance(value, float):
+                                    col_type = ColumnType.FLOAT64
+                                else:
+                                    col_type = ColumnType.STRING
+                                
+                                self.columnar_file.add_column(key, col_type)
                 
                 self.columnar_file.write_batch(data)
             
@@ -663,7 +677,8 @@ class ConversionResult:
     """
     
     def __init__(self, success: bool, input_path: str, output_path: str, 
-                 metadata: Optional[Dict[str, Any]] = None):
+                 metadata: Optional[Dict[str, Any]] = None,
+                 warnings: Optional[List[str]] = None):
         """
         Initialize a conversion result.
         
@@ -672,11 +687,13 @@ class ConversionResult:
             input_path: Path to the input file
             output_path: Path to the output file
             metadata: Additional metadata about the conversion
+            warnings: List of warnings generated during conversion
         """
         self.success = success
         self.input_path = input_path
         self.output_path = output_path
         self.metadata = metadata or {}
+        self.warnings = warnings or []
         self.timestamp = time.time()
     
     def to_dict(self) -> Dict[str, Any]:
@@ -791,12 +808,24 @@ class EnhancedMAIFProcessor:
                 # Save MAIF
                 maif.save()
                 
+                # Determine format
+                file_format = "binary"
+                if input_path.suffix.lower() in ['.txt', '.md', '.csv', '.json', '.xml', '.html']:
+                    file_format = "text"
+                elif input_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+                    file_format = "image"
+                elif input_path.suffix.lower() in ['.mp3', '.wav', '.ogg', '.flac']:
+                    file_format = "audio"
+                elif input_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
+                    file_format = "video"
+
                 result = ConversionResult(
                     success=True,
                     input_path=str(input_path),
                     output_path=str(maif.maif_path),
                     metadata={
                         "file_type": input_path.suffix.lower(),
+                        "format": file_format,
                         "size_bytes": input_path.stat().st_size,
                         "maif_size_bytes": maif.metrics.size_bytes,
                         "block_count": maif.metrics.block_count

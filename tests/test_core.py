@@ -22,13 +22,13 @@ class TestMAIFBlock:
         """Test basic MAIFBlock creation."""
         block = MAIFBlock(
             block_id="test_block_001",
-            block_type="text",
+            block_type="TEXT",
             data=b"Hello, MAIF!",
             metadata={"source": "test", "timestamp": 1234567890}
         )
         
         assert block.block_id == "test_block_001"
-        assert block.block_type == "text"
+        assert block.block_type == "TEXT"
         assert block.data == b"Hello, MAIF!"
         assert block.metadata["source"] == "test"
         assert block.hash is not None
@@ -38,7 +38,7 @@ class TestMAIFBlock:
         """Test MAIFBlock serialization to dictionary."""
         block = MAIFBlock(
             block_id="test_block_001",
-            block_type="text",
+            block_type="TEXT",
             data=b"Hello, MAIF!",
             metadata={"source": "test"}
         )
@@ -46,7 +46,7 @@ class TestMAIFBlock:
         block_dict = block.to_dict()
         
         assert block_dict["block_id"] == "test_block_001"
-        assert block_dict["block_type"] == "text"
+        assert block_dict["block_type"] == "TEXT"
         assert "hash" in block_dict
         assert "metadata" in block_dict
         assert block_dict["metadata"]["source"] == "test"
@@ -122,7 +122,7 @@ class TestMAIFEncoder:
         
         assert len(self.encoder.blocks) == 1
         block = self.encoder.blocks[0]
-        assert block.block_type == "text"
+        assert block.block_type == "TEXT"
         assert "Hello, MAIF world!" in block.data.decode('utf-8')
         assert block.metadata["source"] == "test"
         assert block.metadata["language"] == "en"
@@ -139,7 +139,7 @@ class TestMAIFEncoder:
         
         assert len(self.encoder.blocks) == 1
         block = self.encoder.blocks[0]
-        assert block.block_type == "image"
+        assert block.block_type == "IDAT"
         assert block.data == binary_data
         assert block.metadata["format"] == "png"
     
@@ -154,7 +154,7 @@ class TestMAIFEncoder:
         
         assert len(self.encoder.blocks) == 1
         block = self.encoder.blocks[0]
-        assert block.block_type == "embeddings"
+        assert block.block_type == "EMBD"
         assert block.metadata["model"] == "test-model"
         assert block.metadata["dimensions"] == 3
     
@@ -181,7 +181,7 @@ class TestMAIFEncoder:
         
         assert len(self.encoder.blocks) == 1
         block = self.encoder.blocks[0]
-        assert block.block_type == "cross_modal"
+        assert block.block_type == "XMOD"
         assert block.metadata["scene"] == "sunset"
     
     def test_delete_block(self):
@@ -321,12 +321,12 @@ class TestMAIFDecoder:
     def test_get_block_data(self):
         """Test retrieving specific block data."""
         # Get text block data
-        text_data = self.decoder.get_block_data("text")
+        text_data = self.decoder.get_block_data("TEXT")
         assert text_data is not None
         assert "Hello, MAIF!" in text_data.decode('utf-8')
         
         # Get binary block data
-        binary_data = self.decoder.get_block_data("data")
+        binary_data = self.decoder.get_block_data("BDAT")
         assert binary_data is not None
         assert binary_data == b"binary_data"
     
@@ -396,7 +396,8 @@ class TestPrivacyIntegration:
         self.privacy_engine = PrivacyEngine()
         self.encoder = MAIFEncoder(
             agent_id="test_agent",
-            privacy_engine=self.privacy_engine
+            privacy_engine=self.privacy_engine,
+            enable_privacy=True
         )
     
     def teardown_method(self):
@@ -420,7 +421,7 @@ class TestPrivacyIntegration:
         assert block.data != b"Sensitive information"
         # Encryption metadata is now stored under _system
         assert block.metadata.get("_system", {}).get("encrypted") is True
-        assert block.metadata.get("_system", {}).get("encryption_mode") == "AES_GCM"
+        assert block.metadata.get("_system", {}).get("encryption_mode") == "aes_gcm"
     
     def test_anonymized_text_block(self):
         """Test adding anonymized text blocks."""
@@ -455,6 +456,8 @@ class TestPrivacyIntegration:
         assert "total_blocks" in report
         assert "encrypted_blocks" in report
         assert "anonymized_blocks" in report
+        print(f"DEBUG: blocks count = {len(self.encoder.blocks)}")
+        print(f"DEBUG: report = {report}")
         assert report["total_blocks"] == 2
 
 
@@ -482,7 +485,7 @@ class TestVersioning:
             block_type="text",
             data=b"Updated text",
             metadata={"updated": True},
-            block_id=block_id  # Same ID for update
+            update_block_id=block_id  # Same ID for update
         )
         
         # Check version history

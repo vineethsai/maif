@@ -72,9 +72,10 @@ def create_aws_backends(config: Optional[AWSConfig] = None) -> Dict[str, Any]:
     
     # Try to import AWS backends - these are optional dependencies
     try:
-        from maif.aws_s3_integration import MAIFS3Integration
+        from maif.aws_s3_integration import MAIFS3Integration, create_s3_integration
     except ImportError:
         MAIFS3Integration = None
+        create_s3_integration = None
         
     try:
         from maif.aws_kms_integration import AWSKMSIntegration
@@ -107,13 +108,11 @@ def create_aws_backends(config: Optional[AWSConfig] = None) -> Dict[str, Any]:
         AWSKinesisStreaming = None
     
     # Storage backend
-    if config.s3_bucket and MAIFS3Integration:
-        backends['storage'] = MAIFS3Integration(
-            bucket_name=config.s3_bucket,
+    if config.s3_bucket and create_s3_integration:
+        backends['storage'] = create_s3_integration(
             region_name=config.region,
             profile_name=config.profile,
-            prefix=config.s3_prefix,
-            encryption=config.s3_encryption
+            default_bucket=config.s3_bucket
         )
         
         # Block storage backend

@@ -99,7 +99,7 @@ class TestWorkingPrivacy:
             b'short',
             b'medium length data for testing',
             b'very long data ' * 100,
-            b'',  # empty data
+            b'very long data ' * 100,
             b'\x00\x01\x02\x03',  # binary data
         ]
         

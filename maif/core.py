@@ -124,6 +124,7 @@ class MAIFEncoder:
         "video_data": BlockType.VIDEO_DATA.value,  # Add mapping for "video_data" block type
         "audio_data": BlockType.AUDIO_DATA.value,  # Add mapping for "audio_data" block type
         "image_data": BlockType.IMAGE_DATA.value,  # Add mapping for "image_data" block type
+        "image": BlockType.IMAGE_DATA.value,  # Add mapping for "image" block type
         "cross_modal": BlockType.CROSS_MODAL.value,
         "semantic_binding": BlockType.SEMANTIC_BINDING.value,
         "compressed_embeddings": BlockType.COMPRESSED_EMBEDDINGS.value,
@@ -215,11 +216,11 @@ class MAIFEncoder:
             print(f"Warning: Could not load existing MAIF: {e}")
     
     def add_text_block(self, text: str, metadata: Optional[Dict] = None,
-                      update_block_id: Optional[str] = None,
-                      privacy_policy: Optional[PrivacyPolicy] = None,
-                      anonymize: bool = False,
-                      privacy_level: Optional[PrivacyLevel] = None,
-                      encryption_mode: Optional[EncryptionMode] = None) -> str:
+                       update_block_id: Optional[str] = None,
+                       privacy_policy: Optional[PrivacyPolicy] = None,
+                       anonymize: bool = False,
+                       privacy_level: Optional[PrivacyLevel] = None,
+                       encryption_mode: Optional[EncryptionMode] = None) -> str:
         """Add or update a text block to the MAIF with privacy controls."""
         # Create privacy policy from individual parameters if provided
         if privacy_level is not None or encryption_mode is not None:
@@ -240,11 +241,24 @@ class MAIFEncoder:
         
         text_bytes = text.encode('utf-8')
         return self._add_block("text", text_bytes, metadata, update_block_id, privacy_policy)
+
+    def update_text_block(self, block_id: str, text: str, metadata: Optional[Dict] = None,
+                         privacy_policy: Optional[PrivacyPolicy] = None,
+                         anonymize: bool = False,
+                         privacy_level: Optional[PrivacyLevel] = None,
+                         encryption_mode: Optional[EncryptionMode] = None) -> str:
+        """Update an existing text block."""
+        return self.add_text_block(text, metadata, update_block_id=block_id,
+                                  privacy_policy=privacy_policy, anonymize=anonymize,
+                                  privacy_level=privacy_level, encryption_mode=encryption_mode)
     
     def _add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None,
                    update_block_id: Optional[str] = None,
                    privacy_policy: Optional[PrivacyPolicy] = None) -> str:
         """Internal method to add or update a block with privacy support."""
+        if not block_type:
+            raise ValueError("Block type cannot be empty")
+            
         # Normalize block type using mapping
         normalized_type = self.BLOCK_TYPE_MAPPING.get(block_type, block_type)
         
@@ -274,10 +288,17 @@ class MAIFEncoder:
                 data = encrypted_data
                 if metadata is None:
                     metadata = {}
-                metadata["encrypted"] = True
-                metadata["encryption_mode"] = privacy_policy.encryption_mode.value
+                
+                if "_system" not in metadata:
+                    metadata["_system"] = {}
+                
+                metadata["_system"]["encrypted"] = True
+                metadata["_system"]["encryption_mode"] = privacy_policy.encryption_mode.value
                 # Merge encryption metadata
-                metadata.update(encryption_metadata)
+                metadata["_system"].update(encryption_metadata)
+                
+                # Also keep top-level for backward compatibility if needed, or just rely on _system
+                metadata["encrypted"] = True
             
             # Store privacy policy in metadata
             if metadata is None:
@@ -293,7 +314,12 @@ class MAIFEncoder:
         if hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag:
             if metadata is None:
                 metadata = {}
-            metadata["anonymized"] = True
+            
+            if "_system" not in metadata:
+                metadata["_system"] = {}
+            
+            metadata["_system"]["anonymized"] = True
+            metadata["anonymized"] = True  # Keep top-level for compatibility
             self._last_anonymize_flag = False
         
         # Handle unified storage for AWS
@@ -470,13 +496,21 @@ class MAIFEncoder:
             # Add semantic analysis to processed metadata if enabled
             if enable_semantic_analysis:
                 try:
+                    # Initialize embedder if needed
+                    if not hasattr(self, '_embedder') or self._embedder is None:
+                        try:
+                            from .semantic import SemanticEmbedder
+                            self._embedder = SemanticEmbedder()
+                        except ImportError as e:
+                            logger.warning(f"Could not import SemanticEmbedder: {e}")
+                    
                     # Try to generate real embeddings
                     if hasattr(self, '_embedder') and self._embedder:
                         # Extract text description for embedding
                         video_description = processed_metadata.get('title', '') + ' ' + processed_metadata.get('description', '')
                         if video_description.strip():
-                            embeddings = self._embedder.embed_text(video_description)
-                            processed_metadata["semantic_embeddings"] = embeddings
+                            embedding_obj = self._embedder.embed_text(video_description)
+                            processed_metadata["semantic_embeddings"] = embedding_obj.vector
                             processed_metadata["has_semantic_analysis"] = True
                         else:
                             processed_metadata["has_semantic_analysis"] = False
@@ -1291,6 +1325,9 @@ class MAIFEncoder:
         if self.enable_privacy:
             # Add privacy engine report
             engine_report = self.privacy_engine.generate_privacy_report()
+            # Rename total_blocks from engine to avoid overwriting actual block count
+            if 'total_blocks' in engine_report:
+                engine_report['privacy_managed_blocks'] = engine_report.pop('total_blocks')
             report.update(engine_report)
         
         return report
@@ -2053,7 +2090,7 @@ class MAIFDecoder:
         """Get all video blocks with access control."""
         video_blocks = []
         for block in self.blocks:
-            if block.block_type in ["video_data", "VIDO"]:
+            if block.block_type in ["video_data", "VIDO", "VDAT"]:
                 # Check access permissions only if privacy checks are enabled
                 if (self._privacy_checks_enabled and
                     not self.privacy_engine.check_access(

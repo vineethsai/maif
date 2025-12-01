@@ -57,8 +57,8 @@ class TestBinaryFormat:
         decoder = MAIFDecoder(maif_path, manifest_path)
         
         assert len(decoder.blocks) >= 2
-        assert decoder.blocks[0].block_type in ["text_data", "text"]
-        assert decoder.blocks[1].block_type in ["binary_data", "data"]
+        assert decoder.blocks[0].block_type in ["TEXT", "text_data", "text"]
+        assert decoder.blocks[1].block_type in ["BDAT", "binary_data", "data"]
     
     def test_binary_data_integrity(self):
         """Test binary data integrity."""

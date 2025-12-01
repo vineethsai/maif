@@ -22,6 +22,7 @@ class TestConversionResult:
         """Test basic ConversionResult creation."""
         result = ConversionResult(
             success=True,
+            input_path="/path/to/input.json",
             output_path="/path/to/output.maif",
             warnings=["Warning 1", "Warning 2"],
             metadata={"blocks_converted": 5, "format": "json"}

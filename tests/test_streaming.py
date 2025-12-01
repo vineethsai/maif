@@ -102,8 +102,8 @@ class TestMAIFStreamReader:
             
             # Check that we got different block types
             block_types = [block_type for block_type, _ in blocks_streamed]
-            assert "text" in block_types
-            assert "data" in block_types
+            assert "TEXT" in block_types
+            assert "BDAT" in block_types
     
     def test_stream_blocks_parallel(self):
         """Test parallel block streaming."""
