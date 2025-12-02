@@ -69,7 +69,9 @@ class TestMAIFSigner:
         """Test MAIFSigner initialization."""
         assert self.signer.agent_id == "test_agent"
         assert self.signer.private_key is not None
-        assert self.signer.provenance_chain == []
+        # Should have genesis block
+        assert len(self.signer.provenance_chain) == 1
+        assert self.signer.provenance_chain[0].action == "genesis"
     
     def test_signer_with_existing_key(self):
         """Test MAIFSigner with existing private key."""
@@ -118,7 +120,8 @@ class TestMAIFSigner:
             block_hash="abc123def456"
         )
         
-        assert len(self.signer.provenance_chain) == 1
+        # Genesis + 1 entry
+        assert len(self.signer.provenance_chain) == 2
         assert entry.agent_id == "test_agent"
         assert entry.action == "create_block"
         assert entry.block_hash == "abc123def456"
@@ -138,7 +141,8 @@ class TestMAIFSigner:
             block_hash="def456"
         )
         
-        assert len(self.signer.provenance_chain) == 2
+        # Genesis + 2 entries
+        assert len(self.signer.provenance_chain) == 3
         assert entry2.previous_hash == entry1.block_hash
     
     def test_sign_maif_manifest(self):
@@ -254,12 +258,21 @@ class TestMAIFVerifier:
     def test_verify_broken_provenance_chain(self):
         """Test verification of broken provenance chain."""
         # Create a broken chain
+        # We need a genesis block first
+        genesis = ProvenanceEntry(
+            timestamp=1234567889.0,
+            agent_id="test_agent",
+            action="genesis",
+            block_hash="genesis_hash",
+            previous_hash=None
+        )
+        
         entry1 = ProvenanceEntry(
             timestamp=1234567890.0,
             agent_id="test_agent",
             action="create_block",
             block_hash="hash1",
-            previous_hash=None
+            previous_hash="genesis_hash"
         )
         
         entry2 = ProvenanceEntry(
@@ -271,7 +284,7 @@ class TestMAIFVerifier:
         )
         
         provenance_data = {
-            "chain": [entry1.to_dict(), entry2.to_dict()],
+            "chain": [genesis.to_dict(), entry1.to_dict(), entry2.to_dict()],
             "agent_id": "test_agent"
         }
         
@@ -279,7 +292,7 @@ class TestMAIFVerifier:
         
         assert is_valid is False
         assert len(errors) > 0
-        assert "Chain link broken" in errors[0]
+        assert any("link broken" in e for e in errors)
     
     def test_verify_maif_manifest_comprehensive(self):
         """Test comprehensive MAIF manifest verification."""

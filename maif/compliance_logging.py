@@ -242,7 +242,7 @@ class SIEMIntegration:
         self.config = config
         self.logger = logging.getLogger(__name__)
         self._event_buffer: List[AuditEvent] = []
-        self._buffer_lock = threading.Lock()
+        self._buffer_lock = threading.RLock()
         
         # Initialize provider-specific clients
         if self.provider == "cloudwatch" and AWS_AVAILABLE:
@@ -271,33 +271,59 @@ class SIEMIntegration:
             
     def send_event(self, event: AuditEvent):
         """Send audit event to SIEM."""
-        if self.provider == "cloudwatch":
-            self._send_to_cloudwatch(event)
-        elif self.provider == "splunk":
-            self._send_to_splunk(event)
-        elif self.provider == "elastic":
-            self._send_to_elastic(event)
+        batch_size = self.config.get('batch_size', 1)
+        
+        if batch_size > 1:
+            with self._buffer_lock:
+                self._event_buffer.append(event)
+                if len(self._event_buffer) >= batch_size:
+                    self._flush_batch()
         else:
-            self.logger.warning(f"Unknown SIEM provider: {self.provider}")
+            self._send_with_retry(event)
             
-    def _send_to_cloudwatch(self, event: AuditEvent):
-        """Send event to AWS CloudWatch."""
+    def _send_with_retry(self, event: AuditEvent):
+        """Send event with retry logic."""
+        retry_count = self.config.get('retry_count', 0)
+        
+        for attempt in range(retry_count + 1):
+            try:
+                if self.provider == "cloudwatch":
+                    self._send_to_cloudwatch(event)
+                elif self.provider == "splunk":
+                    self._send_to_splunk(event)
+                elif self.provider == "elastic":
+                    self._send_to_elastic(event)
+                else:
+                    self.logger.warning(f"Unknown SIEM provider: {self.provider}")
+                return
+            except Exception as e:
+                if attempt == retry_count:
+                    self.logger.error(f"Failed to send to SIEM after {retry_count} retries: {e}")
+                    self._handle_send_failure(event)
+                else:
+                    time.sleep(0.1 * (attempt + 1))  # Exponential backoff
+            
+    def _send_to_cloudwatch(self, event: Union[AuditEvent, List[AuditEvent]]):
+        """Send event(s) to AWS CloudWatch."""
         if not AWS_AVAILABLE:
             self.logger.error("boto3 not available for CloudWatch integration")
             return
+            
+        events = event if isinstance(event, list) else [event]
+        log_events = [{
+            'timestamp': int(e.timestamp.timestamp() * 1000),
+            'message': e.to_json()
+        } for e in events]
             
         try:
             self.client.put_log_events(
                 logGroupName=self.log_group,
                 logStreamName=self.log_stream,
-                logEvents=[{
-                    'timestamp': int(event.timestamp.timestamp() * 1000),
-                    'message': event.to_json()
-                }]
+                logEvents=log_events
             )
         except Exception as e:
-            self.logger.error(f"Failed to send to CloudWatch: {e}")
-            self._handle_send_failure(event)
+            # Re-raise to trigger retry logic
+            raise e
             
     def _send_to_splunk(self, event: AuditEvent):
         """Send event to Splunk via HTTP Event Collector."""
@@ -332,8 +358,8 @@ class SIEMIntegration:
             )
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f"Failed to send to Splunk: {e}")
-            self._handle_send_failure(event)
+            # Re-raise to trigger retry logic
+            raise e
             
     def _send_to_elastic(self, event: AuditEvent):
         """Send event to Elasticsearch."""
@@ -367,8 +393,8 @@ class SIEMIntegration:
             )
             response.raise_for_status()
         except Exception as e:
-            self.logger.error(f"Failed to send to Elasticsearch: {e}")
-            self._handle_send_failure(event)
+            # Re-raise to trigger retry logic
+            raise e
             
     def _handle_send_failure(self, event: AuditEvent):
         """Handle SIEM send failures with fallback."""
@@ -384,15 +410,31 @@ class SIEMIntegration:
                     f.write(event.to_json() + '\n')
             except Exception as e:
                 self.logger.error(f"Failed to write to fallback file: {e}")
-                
-    def flush(self):
-        """Flush any buffered events."""
+
+    def _flush_batch(self):
+        """Flush the current batch of events."""
         with self._buffer_lock:
+            if not self._event_buffer:
+                return
             events = self._event_buffer[:]
             self._event_buffer.clear()
             
-        for event in events:
-            self.send_event(event)
+        if self.provider == "cloudwatch":
+            # CloudWatch supports batching natively
+            try:
+                self._send_to_cloudwatch(events)
+            except Exception as e:
+                self.logger.error(f"Failed to send batch to CloudWatch: {e}")
+                for event in events:
+                    self._handle_send_failure(event)
+        else:
+            # Other providers: send individually for now
+            for event in events:
+                self._send_with_retry(event)
+
+    def flush(self):
+        """Flush any buffered events."""
+        self._flush_batch()
 
 
 class EnhancedComplianceLogger:
@@ -450,7 +492,7 @@ class EnhancedComplianceLogger:
                   details: Optional[Dict[str, Any]] = None,
                   **kwargs) -> AuditEvent:
         """Log a compliance event."""
-        event = AuditEvent(
+        event = AuditLogEntry(
             event_type=event_type,
             action=action,
             user_id=user_id,

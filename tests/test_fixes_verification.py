@@ -58,10 +58,11 @@ def test_validation_hash_mismatch():
 
 def test_integration_convert_to_maif():
     """Test integration convert_to_maif method exists."""
-    processor = EnhancedMAIFProcessor()
-    assert hasattr(processor, 'convert_to_maif'), "convert_to_maif method should exist"
-    print("✓ Integration convert_to_maif method exists")
-    assert True  # Test passed
+    with tempfile.TemporaryDirectory() as temp_dir:
+        processor = EnhancedMAIFProcessor(workspace_dir=temp_dir)
+        assert hasattr(processor, 'convert_to_maif'), "convert_to_maif method should exist"
+        print("✓ Integration convert_to_maif method exists")
+        assert True  # Test passed
 
 def test_metadata_statistics():
     """Test metadata statistics generation."""

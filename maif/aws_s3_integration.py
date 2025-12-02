@@ -1105,7 +1105,6 @@ def create_s3_integration(region_name: str = "us-east-1",
     try:
         s3_client = S3Client(
             region_name=region_name,
-            profile_name=profile_name,
             max_retries=max_retries
         )
         

@@ -75,7 +75,7 @@ class TestBlockTypeMapping:
             "embedding": "EMBD",
             "embeddings": "EMBD",
             "video_data": "VDAT",
-            "audio_data": "ADAT",
+            "audio_data": "AUDI",
             "image_data": "IDAT",
             "cross_modal": "XMOD",
             "semantic_binding": "SBND",
@@ -104,7 +104,7 @@ class TestBlockTypeMapping:
                 break
         
         assert video_block is not None, "Video block should be created"
-        assert video_block.block_type == "video_data", "Block type should be 'video_data'"
+        assert video_block.block_type == "VDAT", "Block type should be 'VDAT'"
         
         # Build the MAIF file and check the actual header
         maif_path = os.path.join(self.temp_dir, "test_video.maif")

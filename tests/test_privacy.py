@@ -553,24 +553,13 @@ class TestPrivacyErrorHandling:
         """Test encryption of empty data."""
         empty_data = b""
         
-        encrypted_data, metadata = self.privacy_engine.encrypt_data(
-            data=empty_data,
-            block_id="empty_block",
-            encryption_mode=EncryptionMode.AES_GCM
-        )
-        
-        # Should handle empty data gracefully
-        assert encrypted_data is not None
-        assert metadata is not None
-        
-        # Should be able to decrypt back to empty
-        decrypted_data = self.privacy_engine.decrypt_data(
-            encrypted_data=encrypted_data,
-            block_id="empty_block",
-            encryption_metadata=metadata
-        )
-        
-        assert decrypted_data == empty_data
+        # Should raise ValueError for empty data
+        with pytest.raises(ValueError, match="Cannot encrypt empty data"):
+            self.privacy_engine.encrypt_data(
+                data=empty_data,
+                block_id="empty_block",
+                encryption_mode=EncryptionMode.AES_GCM
+            )
     
     def test_invalid_encryption_mode(self):
         """Test handling of invalid encryption modes."""

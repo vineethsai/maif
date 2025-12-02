@@ -207,28 +207,32 @@ def test_enhanced_integration():
     try:
         from maif.integration_enhanced import EnhancedMAIFProcessor
         
-        processor = EnhancedMAIFProcessor()
-        
-        # Test basic file conversion functionality
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a test text file
-            test_text_path = os.path.join(temp_dir, "test.txt")
-            with open(test_text_path, 'w') as f:
-                f.write("This is a test of the enhanced MAIF system.")
+        with tempfile.TemporaryDirectory() as workspace_dir:
+            processor = EnhancedMAIFProcessor(workspace_dir)
             
-            output_path = os.path.join(temp_dir, "enhanced_test.maif")
-            manifest_path = os.path.join(temp_dir, "enhanced_test_manifest.json")
-            
-            # Test text to MAIF conversion
-            result = processor.convert_text_to_maif(test_text_path, output_path, manifest_path)
-            
-            assert result.success == True
-            assert result.output_path == output_path
-            assert "format" in result.metadata
-            assert result.metadata["format"] == "text"
-            
-            print("✓ Enhanced Integration: PASSED")
-            assert True  # Test passed
+            # Test basic file conversion functionality
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Create a test text file
+                test_text_path = os.path.join(temp_dir, "test.txt")
+                with open(test_text_path, 'w') as f:
+                    f.write("This is a test of the enhanced MAIF system.")
+                
+                output_path = os.path.join(temp_dir, "enhanced_test.maif")
+                manifest_path = os.path.join(temp_dir, "enhanced_test_manifest.json")
+                
+                # Test text to MAIF conversion
+                result = processor.convert_to_maif(test_text_path, "enhanced_test")
+                
+                if not result.success:
+                    print(f"Conversion failed. Metadata: {result.metadata}")
+                
+                assert result.success == True
+                assert result.output_path == str(Path(workspace_dir) / "enhanced_test.maif")
+                assert "format" in result.metadata
+                assert result.metadata["format"] == "text"
+                
+                print("✓ Enhanced Integration: PASSED")
+                assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Enhanced Integration: FAILED - {e}")
@@ -243,31 +247,35 @@ def test_performance_benchmarks():
         import time
         import tempfile
         
-        processor = EnhancedMAIFProcessor()
-        
-        # Test basic conversion performance
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # Create a test text file
-            test_text = "This is a comprehensive test of compression performance. " * 100
-            test_text_path = os.path.join(temp_dir, "test_performance.txt")
-            with open(test_text_path, 'w') as f:
-                f.write(test_text)
+        with tempfile.TemporaryDirectory() as workspace_dir:
+            processor = EnhancedMAIFProcessor(workspace_dir)
             
-            output_path = os.path.join(temp_dir, "performance_test.maif")
-            manifest_path = os.path.join(temp_dir, "performance_test_manifest.json")
+            # Test basic conversion performance
+            with tempfile.TemporaryDirectory() as temp_dir:
+                # Create a test text file
+                test_text = "This is a comprehensive test of compression performance. " * 100
+                test_text_path = os.path.join(temp_dir, "test_performance.txt")
+                with open(test_text_path, 'w') as f:
+                    f.write(test_text)
+                
+                output_path = os.path.join(temp_dir, "performance_test.maif")
+                manifest_path = os.path.join(temp_dir, "performance_test_manifest.json")
+                
+                # Test conversion performance
+                start_time = time.time()
+                result = processor.convert_to_maif(test_text_path, "performance_test")
+                conversion_time = time.time() - start_time
+                
+                if not result.success:
+                    print(f"Conversion failed. Metadata: {result.metadata}")
+                
+                assert result.success == True
+                assert conversion_time < 5.0  # Should complete within 5 seconds
+                assert "format" in result.metadata
+                assert result.metadata["format"] == "text"
             
-            # Test conversion performance
-            start_time = time.time()
-            result = processor.convert_text_to_maif(test_text_path, output_path, manifest_path)
-            conversion_time = time.time() - start_time
-            
-            assert result.success == True
-            assert conversion_time < 5.0  # Should complete within 5 seconds
-            assert "format" in result.metadata
-            assert result.metadata["format"] == "text"
-        
-        print("✓ Performance Benchmarks: PASSED")
-        assert True  # Test passed
+            print("✓ Performance Benchmarks: PASSED")
+            assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Performance Benchmarks: FAILED - {e}")

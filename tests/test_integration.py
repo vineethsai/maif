@@ -10,7 +10,7 @@ import zipfile
 import tarfile
 from unittest.mock import Mock, patch, MagicMock
 
-from maif.integration_enhanced import ConversionResult, EnhancedMAIFProcessor
+from maif.integration import ConversionResult, EnhancedMAIFProcessor
 from maif.core import MAIFEncoder, MAIFDecoder, MAIFParser
 
 

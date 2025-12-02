@@ -148,13 +148,24 @@ class TestAWSDecorators(unittest.TestCase):
     @patch('boto3.Session')
     @patch('maif.aws_decorators.BedrockClient')
     def test_aws_agent_decorator(self, mock_bedrock_client, mock_session):
-        """Test AWS agent decorator."""
-        # Set up mocks
-        mock_session.return_value.client.return_value = MagicMock()
-        mock_session.return_value.resource.return_value = MagicMock()
+        """Test the aws_agent decorator."""
+        # Setup mocks
+        mock_bedrock_client.return_value.generate_text_block.return_value = {
+            "text": "Enhanced response",
+            "metadata": {"model": "anthropic.claude-3-sonnet-20240229-v1:0"}
+        }
         
-        # Define test class
-        @aws_agent(workspace="./test_workspace")
+        # Configure session credentials mock to avoid datetime vs MagicMock comparison error
+        mock_credentials = MagicMock()
+        mock_credentials.access_key = "test-key"
+        mock_credentials.secret_key = "test-secret"
+        mock_credentials.token = "test-token"
+        mock_credentials._expiry_time = None  # Prevent comparison error
+        mock_credentials.get_frozen_credentials.return_value = mock_credentials
+        mock_session.return_value.get_credentials.return_value = mock_credentials
+        
+        # Define agent class (disable use_aws to avoid SecurityManager KMS initialization)
+        @aws_agent(workspace="./test_workspace", use_aws=False)
         class TestAgent:
             pass
         

@@ -7,7 +7,7 @@ import json
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional, List
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class ConversionResult:
@@ -17,6 +17,8 @@ class ConversionResult:
     error: str = ""
     output_path: str = ""
     manifest_path: str = ""
+    warnings: List[str] = field(default_factory=list)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def __getitem__(self, key):
         """Allow dict-style access for backward compatibility."""
@@ -26,9 +28,9 @@ class MAIFConverter:
     """MAIF format converter."""
     
     def __init__(self):
-        pass
+        self.supported_formats = ['json', 'xml', 'csv', 'txt']
     
-    def convert_to_maif(self, input_path: str, output_path: str, manifest_path: str, input_format: str) -> Dict[str, Any]:
+    def convert_to_maif(self, input_path: str, output_path: str, manifest_path: str, input_format: str) -> ConversionResult:
         """Convert various formats to MAIF."""
         try:
             from .core import MAIFEncoder
@@ -49,9 +51,52 @@ class MAIFConverter:
                 encoder.add_text_block(content, metadata={"source_format": input_format})
             
             encoder.build_maif(output_path, manifest_path)
-            return {"success": True, "message": f"{input_format} converted to MAIF successfully"}
+            return ConversionResult(
+                success=True,
+                message=f"{input_format} converted to MAIF successfully",
+                output_path=output_path,
+                manifest_path=manifest_path
+            )
         except Exception as e:
-            return {"success": False, "error": str(e)}
+            return ConversionResult(success=False, error=str(e))
+
+    def export_from_maif(self, maif_path: str, output_path: str, manifest_path: str, output_format: str) -> ConversionResult:
+        """Export MAIF to other formats."""
+        try:
+            from .core import MAIFDecoder
+            decoder = MAIFDecoder(maif_path, manifest_path)
+            
+            if output_format == "json":
+                # Export all text blocks to a JSON file
+                content = []
+                for block in decoder.blocks:
+                    if block.block_type == "text" or block.block_type == "text_data":
+                        # Try to parse as JSON if possible
+                        try:
+                            block_content = json.loads(block.data.decode('utf-8')) if block.data else ""
+                        except:
+                            block_content = block.data.decode('utf-8') if block.data else ""
+                        
+                        content.append({
+                            "id": block.block_id,
+                            "type": block.block_type,
+                            "content": block_content,
+                            "metadata": block.metadata
+                        })
+                
+                with open(output_path, 'w') as f:
+                    json.dump(content, f, indent=2)
+                
+                return ConversionResult(
+                    success=True,
+                    message=f"MAIF exported to {output_format} successfully",
+                    output_path=output_path,
+                    manifest_path=manifest_path
+                )
+            else:
+                return ConversionResult(success=False, error=f"Unsupported export format: {output_format}")
+        except Exception as e:
+            return ConversionResult(success=False, error=str(e))
 
 class EnhancedMAIFProcessor:
     """Enhanced MAIF processor for format conversion and integration."""
@@ -141,9 +186,21 @@ class MAIFPluginManager:
     def register_plugin(self, plugin):
         """Register a plugin."""
         self.plugins.append(plugin)
+
+    def register_hook(self, hook_name: str, callback):
+        """Register a hook callback."""
+        if hook_name not in self.hooks:
+            self.hooks[hook_name] = []
+        self.hooks[hook_name].append(callback)
     
-    def execute_hook(self, hook_name: str, *args, **kwargs):
+    def execute_hooks(self, hook_name: str, *args, **kwargs):
         """Execute all plugins for a specific hook."""
+        results = []
         if hook_name in self.hooks:
             for hook_func in self.hooks[hook_name]:
-                hook_func(*args, **kwargs)
+                results.append(hook_func(*args, **kwargs))
+        return results
+
+    def execute_hook(self, hook_name: str, *args, **kwargs):
+        """Execute all plugins for a specific hook (alias for execute_hooks)."""
+        return self.execute_hooks(hook_name, *args, **kwargs)
