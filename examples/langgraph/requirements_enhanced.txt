@@ -23,3 +23,6 @@ python-dotenv>=1.0.0
 rich>=13.0.0
 tqdm>=4.64.0  # Progress bars for embedding generation
 
+# Web search
+google-search-results>=2.4.0  # SerpAPI for web search fallback
+

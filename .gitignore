@@ -80,3 +80,11 @@ benchmark_results/
 *.tmp
 *.temp
 *.bak
+
+
+# LangGraph data files
+examples/langgraph/data/checkpoints*.db*
+examples/langgraph/data/chroma_db/*.sqlite3
+examples/langgraph/data/chroma_db/**/data_level0.bin
+examples/langgraph/examples/langgraph/data/
+
