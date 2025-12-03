@@ -220,26 +220,30 @@ export default withMermaid(defineConfig({
         {
           text: 'Examples',
           items: [
-            { text: 'Overview', link: '/examples/' },
-            { text: 'Financial Agent', link: '/examples/financial-agent' }
+            { text: 'Overview', link: '/examples/' }
           ]
         },
         {
-          text: 'Real-world Use Cases',
+          text: 'Featured',
           items: [
-            { text: 'Healthcare AI Agent', link: '/examples/healthcare-agent' },
-            { text: 'Content Moderation', link: '/examples/content-moderation' },
-            { text: 'Research Assistant', link: '/examples/research-assistant' },
-            { text: 'Security Monitor', link: '/examples/security-monitor' }
+            { text: 'LangGraph Multi-Agent RAG', link: '/examples/langgraph-rag' }
           ]
         },
         {
-          text: 'Integration Examples',
+          text: 'Getting Started',
           items: [
-            { text: 'LangChain Integration', link: '/examples/langchain' },
-            { text: 'Hugging Face Models', link: '/examples/huggingface' },
-            { text: 'Ray/Dask Distributed', link: '/examples/distributed' },
-            { text: 'Kafka Streaming', link: '/examples/kafka' }
+            { text: 'Hello World', link: '/examples/hello-world' },
+            { text: 'Privacy Demo', link: '/examples/privacy-demo' },
+            { text: 'Privacy Agent', link: '/examples/privacy-agent' }
+          ]
+        },
+        {
+          text: 'Advanced',
+          items: [
+            { text: 'Multi-Agent System', link: '/examples/multi-agent' },
+            { text: 'Streaming', link: '/examples/streaming' },
+            { text: 'Financial Agent', link: '/examples/financial-agent' },
+            { text: 'Distributed', link: '/examples/distributed' }
           ]
         }
       ]
