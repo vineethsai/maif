@@ -14,8 +14,8 @@ export default withMermaid(defineConfig({
     ['meta', { name: 'og:locale', content: 'en' }],
     ['meta', { name: 'og:site_name', content: 'MAIF Framework' }],
     ['meta', { name: 'og:image', content: '/maif-og-image.png' }],
-    ['link', { rel: 'icon', href: '/maifscratch-1/favicon.ico' }],
-    ['link', { rel: 'mask-icon', href: '/maifscratch-1/safari-pinned-tab.svg', color: '#3c82f6' }],
+    ['link', { rel: 'icon', href: '/maif/favicon.ico' }],
+    ['link', { rel: 'mask-icon', href: '/maif/safari-pinned-tab.svg', color: '#3c82f6' }],
     ['meta', { name: 'msapplication-TileColor', content: '#3c82f6' }],
     // Custom CSS for code overflow and styling
     ['style', {}, `
@@ -56,7 +56,7 @@ export default withMermaid(defineConfig({
   lastUpdated: true,
   
   // Set base URL for GitHub Pages deployment
-  base: '/maifscratch-1/',
+  base: '/maif/',
   
   // Ensure proper asset handling for GitHub Pages
   outDir: '.vitepress/dist',
@@ -76,7 +76,7 @@ export default withMermaid(defineConfig({
 
   // Simplified Vite configuration for GitHub Pages
   vite: {
-    base: '/maifscratch-1/',
+    base: '/maif/',
     optimizeDeps: {
       include: ['mermaid']
     },
@@ -124,7 +124,7 @@ export default withMermaid(defineConfig({
   },
   
   themeConfig: {
-    logo: '/maifscratch-1/maif-logo.svg',
+    logo: '/maif/maif-logo.svg',
     siteTitle: 'MAIF Framework',
     
     nav: [

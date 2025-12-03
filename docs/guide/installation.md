@@ -16,8 +16,8 @@ For development and full access to all features, clone the repository and instal
 
 ```bash
 # Clone the repository
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 
 # Install in editable mode with all dependencies
 pip install -e .
@@ -176,7 +176,7 @@ pip install -e ".[full]"
 **Import Error: Module not found**
 ```bash
 # Ensure you're in the project directory and installed correctly
-cd maifscratch-1
+cd maif
 pip install -e .
 ```
 
@@ -204,7 +204,7 @@ pip install sentence-transformers
 
 If you encounter issues:
 
-1. Check the [GitHub Issues](https://github.com/vineethsai/maifscratch-1/issues)
+1. Check the [GitHub Issues](https://github.com/vineethsai/maif/issues)
 2. Ensure Python version is 3.8+
 3. Try installing in a fresh virtual environment
 

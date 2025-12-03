@@ -6,8 +6,8 @@ Get up and running with MAIF in under 5 minutes.
 
 ```bash
 # Clone and install
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 pip install -e ".[full]"
 ```
 

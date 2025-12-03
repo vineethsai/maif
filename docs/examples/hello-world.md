@@ -23,7 +23,7 @@ print("✅ Your first AI agent memory is ready!")
 
 ```bash
 # Navigate to repository
-cd maifscratch-1
+cd maif
 
 # Install MAIF
 pip install -e .

@@ -467,7 +467,7 @@ encoder.add_text_block(
   title={LangGraph + MAIF Multi-Agent Research Assistant},
   author={MAIF Development Team},
   year={2024},
-  url={https://github.com/vineethsai/maifscratch-1/tree/main/examples/langgraph},
+  url={https://github.com/vineethsai/maif/tree/main/examples/langgraph},
   note={Production-ready multi-agent RAG with cryptographic provenance}
 }
 ```

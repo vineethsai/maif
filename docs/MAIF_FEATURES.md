@@ -448,8 +448,8 @@ encoder.add_validation_schema(data_schema)
 ### Installation
 ```bash
 # Clone and install from source
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 pip install -e .
 ```
 

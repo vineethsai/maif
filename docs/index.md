@@ -11,7 +11,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/vineethsai/maifscratch-1
+      link: https://github.com/vineethsai/maif
     - theme: alt
       text: API Reference
       link: /api/
@@ -91,8 +91,8 @@ Get your first MAIF artifact running in 30 seconds:
 
 ```bash
 # Clone and install
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 pip install -e .
 ```
 

@@ -127,7 +127,7 @@ report = artifact.get_privacy_report()
 ## Running the Example
 
 ```bash
-cd maifscratch-1
+cd maif
 pip install -e .
 
 python3 -c "

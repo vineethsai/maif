@@ -57,7 +57,7 @@ All notable changes to the MAIF Framework will be documented in this file.
 
 ## Development
 
-View the full development history on [GitHub](https://github.com/vineethsai/maifscratch-1/commits/main).
+View the full development history on [GitHub](https://github.com/vineethsai/maif/commits/main).
 
 ## Contributing
 
@@ -65,5 +65,5 @@ See [Contributing Guide](./contributing.md) for how to contribute to MAIF.
 
 ## License
 
-Released under the [MIT License](https://github.com/vineethsai/maifscratch-1/blob/main/LICENSE).
+Released under the [MIT License](https://github.com/vineethsai/maif/blob/main/LICENSE).
 

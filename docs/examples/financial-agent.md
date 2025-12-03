@@ -233,7 +233,7 @@ if __name__ == "__main__":
 ## Running the Example
 
 ```bash
-cd maifscratch-1
+cd maif
 pip install -e .
 python3 -c "
 # Paste the code above and run main()

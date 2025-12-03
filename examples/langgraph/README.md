@@ -707,12 +707,12 @@ If you use this system in your research:
   title={LangGraph + MAIF Multi-Agent Research Assistant},
   author={MAIF Development Team},
   year={2024},
-  url={https://github.com/vineethsai/maifscratch-1/tree/main/examples/langgraph}
+  url={https://github.com/vineethsai/maif/tree/main/examples/langgraph}
 }
 ```
 
 ## Support
 
-- GitHub Issues: https://github.com/vineethsai/maifscratch-1/issues
+- GitHub Issues: https://github.com/vineethsai/maif/issues
 - Documentation: See README files in parent directories
 - Examples: All example files include inline documentation

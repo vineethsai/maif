@@ -8,8 +8,8 @@ The MAIF SDK provides an easy-to-use interface for working with Multimodal Artif
 
 ```bash
 # Clone from GitHub
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 
 # Install
 pip install -e .

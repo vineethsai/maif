@@ -15,8 +15,8 @@ Thank you for your interest in contributing to the MAIF Framework! This document
 
 ```bash
 # Clone the repository
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 
 # Install development dependencies
 pip install -e ".[dev]"

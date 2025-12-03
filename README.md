@@ -8,8 +8,8 @@
 <p align="center">
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.9+-blue.svg" alt="Python 3.9+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License: MIT"></a>
-  <a href="https://github.com/vineethsai/maifscratch-1/actions"><img src="https://img.shields.io/badge/tests-431%20passed-brightgreen.svg" alt="Tests"></a>
-  <a href="https://vineethsai.github.io/maifscratch-1/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
+  <a href="https://github.com/vineethsai/maif/actions"><img src="https://img.shields.io/badge/tests-431%20passed-brightgreen.svg" alt="Tests"></a>
+  <a href="https://vineethsai.github.io/maif/"><img src="https://img.shields.io/badge/docs-online-blue.svg" alt="Documentation"></a>
 </p>
 
 <p align="center">
@@ -48,8 +48,8 @@ MAIF is a file format and SDK designed for AI agents that need **trustworthy mem
 
 ```bash
 # Clone the repository
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 
 # Install MAIF
 pip install -e .
@@ -197,7 +197,7 @@ Advanced semantic processing capabilities:
 ## Project Structure
 
 ```
-maifscratch-1/
+maif/
 ├── maif/                  # Core library
 │   ├── core.py           # MAIFEncoder, MAIFDecoder
 │   ├── security.py       # Signing, verification
@@ -220,7 +220,7 @@ maifscratch-1/
 
 | Resource | Description |
 |----------|-------------|
-| [Online Docs](https://vineethsai.github.io/maifscratch-1/) | Full documentation site |
+| [Online Docs](https://vineethsai.github.io/maif/) | Full documentation site |
 | [API Reference](docs/api/) | Detailed API documentation |
 | [User Guides](docs/guide/) | Step-by-step tutorials |
 | [Examples](examples/) | Working code examples |

@@ -12,8 +12,8 @@ Clone and install from the GitHub repository:
 
 ```bash
 # Clone the repository
-git clone https://github.com/vineethsai/maifscratch-1.git
-cd maifscratch-1
+git clone https://github.com/vineethsai/maif.git
+cd maif
 
 # Basic installation
 pip install -e .

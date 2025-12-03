@@ -235,7 +235,7 @@ All examples follow the same pattern:
 
 ```bash
 # 1. Navigate to repository root
-cd /path/to/maifscratch-1
+cd /path/to/maif
 
 # 2. Install dependencies (if needed)
 pip install -e .
@@ -274,7 +274,7 @@ Have a great example to share? We welcome contributions!
 
 - **Documentation**: See the [User Guide](../guide/)
 - **API Reference**: Check the [API docs](../api/)
-- **Issues**: Report problems on [GitHub](https://github.com/vineethsai/maifscratch-1/issues)
+- **Issues**: Report problems on [GitHub](https://github.com/vineethsai/maif/issues)
 
 ---
 
