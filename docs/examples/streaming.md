@@ -27,6 +27,7 @@ from maif.core import MAIFEncoder
 
 # Create encoder with optimized settings
 encoder = MAIFEncoder(
+    "large_dataset.maif",
     agent_id="streaming_agent",
     enable_mmap=True,        # Memory-mapped I/O
     enable_compression=True  # Compress blocks
@@ -50,8 +51,8 @@ for batch_idx, batch in enumerate(data_stream):
     if batch_idx % 100 == 0:
         print(f"Processed batch {batch_idx}")
 
-# Save final artifact
-encoder.save("large_dataset.maif")
+# Finalize the artifact
+encoder.finalize()
 ```
 
 ### Streaming Reads

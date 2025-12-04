@@ -476,9 +476,11 @@ class SecureMAIFWriter:
         
         # Create block header
         metadata_bytes = json.dumps(metadata or {}, sort_keys=True).encode()
+        # Convert block_type to int if it's an enum
+        block_type_int = block_type.value if hasattr(block_type, 'value') else int(block_type)
         header = SecureBlockHeader(
             size=SecureBlockHeader.HEADER_SIZE + len(data) + len(metadata_bytes),
-            block_type=block_type,
+            block_type=block_type_int,
             flags=BlockFlags.NONE,
             version=1,
             timestamp=timestamp,

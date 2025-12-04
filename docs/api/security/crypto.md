@@ -208,7 +208,7 @@ The privacy engine also provides encryption through `EncryptionMode`:
 from maif import MAIFEncoder
 from maif.privacy import PrivacyLevel, EncryptionMode
 
-encoder = MAIFEncoder(agent_id="agent-1", enable_privacy=True)
+encoder = MAIFEncoder("encrypted.maif", agent_id="agent-1", enable_privacy=True)
 
 # Add encrypted block
 encoder.add_text_block(
@@ -216,6 +216,7 @@ encoder.add_text_block(
     privacy_level=PrivacyLevel.CONFIDENTIAL,
     encryption_mode=EncryptionMode.AES_GCM
 )
+encoder.finalize()
 ```
 
 Available encryption modes:

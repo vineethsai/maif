@@ -106,24 +106,10 @@ class UltraHighThroughputReader:
             yield "error", f"mmap_error: {str(e)}".encode()
     
     def _initialize_decoder(self):
-        """Initialize decoder with error handling."""
-        manifest_paths = [
-            str(self.maif_path).replace('.maif', '_manifest.json'),
-            str(self.maif_path).replace('.maif', '.manifest.json'),
-            str(self.maif_path) + '_manifest.json'
-        ]
-        
-        for manifest_path in manifest_paths:
-            if os.path.exists(manifest_path):
-                try:
-                    self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
-                    return
-                except Exception:
-                    continue
-        
-        # Try without manifest
+        """Initialize decoder with error handling (v3 format - self-contained)."""
         try:
-            self.decoder = MAIFDecoder(str(self.maif_path), None)
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
         except Exception:
             pass
     

@@ -291,8 +291,8 @@ class SimpleMAIFAgent:
         return explanation
     
     def save(self):
-        """Save the current state to MAIF file."""
-        self.encoder.save(str(self.maif_path))
+        """Save the current state to MAIF file (v3 format)."""
+        self.encoder.finalize()
         logger.info(f"Saved agent memory to {self.maif_path}")
     
     def _load_memories(self):

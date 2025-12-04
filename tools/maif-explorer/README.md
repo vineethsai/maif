@@ -67,17 +67,16 @@ Then open `http://localhost:8080` in your browser.
 
 ### Loading MAIF Files
 
-1. **Drag & Drop**: Drag your `.maif` and `*_manifest.json` files directly onto the drop zone
-2. **Browse**: Click "Browse Files" to select files
+1. **Drag & Drop**: Drag your `.maif` file directly onto the drop zone
+2. **Browse**: Click "Browse Files" or use the "Open File" button to select a file
 3. **Sample**: Click "Load Sample" to explore with demo data
 
 ## File Requirements
 
-The explorer works best with both files:
-- **`.maif`** - Binary container file
-- **`*_manifest.json`** - Accompanying manifest with metadata
+MAIF v3 format is **self-contained** - all security, provenance, and metadata are embedded:
+- **`.maif`** - Self-contained binary file with embedded security and provenance
 
-You can load either file individually, but the full experience requires both.
+No separate manifest file is needed - everything is in the `.maif` file itself!
 
 ## Interface Guide
 

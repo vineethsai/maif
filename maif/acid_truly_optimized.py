@@ -639,17 +639,15 @@ class TrulyOptimizedAcidMAIF:
         
         return block_id
     
-    def save(self, maif_path: str = None, manifest_path: str = None) -> bool:
-        """Save MAIF file with transaction support."""
+    def save(self) -> bool:
+        """Save MAIF file with transaction support (v3 format)."""
         # Commit any pending transaction
         if self._current_transaction:
             self.commit_transaction()
             
-        # Save using base encoder
-        return self._encoder.save(
-            maif_path or self.maif_path,
-            manifest_path or f"{self.maif_path}.json"
-        )
+        # Finalize using base encoder (v3 format)
+        self._encoder.finalize()
+        return True
     
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get transaction performance statistics."""

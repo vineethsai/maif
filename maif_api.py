@@ -300,6 +300,48 @@ class MAIF:
             return False
         return self._decoder.is_tampered()
     
+    def get_content_list(self) -> List[Dict[str, Any]]:
+        """
+        Get a list of all content items with metadata.
+        
+        Returns:
+            List of dicts with 'type', 'content', and 'metadata' keys
+        """
+        content_list = []
+        
+        # Add texts
+        for i, item in enumerate(self._texts):
+            content_list.append({
+                'index': i,
+                'type': 'text',
+                'content': item.get('content', ''),
+                'metadata': item.get('metadata', {})
+            })
+        
+        # Add embeddings info
+        if self._embeddings:
+            content_list.append({
+                'index': len(self._texts),
+                'type': 'embeddings',
+                'content': f'{len(self._embeddings)} vectors',
+                'metadata': {}
+            })
+        
+        # If loaded from file, get from decoder
+        if self._is_loaded and self._decoder:
+            content_list = []
+            for i, block in enumerate(self._decoder.blocks):
+                block_type = block.header.block_type
+                type_name = 'text' if block_type == 1 else 'embeddings' if block_type == 2 else 'binary'
+                content_list.append({
+                    'index': i,
+                    'type': type_name,
+                    'content': block.data.decode('utf-8', errors='replace')[:100] if block.data else '',
+                    'metadata': block.metadata or {}
+                })
+        
+        return content_list
+    
     # =========================================================================
     # Utilities
     # =========================================================================

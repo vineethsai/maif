@@ -76,9 +76,9 @@ maif.save("output.maif")
 ```python
 from maif.core import MAIFEncoder, MAIFDecoder
 
-encoder = MAIFEncoder(agent_id="my-agent")
+encoder = MAIFEncoder("output.maif", agent_id="my-agent")
 encoder.add_text_block("Hello!", metadata={"lang": "en"})
-encoder.save("output.maif")
+encoder.finalize()
 ```
 
 ### Core Components
@@ -231,7 +231,7 @@ encoder.add_text_block(
 )
 
 # Save with signatures
-encoder.save("secure.maif")
+encoder.finalize()
 ```
 
 ## Semantic Architecture
@@ -369,10 +369,10 @@ with MAIFStreamReader("large.maif") as reader:
 from maif.core import MAIFEncoder, MAIFDecoder
 
 # Store agent memory
-encoder = MAIFEncoder(agent_id="langchain-agent")
+encoder = MAIFEncoder("agent_memory.maif", agent_id="langchain-agent")
 encoder.add_text_block(conversation_history)
 encoder.add_embeddings_block(context_embeddings)
-encoder.save("agent_memory.maif")
+encoder.finalize()
 
 # Load for retrieval
 decoder = MAIFDecoder("agent_memory.maif")
@@ -429,10 +429,10 @@ maif.save("output.maif")
 # Core API for fine-grained control
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="agent")
+encoder = MAIFEncoder("output.maif", agent_id="agent")
 encoder.add_text_block("content", metadata={...})
 encoder.add_embeddings_block(vectors, metadata={...})
-encoder.save("output.maif")
+encoder.finalize()
 ```
 
 ### 3. Enable Privacy for Sensitive Data

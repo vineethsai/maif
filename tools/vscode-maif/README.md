@@ -20,10 +20,10 @@ A Visual Studio Code extension for viewing and exploring MAIF (Multimodal Artifa
 - Merkle root verification
 - Provenance chain verification
 
-### 📝 Manifest Support
-- Syntax highlighting for MAIF manifest JSON files
-- Auto-detection of `*_manifest.json` files
-- Jump to provenance and security information
+### 📝 Self-Contained Format
+- MAIF v3 files are self-contained with embedded metadata
+- No separate manifest files needed
+- All provenance and security info embedded in `.maif` file
 
 ## Installation
 
@@ -47,7 +47,7 @@ Coming soon!
 
 ### Opening MAIF Files
 1. **Direct Open**: Double-click any `.maif` file to open in the binary viewer
-2. **Context Menu**: Right-click on `.maif` or `*_manifest.json` files and select "MAIF: Open Explorer"
+2. **Context Menu**: Right-click on `.maif` files and select "MAIF: Open Explorer"
 3. **Command Palette**: Run "MAIF: Open Explorer" and select files
 
 ### Commands
@@ -74,9 +74,7 @@ Click the MAIF icon in the Activity Bar to access:
 
 ## Supported File Types
 
-- `.maif` - MAIF binary container files
-- `*_manifest.json` - MAIF manifest files
-- `*-manifest.json` - MAIF manifest files (alternate naming)
+- `.maif` - MAIF v3 self-contained binary files (all security/provenance embedded)
 
 ## MAIF Block Types
 

@@ -164,15 +164,15 @@ print(f"Privacy enabled: {report.get('privacy_enabled')}")
 
 ## Using the Core API
 
-For more control, use the encoder/decoder directly:
+For more control, use the encoder/decoder directly with the v3 self-contained format:
 
 ### MAIFEncoder
 
 ```python
-from maif.core import MAIFEncoder
+from maif import MAIFEncoder, BlockType
 
-# Create encoder
-encoder = MAIFEncoder(agent_id="core-demo")
+# Create encoder with output path (v3 format)
+encoder = MAIFEncoder("core_demo.maif", agent_id="core-demo")
 
 # Add text block with metadata
 block_id = encoder.add_text_block(
@@ -187,29 +187,34 @@ print(f"Created block: {block_id}")
 
 # Add binary content
 with open("image.png", "rb") as f:
-    encoder.add_binary_block(f.read(), metadata={"type": "image/png"})
+    encoder.add_binary_block(f.read(), BlockType.IMAGE, metadata={"type": "image/png"})
 
-# Save
-encoder.save("core_demo.maif")
+# Finalize (signs and writes all security data)
+encoder.finalize()
 ```
 
 ### MAIFDecoder
 
 ```python
-from maif.core import MAIFDecoder
+from maif import MAIFDecoder
 
-# Open and read
+# Open and load (v3 format - no manifest needed)
 decoder = MAIFDecoder("core_demo.maif")
+decoder.load()
+
+# Verify integrity
+is_valid, errors = decoder.verify_integrity()
+print(f"Integrity: {'✓ Valid' if is_valid else '✗ Invalid'}")
 
 # Read all blocks
-for block in decoder.read_blocks():
-    print(f"Block: {block.block_id}")
-    print(f"  Type: {block.block_type}")
+for block in decoder.blocks:
+    print(f"Block: {block.header.block_id}")
+    print(f"  Type: {block.header.block_type.name}")
     print(f"  Metadata: {block.metadata}")
 
-# Get specific block types
-text_blocks = decoder.get_blocks_by_type("TEXT")
-print(f"Found {len(text_blocks)} text blocks")
+# Get provenance chain
+for entry in decoder.get_provenance():
+    print(f"  {entry.action} by {entry.agent_id}")
 ```
 
 ## Digital Signatures

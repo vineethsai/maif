@@ -76,31 +76,30 @@ print(f"File integrity: {'VALID' if is_valid else 'INVALID'}")
 ### Advanced Usage with Encoder/Decoder
 
 ```python
-from maif import MAIFEncoder, MAIFDecoder, MAIFSigner, MAIFVerifier
+from maif import MAIFEncoder, MAIFDecoder
 from maif.semantic import SemanticEmbedder
 
-# Create with low-level API
-encoder = MAIFEncoder(agent_id="my-agent")
-signer = MAIFSigner(agent_id="my-agent")
+# Create with low-level API (v3 format - self-contained)
+encoder = MAIFEncoder("my_data.maif", agent_id="my-agent")
 embedder = SemanticEmbedder()
 
 # Add content
 text = "AI systems need trustworthy data containers"
 text_hash = encoder.add_text_block(text)
-signer.add_provenance_entry("add_text", text_hash)
 
 # Add semantic embeddings
 embedding = embedder.embed_text(text)
 embed_hash = encoder.add_embeddings_block([embedding.vector])
-signer.add_provenance_entry("add_embeddings", embed_hash)
 
-# Build and save
-encoder.save("my_data.maif", "my_data_manifest.json")
+# Finalize (signs and writes all security/provenance data)
+encoder.finalize()
 
-# Verify
-decoder = MAIFDecoder("my_data.maif", "my_data_manifest.json")
-blocks = list(decoder.read_blocks())
-print(f"Loaded {len(blocks)} blocks")
+# Verify - v3 format is self-contained, no manifest needed
+decoder = MAIFDecoder("my_data.maif")
+decoder.load()
+is_valid, errors = decoder.verify_integrity()
+print(f"Integrity: {'VALID' if is_valid else 'INVALID'}")
+print(f"Loaded {len(decoder.blocks)} blocks")
 ```
 
 ## Architecture

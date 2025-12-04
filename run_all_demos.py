@@ -33,11 +33,18 @@ DEMOS = [
     # Security demos
     ("Privacy Demo", "examples/security/privacy_demo.py"),
     ("Classified API Demo", "examples/security/classified_api_simple_demo.py"),
-    # Advanced demos (comment out any that have heavy dependencies)
-    # ("Agent Demo", "examples/advanced/maif_agent_demo.py"),
-    # ("Video Demo", "examples/advanced/video_demo.py"),
-    # ("Versioning Demo", "examples/advanced/versioning_demo.py"),
-    # ("Advanced Features", "examples/advanced/advanced_features_demo.py"),
+    # Advanced demos
+    ("Video Demo", "examples/advanced/video_demo.py"),
+    ("Versioning Demo", "examples/advanced/versioning_demo.py"),
+    ("Advanced Features", "examples/advanced/advanced_features_demo.py"),
+    ("Hybrid Architecture", "examples/advanced/hybrid_architecture_demo.py"),
+    ("Agent Demo", "examples/advanced/maif_agent_demo.py"),
+    ("Lifecycle Management", "examples/advanced/lifecycle_management_demo.py"),
+    ("Enhanced Lifecycle", "examples/advanced/enhanced_lifecycle_demo.py"),
+    ("Novel Algorithms", "examples/advanced/novel_algorithms_demo.py"),
+    ("Agent State Restoration", "examples/advanced/agent_state_restoration_demo.py"),
+    ("Integrated Features", "examples/advanced/integrated_features_demo.py"),
+    # Skipped: multi_agent_consortium_demo.py (3895 lines, very complex)
 ]
 
 # Track results

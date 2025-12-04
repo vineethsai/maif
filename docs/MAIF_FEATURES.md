@@ -32,35 +32,41 @@ MAIF (Multimodal Artifact File Format) is a comprehensive, AI-native file format
 
 #### MAIFEncoder
 ```python
-from maif import MAIFEncoder
+from maif import MAIFEncoder, BlockType
 
-encoder = MAIFEncoder(agent_id="my_agent")
+# v3 format - self-contained with embedded security
+encoder = MAIFEncoder("output.maif", agent_id="my_agent")
 encoder.add_text_block("Hello, MAIF!")
-encoder.add_binary_block(image_data, "image_data")
-encoder.build_maif("output.maif", "manifest.json")
+encoder.add_binary_block(image_data, BlockType.IMAGE)
+encoder.finalize()  # Signs and embeds all provenance
 ```
 
 **Features:**
 - Text and binary block encoding
 - Metadata attachment
-- Automatic hash generation
-- Version tracking
+- Automatic Ed25519 signing per block
+- Merkle root calculation
+- Embedded provenance chain
 - Agent attribution
 
 #### MAIFDecoder
 ```python
-from maif.core import MAIFDecoder
+from maif import MAIFDecoder
 
-decoder = MAIFDecoder("file.maif", "manifest.json")
-blocks = list(decoder.blocks)
-metadata = decoder.manifest
+# v3 format - no manifest needed
+decoder = MAIFDecoder("file.maif")
+decoder.load()
+blocks = decoder.blocks
+is_valid, errors = decoder.verify_integrity()
+provenance = decoder.get_provenance()
 ```
 
 **Features:**
+- Self-contained file parsing
 - Content extraction
-- Metadata parsing
-- Version history access
-- Dependency resolution
+- Embedded provenance access
+- Integrity verification
+- Signature verification
 
 ### 2. Security & Provenance (`maif.security`)
 
@@ -356,7 +362,7 @@ maif extract file.maif --output-dir ./extracted --type all
 ### 1. AI Model Artifacts
 ```python
 # Store model weights, metadata, and provenance
-encoder = MAIFEncoder(agent_id="training_system")
+encoder = MAIFEncoder("model_artifact.maif", agent_id="training_system")
 encoder.add_binary_block(model_weights, "model_weights")
 encoder.add_metadata_block({
     "model_type": "transformer",
@@ -364,33 +370,37 @@ encoder.add_metadata_block({
     "accuracy": 0.95,
     "training_time": "4h 32m"
 })
+encoder.finalize()
 ```
 
 ### 2. Document Versioning
 ```python
 # Track document changes with full history
-encoder = MAIFEncoder(agent_id="document_editor")
+encoder = MAIFEncoder("document_versions.maif", agent_id="document_editor")
 for version in document_versions:
     block_id = encoder.add_text_block(version.content)
     encoder.add_version_metadata(block_id, version.metadata)
+encoder.finalize()
 ```
 
 ### 3. Multimedia Collections
 ```python
 # Store mixed media with semantic relationships
-encoder = MAIFEncoder(agent_id="media_curator")
+encoder = MAIFEncoder("multimedia.maif", agent_id="media_curator")
 text_id = encoder.add_text_block(description)
 image_id = encoder.add_binary_block(image_data, "image_data")
 encoder.add_relationship(text_id, "describes", image_id)
+encoder.finalize()
 ```
 
 ### 4. Scientific Data
 ```python
 # Research data with provenance and validation
-encoder = MAIFEncoder(agent_id="research_lab")
+encoder = MAIFEncoder("experiment_data.maif", agent_id="research_lab")
 encoder.add_binary_block(experiment_data, "scientific_data")
 encoder.add_provenance_chain(experiment_metadata)
 encoder.add_validation_schema(data_schema)
+encoder.finalize()
 ```
 
 ## Performance Characteristics

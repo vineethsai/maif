@@ -139,8 +139,8 @@ class VectorDBMigrator:
             errors.append(f"Pinecone migration error: {str(e)}")
             logger.error(f"Pinecone migration failed: {e}")
         
-        # Save MAIF
-        self.encoder.save(str(self.target_maif_path))
+        # Save MAIF (v3 format)
+        self.encoder.finalize()
         
         return MigrationResult(
             source_db="pinecone",
@@ -224,8 +224,8 @@ class VectorDBMigrator:
             errors.append(f"ChromaDB migration error: {str(e)}")
             logger.error(f"ChromaDB migration failed: {e}")
         
-        # Save MAIF
-        self.encoder.save(str(self.target_maif_path))
+        # Save MAIF (v3 format)
+        self.encoder.finalize()
         
         return MigrationResult(
             source_db="chromadb",
@@ -336,8 +336,8 @@ class VectorDBMigrator:
             errors.append(f"Weaviate migration error: {str(e)}")
             logger.error(f"Weaviate migration failed: {e}")
         
-        # Save MAIF
-        self.encoder.save(str(self.target_maif_path))
+        # Save MAIF (v3 format)
+        self.encoder.finalize()
         
         return MigrationResult(
             source_db="weaviate",
@@ -429,8 +429,8 @@ class VectorDBMigrator:
             errors.append(f"JSON migration error: {str(e)}")
             logger.error(f"JSON migration failed: {e}")
         
-        # Save MAIF
-        self.encoder.save(str(self.target_maif_path))
+        # Save MAIF (v3 format)
+        self.encoder.finalize()
         
         return MigrationResult(
             source_db="json",

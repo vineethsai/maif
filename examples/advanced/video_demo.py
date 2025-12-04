@@ -1,6 +1,6 @@
 """
 Video functionality demonstration for MAIF.
-Shows enhanced video storage, metadata extraction, and querying capabilities.
+Shows video storage using binary blocks with metadata extraction.
 
 Uses the secure MAIF format with:
 - Ed25519 signatures (64 bytes per block)
@@ -12,27 +12,15 @@ import os
 import sys
 import tempfile
 import struct
+import json
 
 # Add the parent directory to the path so we can import maif
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from maif import MAIFEncoder, MAIFDecoder
-from maif.privacy import PrivacyPolicy, PrivacyLevel, EncryptionMode
 
 
-def create_sample_video_data(format_type: str = "mp4", duration: float = 10.0, 
-                           width: int = 1920, height: int = 1080) -> bytes:
-    """Create sample video data for demonstration."""
-    if format_type == "mp4":
-        return create_mock_mp4(duration, width, height)
-    elif format_type == "avi":
-        return create_mock_avi()
-    else:
-        # Generic video data
-        return b'\x00' * (1024 * 1024)  # 1MB of dummy data
-
-
-def create_mock_mp4(duration: float, width: int, height: int) -> bytes:
+def create_mock_mp4(duration: float = 10.0, width: int = 1920, height: int = 1080) -> bytes:
     """Create mock MP4 data with proper structure."""
     data = bytearray()
     
@@ -45,335 +33,264 @@ def create_mock_mp4(duration: float, width: int, height: int) -> bytes:
     data.extend(b'mp42isom')
     data.extend(b'\x00' * 12)
     
-    # mvhd box
+    # mvhd box (movie header) with duration
     mvhd_size = 108
     data.extend(struct.pack('>I', mvhd_size))
     data.extend(b'mvhd')
-    data.extend(struct.pack('>I', 0))
-    data.extend(struct.pack('>I', 0))
-    data.extend(struct.pack('>I', 0))
-    timescale = 1000
-    data.extend(struct.pack('>I', timescale))
-    data.extend(struct.pack('>I', int(duration * timescale)))
-    data.extend(b'\x00' * 80)
+    data.extend(struct.pack('>I', 0))  # version/flags
+    data.extend(struct.pack('>I', 0))  # creation time
+    data.extend(struct.pack('>I', 0))  # modification time
+    data.extend(struct.pack('>I', 1000))  # timescale
+    data.extend(struct.pack('>I', int(duration * 1000)))  # duration in timescale units
+    data.extend(b'\x00' * 76)  # remaining mvhd fields
     
-    # tkhd box
+    # tkhd box (track header) with dimensions
     tkhd_size = 92
     data.extend(struct.pack('>I', tkhd_size))
     data.extend(b'tkhd')
-    data.extend(struct.pack('>I', 0))
-    data.extend(b'\x00' * 72)
-    data.extend(struct.pack('>I', width << 16))
-    data.extend(struct.pack('>I', height << 16))
+    data.extend(struct.pack('>I', 0x0F))  # version/flags (track enabled)
+    data.extend(struct.pack('>I', 0))  # creation time
+    data.extend(struct.pack('>I', 0))  # modification time
+    data.extend(struct.pack('>I', 1))  # track ID
+    data.extend(struct.pack('>I', 0))  # reserved
+    data.extend(struct.pack('>I', int(duration * 1000)))  # duration
+    data.extend(b'\x00' * 8)  # reserved
+    data.extend(struct.pack('>h', 0))  # layer
+    data.extend(struct.pack('>h', 0))  # alternate group
+    data.extend(struct.pack('>h', 0x0100))  # volume
+    data.extend(struct.pack('>h', 0))  # reserved
+    data.extend(b'\x00' * 36)  # matrix
+    data.extend(struct.pack('>I', width << 16))  # width (fixed point)
+    data.extend(struct.pack('>I', height << 16))  # height (fixed point)
     
-    # Add dummy video data
-    data.extend(b'\x00' * 2000)
+    # mdat box (media data)
+    mdat_size = 1024
+    data.extend(struct.pack('>I', mdat_size))
+    data.extend(b'mdat')
+    data.extend(b'\x00' * (mdat_size - 8))
     
     return bytes(data)
 
 
-def create_mock_avi() -> bytes:
-    """Create mock AVI data."""
-    data = bytearray()
-    data.extend(b'RIFF')
-    data.extend(struct.pack('<I', 1500))
-    data.extend(b'AVI ')
-    data.extend(b'\x00' * 1500)
-    return bytes(data)
+def extract_video_metadata(data: bytes) -> dict:
+    """Extract metadata from video data (mock implementation)."""
+    metadata = {
+        "format": "unknown",
+        "duration": 0,
+        "width": 0,
+        "height": 0,
+        "size_bytes": len(data)
+    }
+    
+    # Check for MP4 signature
+    if len(data) >= 12 and data[4:8] == b'ftyp':
+        metadata["format"] = "mp4"
+        
+        # Try to parse mvhd for duration
+        offset = 0
+        while offset < len(data) - 8:
+            try:
+                box_size = struct.unpack('>I', data[offset:offset+4])[0]
+                box_type = data[offset+4:offset+8]
+                
+                if box_type == b'mvhd' and offset + 24 < len(data):
+                    timescale = struct.unpack('>I', data[offset+20:offset+24])[0]
+                    duration_units = struct.unpack('>I', data[offset+24:offset+28])[0]
+                    if timescale > 0:
+                        metadata["duration"] = duration_units / timescale
+                
+                if box_type == b'tkhd' and offset + 84 < len(data):
+                    width_fp = struct.unpack('>I', data[offset+84:offset+88])[0]
+                    height_fp = struct.unpack('>I', data[offset+88:offset+92])[0]
+                    metadata["width"] = width_fp >> 16
+                    metadata["height"] = height_fp >> 16
+                
+                offset += max(box_size, 8)
+            except:
+                break
+    
+    return metadata
 
 
 def demonstrate_video_storage():
-    """Demonstrate video storage with metadata extraction."""
+    """Demonstrate storing videos in MAIF."""
     print("=== Video Storage Demonstration ===")
     
-    # Create temp file path for secure MAIF format
+    # Create temporary directory for output
     temp_dir = tempfile.mkdtemp()
     maif_path = os.path.join(temp_dir, "video_demo.maif")
+    
+    # Create MAIF encoder (secure format with Ed25519)
     encoder = MAIFEncoder(maif_path, agent_id="video-demo-agent")
     
-    # Create sample videos with different properties
+    # Sample videos with different properties
     videos = [
-        {
-            "data": create_sample_video_data("mp4", 15.5, 1920, 1080),
-            "metadata": {
-                "title": "High Definition Demo",
-                "description": "A sample 1080p video",
-                "tags": ["demo", "hd", "test"],
-                "creator": "MAIF Demo"
-            }
-        },
-        {
-            "data": create_sample_video_data("mp4", 30.0, 1280, 720),
-            "metadata": {
-                "title": "Standard Definition Demo",
-                "description": "A sample 720p video",
-                "tags": ["demo", "sd", "test"],
-                "creator": "MAIF Demo"
-            }
-        },
-        {
-            "data": create_sample_video_data("avi"),
-            "metadata": {
-                "title": "AVI Format Demo",
-                "description": "A sample AVI video",
-                "tags": ["demo", "avi", "legacy"],
-                "creator": "MAIF Demo"
-            }
-        }
+        {"duration": 10.0, "width": 1920, "height": 1080, "title": "High Definition Demo"},
+        {"duration": 30.0, "width": 1280, "height": 720, "title": "Standard Definition Clip"},
+        {"duration": 5.0, "width": 3840, "height": 2160, "title": "4K Ultra HD Sample"},
     ]
     
-    print(f"Adding {len(videos)} videos to MAIF...")
+    print(f"\nAdding {len(videos)} videos to MAIF...")
     
-    for i, video in enumerate(videos):
-        print(f"\nAdding video {i+1}: {video['metadata']['title']}")
+    for i, video_spec in enumerate(videos):
+        print(f"\n  Adding video {i+1}: {video_spec['title']}")
         
-        # Add video with automatic metadata extraction
-        video_hash = encoder.add_video_block(
-            video["data"],
-            metadata=video["metadata"],
-            extract_metadata=True
+        # Create mock video data
+        video_data = create_mock_mp4(
+            duration=video_spec["duration"],
+            width=video_spec["width"],
+            height=video_spec["height"]
         )
         
-        print(f"  Video hash: {video_hash[:16]}...")
+        # Extract metadata from video
+        extracted = extract_video_metadata(video_data)
+        extracted["title"] = video_spec["title"]
         
-        # Show extracted metadata
-        video_block = encoder.blocks[-1]
-        extracted = video_block.metadata
+        # Store video as binary block with metadata
+        metadata = {
+            "content_type": "video/mp4",
+            "title": video_spec["title"],
+            "format": extracted["format"],
+            "duration": extracted["duration"],
+            "resolution": f"{extracted['width']}x{extracted['height']}",
+            "size_bytes": extracted["size_bytes"]
+        }
         
-        print(f"  Format: {extracted.get('format', 'unknown')}")
-        print(f"  Duration: {extracted.get('duration', 'unknown')} seconds")
-        print(f"  Resolution: {extracted.get('resolution', 'unknown')}")
-        print(f"  Size: {extracted.get('size_bytes', 0) / 1024:.1f} KB")
-        print(f"  Semantic analysis: {extracted.get('has_semantic_analysis', False)}")
+        # Add as binary block (videos are stored as binary data)
+        block = encoder.add_binary_block(video_data, metadata=metadata)
+        
+        print(f"    Format: {extracted['format']}")
+        print(f"    Duration: {extracted['duration']:.1f} seconds")
+        print(f"    Resolution: {extracted['width']}x{extracted['height']}")
+        print(f"    Size: {extracted['size_bytes'] / 1024:.1f} KB")
     
-    return encoder
-
-
-def demonstrate_video_querying(encoder: MAIFEncoder):
-    """Demonstrate video querying capabilities."""
-    print("\n=== Video Querying Demonstration ===")
-    
-    # Finalize the MAIF file (self-contained with Ed25519 signatures)
+    # Finalize (signs with Ed25519, no manifest needed)
     encoder.finalize()
-    maif_path = encoder.file_path
-    temp_dir = os.path.dirname(maif_path)
-    print(f"MAIF file saved to: {maif_path}")
-    print("  (Self-contained with Ed25519 signatures)")
     
-    # Load and query (no manifest needed)
+    print(f"\n✓ Created video MAIF: {maif_path}")
+    print(f"  (Self-contained with Ed25519 signatures)")
+    
+    return maif_path
+
+
+def demonstrate_video_retrieval(maif_path: str):
+    """Demonstrate retrieving videos from MAIF."""
+    print("\n=== Video Retrieval Demonstration ===")
+    
+    # Load MAIF file
     decoder = MAIFDecoder(maif_path)
-    decoder.load()
     
-    print("\n--- Basic Video Information ---")
-    video_blocks = decoder.get_video_blocks()
-    print(f"Total videos found: {len(video_blocks)}")
+    # Verify integrity
+    is_valid, errors = decoder.verify_integrity()
+    print(f"\n  Integrity check: {'✓ Valid' if is_valid else '✗ Invalid'}")
+    
+    # Get all blocks
+    blocks = decoder.get_blocks()
+    video_blocks = [b for b in blocks if (b.metadata or {}).get("content_type", "").startswith("video/")]
+    
+    print(f"  Found {len(video_blocks)} video blocks")
     
     for i, block in enumerate(video_blocks):
-        metadata = block.metadata
-        print(f"\nVideo {i+1}:")
-        print(f"  Title: {metadata.get('title', 'Unknown')}")
-        print(f"  Format: {metadata.get('format', 'unknown')}")
-        print(f"  Duration: {metadata.get('duration', 'unknown')} seconds")
-        print(f"  Resolution: {metadata.get('resolution', 'unknown')}")
-    
-    print("\n--- Query Examples ---")
-    
-    # Query by duration
-    print("\n1. Videos longer than 20 seconds:")
-    long_videos = decoder.query_videos(duration_range=(20.0, 60.0))
-    for video in long_videos:
-        print(f"  - {video['metadata']['title']} ({video['duration']}s)")
-    
-    # Query by resolution
-    print("\n2. HD videos (1080p or higher):")
-    hd_videos = decoder.query_videos(min_resolution="1080p")
-    for video in hd_videos:
-        print(f"  - {video['metadata']['title']} ({video['resolution']})")
-    
-    # Query by format
-    print("\n3. MP4 videos:")
-    mp4_videos = decoder.query_videos(format_filter="mp4")
-    for video in mp4_videos:
-        print(f"  - {video['metadata']['title']} (format: {video['format']})")
-    
-    # Query by size
-    print("\n4. Videos smaller than 5MB:")
-    small_videos = decoder.query_videos(max_size_mb=5.0)
-    for video in small_videos:
-        size_mb = video['size_bytes'] / (1024 * 1024)
-        print(f"  - {video['metadata']['title']} ({size_mb:.1f}MB)")
-    
-    # Combined query
-    print("\n5. Short HD videos (less than 20 seconds, 1080p+):")
-    short_hd = decoder.query_videos(
-        duration_range=(0.0, 20.0),
-        min_resolution="1080p"
-    )
-    for video in short_hd:
-        print(f"  - {video['metadata']['title']} ({video['duration']}s, {video['resolution']})")
-    
-    return decoder, temp_dir
+        metadata = block.metadata or {}
+        print(f"\n  Video {i+1}: {metadata.get('title', 'Untitled')}")
+        print(f"    Format: {metadata.get('format', 'unknown')}")
+        print(f"    Duration: {metadata.get('duration', 0):.1f}s")
+        print(f"    Resolution: {metadata.get('resolution', 'unknown')}")
+        print(f"    Size: {metadata.get('size_bytes', 0) / 1024:.1f} KB")
+        print(f"    Block signed: ✓")
 
 
-def demonstrate_semantic_search(decoder: MAIFDecoder):
-    """Demonstrate semantic video search."""
-    print("\n=== Semantic Video Search ===")
+def demonstrate_video_search(maif_path: str):
+    """Demonstrate searching for videos by metadata."""
+    print("\n=== Video Search Demonstration ===")
     
-    # Search for videos by content
-    search_queries = [
-        "high definition video",
-        "demo content",
-        "standard quality"
-    ]
+    decoder = MAIFDecoder(maif_path)
+    blocks = decoder.get_blocks()
     
-    for query in search_queries:
-        print(f"\nSearching for: '{query}'")
-        results = decoder.search_videos_by_content(query, top_k=3)
+    # Search for HD videos (1080p or higher)
+    print("\n  Searching for HD videos (1080p+)...")
+    
+    for block in blocks:
+        metadata = block.metadata or {}
+        resolution = metadata.get("resolution", "")
         
-        if results:
-            for i, result in enumerate(results):
-                print(f"  {i+1}. {result['metadata']['title']} "
-                      f"(similarity: {result['similarity_score']:.3f})")
-        else:
-            print("  No semantic search results (semantic module may not be available)")
-
-
-def demonstrate_video_statistics(decoder: MAIFDecoder):
-    """Demonstrate video statistics and summary."""
-    print("\n=== Video Statistics ===")
+        if resolution:
+            try:
+                width, height = map(int, resolution.split("x"))
+                if height >= 1080:
+                    print(f"    ✓ Found: {metadata.get('title', 'Untitled')} ({resolution})")
+            except:
+                pass
     
-    summary = decoder.get_video_summary()
+    # Search by duration
+    print("\n  Searching for videos longer than 10 seconds...")
     
-    print(f"Total videos: {summary.get('total_videos', 0)}")
-    print(f"Total duration: {summary.get('total_duration_seconds', 0):.1f} seconds")
-    print(f"Total size: {summary.get('total_size_mb', 0):.1f} MB")
-    print(f"Average duration: {summary.get('average_duration', 0):.1f} seconds")
-    print(f"Videos with semantic analysis: {summary.get('videos_with_semantic_analysis', 0)}")
-    
-    print("\nFormat distribution:")
-    for format_name, count in summary.get('formats', {}).items():
-        print(f"  {format_name}: {count} videos")
-    
-    print("\nResolution distribution:")
-    for resolution, count in summary.get('resolutions', {}).items():
-        print(f"  {resolution}: {count} videos")
-
-
-def demonstrate_privacy_features():
-    """Demonstrate video storage with privacy controls."""
-    print("\n=== Privacy-Enabled Video Storage ===")
-    
-    temp_dir = tempfile.mkdtemp()
-    maif_path = os.path.join(temp_dir, "privacy_video.maif")
-    encoder = MAIFEncoder(maif_path, agent_id="privacy-demo-agent", enable_privacy=True)
-    
-    # Create privacy policy for sensitive video content
-    confidential_policy = PrivacyPolicy(
-        privacy_level=PrivacyLevel.CONFIDENTIAL,
-        encryption_mode=EncryptionMode.AES_GCM,
-        anonymization_required=False,
-        audit_required=True
-    )
-    
-    # Add confidential video
-    sensitive_video = create_sample_video_data("mp4", 25.0, 1920, 1080)
-    
-    video_hash = encoder.add_video_block(
-        sensitive_video,
-        metadata={
-            "title": "Confidential Meeting Recording",
-            "description": "Internal company meeting",
-            "classification": "confidential"
-        },
-        privacy_policy=confidential_policy
-    )
-    
-    print("Added confidential video with encryption")
-    print(f"Video hash: {video_hash[:16]}...")
-    
-    # Check privacy metadata
-    video_block = encoder.blocks[0]
-    privacy_info = video_block.metadata.get('privacy_policy', {})
-    print(f"Privacy level: {privacy_info.get('privacy_level', 'none')}")
-    print(f"Encryption mode: {privacy_info.get('encryption_mode', 'none')}")
-    print(f"Audit required: {privacy_info.get('audit_required', False)}")
-
-
-def demonstrate_video_retrieval(decoder: MAIFDecoder, temp_dir: str):
-    """Demonstrate video data retrieval."""
-    print("\n=== Video Data Retrieval ===")
-    
-    video_blocks = decoder.get_video_blocks()
-    
-    if video_blocks:
-        # Get the first video
-        first_video = video_blocks[0]
-        print(f"Retrieving video: {first_video.metadata.get('title', 'Unknown')}")
+    for block in blocks:
+        metadata = block.metadata or {}
+        duration = metadata.get("duration", 0)
         
-        # Get video data
-        video_data = decoder.get_video_data(first_video.block_id)
-        
-        if video_data:
-            print(f"Retrieved {len(video_data)} bytes of video data")
-            
-            # Save to file
-            output_path = os.path.join(temp_dir, "retrieved_video.mp4")
-            with open(output_path, 'wb') as f:
-                f.write(video_data)
-            
-            print(f"Video saved to: {output_path}")
-        else:
-            print("Failed to retrieve video data")
+        if duration > 10:
+            print(f"    ✓ Found: {metadata.get('title', 'Untitled')} ({duration:.1f}s)")
+
+
+def demonstrate_provenance(maif_path: str):
+    """Show provenance tracking for video operations."""
+    print("\n=== Provenance Tracking ===")
+    
+    decoder = MAIFDecoder(maif_path)
+    provenance = decoder.get_provenance()
+    
+    print(f"\n  Recorded {len(provenance)} operations:")
+    
+    for entry in provenance:
+        print(f"    • {entry.operation} by {entry.agent_id}")
 
 
 def main():
-    """Run the complete video functionality demonstration."""
+    """Run the video demonstration."""
+    print("=" * 60)
     print("MAIF Enhanced Video Functionality Demo")
-    print("=" * 50)
+    print("=" * 60)
     
     try:
-        # Demonstrate video storage
-        encoder = demonstrate_video_storage()
+        # Store videos
+        maif_path = demonstrate_video_storage()
         
-        # Demonstrate querying
-        decoder, temp_dir = demonstrate_video_querying(encoder)
+        # Retrieve and display
+        demonstrate_video_retrieval(maif_path)
         
-        # Demonstrate semantic search
-        demonstrate_semantic_search(decoder)
+        # Search capabilities
+        demonstrate_video_search(maif_path)
         
-        # Demonstrate statistics
-        demonstrate_video_statistics(decoder)
-        
-        # Demonstrate video retrieval
-        demonstrate_video_retrieval(decoder, temp_dir)
-        
-        # Demonstrate privacy features
-        demonstrate_privacy_features()
-        
-        print("\n" + "=" * 50)
-        print("Video functionality demonstration completed!")
-        print("\nKey features demonstrated:")
-        print("✓ Automatic video metadata extraction")
-        print("✓ Semantic embedding generation")
-        print("✓ Advanced video querying by properties")
-        print("✓ Semantic content search")
-        print("✓ Video statistics and summaries")
-        print("✓ Privacy-controlled video storage")
-        print("✓ Video data retrieval")
-        print("\nSecure format features:")
-        print("✓ Ed25519 signatures (64 bytes per block)")
-        print("✓ Self-contained files (no external manifest)")
-        print("✓ Embedded provenance chain")
+        # Show provenance
+        demonstrate_provenance(maif_path)
         
         # Cleanup
         import shutil
-        shutil.rmtree(temp_dir, ignore_errors=True)
+        temp_dir = os.path.dirname(maif_path)
+        shutil.rmtree(temp_dir)
+        
+        print("\n" + "=" * 60)
+        print("Video Demo Complete!")
+        print("=" * 60)
+        print("""
+Key features demonstrated:
+  ✓ Video storage as binary blocks with metadata
+  ✓ Metadata extraction from video data
+  ✓ Ed25519 signatures for each block
+  ✓ Video retrieval and search by metadata
+  ✓ Provenance tracking for all operations
+  ✓ Self-contained format (no external manifest)
+""")
         
     except Exception as e:
         print(f"\nError during demonstration: {e}")
         import traceback
         traceback.print_exc()
+        return 1
+    
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

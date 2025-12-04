@@ -58,7 +58,7 @@ BlockType.BINARY      # "BINA" - Generic binary data
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="block-demo")
+encoder = MAIFEncoder("blocks.maif", agent_id="block-demo")
 
 # Text block
 text_id = encoder.add_text_block(
@@ -87,7 +87,7 @@ embed_id = encoder.add_embeddings_block(
     metadata={"model": "bert", "dimension": 3}
 )
 
-encoder.save("blocks.maif")
+encoder.finalize()
 ```
 
 ### Using Simple API
@@ -412,7 +412,7 @@ encoder.add_text_block(
     anonymize=True
 )
 
-encoder.save("private_blocks.maif")
+encoder.finalize()
 ```
 
 ## Complete Example
@@ -421,8 +421,8 @@ encoder.save("private_blocks.maif")
 from maif.core import MAIFEncoder, MAIFDecoder
 from maif.privacy import PrivacyLevel
 
-# Create encoder
-encoder = MAIFEncoder(agent_id="complete-demo")
+# Create encoder (file path is first argument in v3 API)
+encoder = MAIFEncoder("complete.maif", agent_id="complete-demo")
 
 # Add various blocks
 # Text block
@@ -446,8 +446,8 @@ embed_id = encoder.add_embeddings_block(
     }
 )
 
-# Save
-encoder.save("complete.maif")
+# Finalize and save
+encoder.finalize()
 
 # Read back
 decoder = MAIFDecoder("complete.maif")

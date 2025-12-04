@@ -317,16 +317,15 @@ class DistributedCoordinator:
         self.running = False
         self._lock = threading.Lock()
         
-        # Initialize MAIF
+        # Initialize MAIF (v3 format - self-contained)
         from .core import MAIFEncoder, MAIFDecoder
         
-        self.manifest_path = self.maif_path.with_suffix('.json')
         if self.maif_path.exists():
-            self.decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
-            self.encoder = MAIFEncoder(existing_maif_path=str(self.maif_path),
-                                     existing_manifest_path=str(self.manifest_path))
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+            self.encoder = None
         else:
-            self.encoder = MAIFEncoder()
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="distributed_coordinator")
             self.decoder = None
         
         # Start coordinator

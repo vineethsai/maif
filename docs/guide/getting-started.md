@@ -78,8 +78,8 @@ For more control, use the core classes directly:
 from maif.core import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner
 
-# Create an encoder
-encoder = MAIFEncoder(agent_id="my-agent")
+# Create an encoder (file path is first argument)
+encoder = MAIFEncoder("detailed_artifact.maif", agent_id="my-agent")
 
 # Add blocks with full control
 block_id = encoder.add_text_block(
@@ -92,8 +92,8 @@ block_id = encoder.add_text_block(
 )
 print(f"Added block: {block_id}")
 
-# Save with manifest
-encoder.save("detailed_artifact.maif")
+# Finalize and save
+encoder.finalize()
 
 # Read back with decoder
 decoder = MAIFDecoder("detailed_artifact.maif")
@@ -221,6 +221,7 @@ privacy_engine = PrivacyEngine()
 
 # Create encoder with privacy
 encoder = MAIFEncoder(
+    "privacy_demo.maif",
     agent_id="privacy-demo",
     enable_privacy=True,
     privacy_engine=privacy_engine
@@ -234,7 +235,7 @@ encoder.add_text_block(
     anonymize=True
 )
 
-encoder.save("privacy_demo.maif")
+encoder.finalize()
 ```
 
 ## Working with the Core API
@@ -246,7 +247,7 @@ The encoder creates and writes MAIF files:
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="encoder-demo")
+encoder = MAIFEncoder("encoder_demo.maif", agent_id="encoder-demo")
 
 # Add text block
 text_id = encoder.add_text_block("Hello, MAIF!", metadata={"lang": "en"})
@@ -260,8 +261,8 @@ binary_id = encoder.add_binary_block(image_data, metadata={"type": "image/png"})
 embeddings = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 embed_id = encoder.add_embeddings_block(embeddings, metadata={"model": "bert"})
 
-# Save the artifact
-encoder.save("encoder_demo.maif")
+# Finalize the artifact
+encoder.finalize()
 ```
 
 ### MAIFDecoder

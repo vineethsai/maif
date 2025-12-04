@@ -19,12 +19,24 @@ import numpy as np
 # Import MAIF components
 from .core import MAIFEncoder, MAIFDecoder
 from .validation import MAIFValidator
-from .security import SecurityManager
 from .semantic_optimized import OptimizedSemanticEmbedder, CryptographicSemanticBinding
 from .self_optimizing import SelfOptimizingMAIF
 from .distributed import DistributedCoordinator
 
 logger = logging.getLogger(__name__)
+
+# Block type constants (match SecureBlockType enum values)
+BLOCK_TYPE_TEXT = 1
+BLOCK_TYPE_EMBEDDINGS = 2
+BLOCK_TYPE_BINARY = 3
+
+def get_block_type_name(block_type) -> str:
+    """Get block type name from int or enum."""
+    if hasattr(block_type, 'name'):
+        return get_block_type_name(block_type)
+    # Handle int values
+    type_map = {1: "TEXT", 2: "EMBEDDINGS", 3: "BINARY", 4: "METADATA", 5: "INDEX"}
+    return type_map.get(int(block_type), f"UNKNOWN_{block_type}")
 
 # Lifecycle States
 class MAIFLifecycleState(Enum):
@@ -85,9 +97,6 @@ class MAIFMerger:
         """
         logger.info(f"Merging {len(maif_paths)} MAIF files using {merge_strategy} strategy")
         
-        # Create output encoder
-        output_encoder = MAIFEncoder()
-        
         # Track merge statistics
         stats = {
             "total_blocks": 0,
@@ -103,17 +112,17 @@ class MAIFMerger:
         seen_hashes = set()
         block_groups = []
         
-        # Load all MAIF files
+        # Load all MAIF files (v3 format - self-contained)
         for maif_path in maif_paths:
-            manifest_path = Path(maif_path).with_suffix('.json')
-            decoder = MAIFDecoder(maif_path, str(manifest_path))
+            decoder = MAIFDecoder(maif_path)
+            decoder.load()
             
             blocks = []
             for block in decoder.blocks:
                 stats["total_blocks"] += 1
                 
                 # Get block data and hash
-                block_data = decoder.get_block_data(block.block_id)
+                block_data = block.data
                 block_hash = hashlib.sha256(block_data).hexdigest()
                 
                 # Check for duplicates
@@ -141,32 +150,35 @@ class MAIFMerger:
         else:
             raise ValueError(f"Unknown merge strategy: {merge_strategy}")
         
+        # Create output encoder (v3 format)
+        output_encoder = MAIFEncoder(output_path, agent_id="maif_merger")
+        
         # Write merged blocks
         for block_info in merged_blocks:
             block = block_info["block"]
             data = block_info["data"]
+            block_type = block.header.block_type
             
             # Add to output MAIF
-            if block.block_type == "text":
+            if get_block_type_name(block_type) == "TEXT":
                 output_encoder.add_text_block(
                     data.decode('utf-8'),
-                    block.metadata
+                    metadata=block.metadata
                 )
             else:
                 output_encoder.add_binary_block(
                     data,
-                    block.block_type,
-                    block.metadata
+                    block_type,
+                    metadata=block.metadata
                 )
             
             stats["merged_blocks"] += 1
         
-        # Build output MAIF
-        output_manifest = Path(output_path).with_suffix('.json')
-        output_encoder.build_maif(output_path, str(output_manifest))
+        # Finalize output MAIF (v3 format)
+        output_encoder.finalize()
         
         # Validate merged MAIF
-        validation_result = self.validator.validate_file(output_path, str(output_manifest))
+        validation_result = self.validator.validate(output_path)
         
         stats["merge_time"] = time.time() - start_time
         stats["is_valid"] = validation_result.is_valid
@@ -195,7 +207,8 @@ class MAIFMerger:
         other_blocks = []
         
         for block_info in all_blocks:
-            if block_info["block"].block_type == "text":
+            block_type = block_info["block"].header.block_type
+            if get_block_type_name(block_type) == "TEXT":
                 text_blocks.append(block_info)
             else:
                 other_blocks.append(block_info)
@@ -261,9 +274,9 @@ class MAIFSplitter:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Load MAIF
-        manifest_path = Path(maif_path).with_suffix('.json')
-        decoder = MAIFDecoder(maif_path, str(manifest_path))
+        # Load MAIF (v3 format - self-contained)
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
         
         # Apply split strategy
         if split_strategy == "size":
@@ -283,47 +296,46 @@ class MAIFSplitter:
         max_size_bytes = int(max_size_mb * 1024 * 1024)
         output_paths = []
         
-        current_encoder = MAIFEncoder()
         current_size = 0
         part_num = 1
+        output_path = output_dir / f"part_{part_num}.maif"
+        current_encoder = MAIFEncoder(str(output_path), agent_id="maif_splitter")
         
         for block in decoder.blocks:
-            block_data = decoder.get_block_data(block.block_id)
+            block_data = block.data
             block_size = len(block_data)
+            block_type = block.header.block_type
             
             # Check if adding this block would exceed size limit
             if current_size + block_size > max_size_bytes and current_size > 0:
-                # Save current part
-                output_path = output_dir / f"part_{part_num}.maif"
-                manifest_path = output_path.with_suffix('.json')
-                current_encoder.build_maif(str(output_path), str(manifest_path))
+                # Finalize current part (v3 format)
+                current_encoder.finalize()
                 output_paths.append(str(output_path))
                 
                 # Start new part
-                current_encoder = MAIFEncoder()
-                current_size = 0
                 part_num += 1
+                output_path = output_dir / f"part_{part_num}.maif"
+                current_encoder = MAIFEncoder(str(output_path), agent_id="maif_splitter")
+                current_size = 0
             
             # Add block to current part
-            if block.block_type == "text":
+            if get_block_type_name(block_type) == "TEXT":
                 current_encoder.add_text_block(
                     block_data.decode('utf-8'),
-                    block.metadata
+                    metadata=block.metadata
                 )
             else:
                 current_encoder.add_binary_block(
                     block_data,
-                    block.block_type,
-                    block.metadata
+                    block_type,
+                    metadata=block.metadata
                 )
             
             current_size += block_size
         
-        # Save final part
+        # Finalize final part (v3 format)
         if current_size > 0:
-            output_path = output_dir / f"part_{part_num}.maif"
-            manifest_path = output_path.with_suffix('.json')
-            current_encoder.build_maif(str(output_path), str(manifest_path))
+            current_encoder.finalize()
             output_paths.append(str(output_path))
         
         logger.info(f"Split into {len(output_paths)} parts")
@@ -341,26 +353,27 @@ class MAIFSplitter:
             part_blocks = blocks[i:i + blocks_per_file]
             part_num = (i // blocks_per_file) + 1
             
-            encoder = MAIFEncoder()
+            output_path = output_dir / f"part_{part_num}.maif"
+            encoder = MAIFEncoder(str(output_path), agent_id="maif_splitter")
             
             for block in part_blocks:
-                block_data = decoder.get_block_data(block.block_id)
+                block_data = block.data
+                block_type = block.header.block_type
                 
-                if block.block_type == "text":
+                if get_block_type_name(block_type) == "TEXT":
                     encoder.add_text_block(
                         block_data.decode('utf-8'),
-                        block.metadata
+                        metadata=block.metadata
                     )
                 else:
                     encoder.add_binary_block(
                         block_data,
-                        block.block_type,
-                        block.metadata
+                        block_type,
+                        metadata=block.metadata
                     )
             
-            output_path = output_dir / f"part_{part_num}.maif"
-            manifest_path = output_path.with_suffix('.json')
-            encoder.build_maif(str(output_path), str(manifest_path))
+            # Finalize (v3 format)
+            encoder.finalize()
             output_paths.append(str(output_path))
         
         logger.info(f"Split into {len(output_paths)} parts")
@@ -369,48 +382,45 @@ class MAIFSplitter:
     def _split_by_type(self, decoder: MAIFDecoder, output_dir: Path) -> List[str]:
         """Split by block type."""
         type_encoders = {}
+        type_paths = {}
         
         for block in decoder.blocks:
-            block_type = block.block_type
+            block_type = block.header.block_type
+            type_name = get_block_type_name(block_type)
             
-            if block_type not in type_encoders:
-                type_encoders[block_type] = MAIFEncoder()
+            if type_name not in type_encoders:
+                output_path = output_dir / f"{type_name}.maif"
+                type_paths[type_name] = output_path
+                type_encoders[type_name] = MAIFEncoder(str(output_path), agent_id="maif_splitter")
             
-            # Get block data using block_id
-            block_data = decoder.get_block_data(block.block_id)
+            # Get block data
+            block_data = block.data or b''
             
-            # Skip if no data
-            if block_data is None:
-                block_data = b''
-            
-            if block_type == "text" or block_type == "TEXT":
+            if type_name == "TEXT":
                 try:
                     text_content = block_data.decode('utf-8') if block_data else ""
-                    type_encoders[block_type].add_text_block(
+                    type_encoders[type_name].add_text_block(
                         text_content,
-                        block.metadata
+                        metadata=block.metadata
                     )
                 except UnicodeDecodeError:
-                    # If can't decode as text, treat as binary
-                    type_encoders[block_type].add_binary_block(
+                    type_encoders[type_name].add_binary_block(
                         block_data,
                         block_type,
-                        block.metadata
+                        metadata=block.metadata
                     )
             else:
-                type_encoders[block_type].add_binary_block(
+                type_encoders[type_name].add_binary_block(
                     block_data,
                     block_type,
-                    block.metadata
+                    metadata=block.metadata
                 )
         
         output_paths = []
         
-        for block_type, encoder in type_encoders.items():
-            output_path = output_dir / f"{block_type}.maif"
-            manifest_path = output_path.with_suffix('.json')
-            encoder.build_maif(str(output_path), str(manifest_path))
-            output_paths.append(str(output_path))
+        for type_name, encoder in type_encoders.items():
+            encoder.finalize()
+            output_paths.append(str(type_paths[type_name]))
         
         logger.info(f"Split into {len(output_paths)} type-specific files")
         return output_paths
@@ -426,7 +436,8 @@ class MAIFSplitter:
         other_blocks = []
         
         for block in decoder.blocks:
-            if block.block_type == "text":
+            block_type = block.header.block_type
+            if get_block_type_name(block_type) == "TEXT":
                 text_blocks.append(block)
             else:
                 other_blocks.append(block)
@@ -438,7 +449,7 @@ class MAIFSplitter:
         # Get embeddings
         texts = []
         for block in text_blocks:
-            data = decoder.get_block_data(block.block_id).decode('utf-8')
+            data = block.data.decode('utf-8')
             texts.append(data)
         
         embeddings = embedder.embed_texts(texts)
@@ -451,35 +462,37 @@ class MAIFSplitter:
         
         # Create encoders for each cluster
         cluster_encoders = {}
+        cluster_paths = {}
         
         for i, (block, label) in enumerate(zip(text_blocks, labels)):
             if label not in cluster_encoders:
-                cluster_encoders[label] = MAIFEncoder()
+                output_path = output_dir / f"cluster_{label}.maif"
+                cluster_paths[label] = output_path
+                cluster_encoders[label] = MAIFEncoder(str(output_path), agent_id="maif_splitter")
             
-            block_data = decoder.get_block_data(block.block_id)
+            block_data = block.data
             cluster_encoders[label].add_text_block(
                 block_data.decode('utf-8'),
-                block.metadata
+                metadata=block.metadata
             )
         
         # Add non-text blocks to first cluster
         if 0 in cluster_encoders and other_blocks:
             for block in other_blocks:
-                block_data = decoder.get_block_data(block.block_id)
+                block_data = block.data
+                block_type = block.header.block_type
                 cluster_encoders[0].add_binary_block(
                     block_data,
-                    block.block_type,
-                    block.metadata
+                    block_type,
+                    metadata=block.metadata
                 )
         
-        # Save clusters
+        # Finalize clusters (v3 format)
         output_paths = []
         
         for cluster_id, encoder in cluster_encoders.items():
-            output_path = output_dir / f"cluster_{cluster_id}.maif"
-            manifest_path = output_path.with_suffix('.json')
-            encoder.build_maif(str(output_path), str(manifest_path))
-            output_paths.append(str(output_path))
+            encoder.finalize()
+            output_paths.append(str(cluster_paths[cluster_id]))
         
         logger.info(f"Split into {len(output_paths)} semantic clusters")
         return output_paths
@@ -623,8 +636,8 @@ class SelfGoverningMAIF:
             
             # Block count
             try:
-                manifest_path = self.maif_path.with_suffix('.json')
-                decoder = MAIFDecoder(str(self.maif_path), str(manifest_path))
+                decoder = MAIFDecoder(str(self.maif_path))
+                decoder.load()
                 self.metrics.block_count = len(decoder.blocks)
             except:
                 pass

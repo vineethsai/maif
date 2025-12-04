@@ -349,14 +349,14 @@ For more control, use the core MAIF classes:
 from maif.core import MAIFEncoder, MAIFDecoder
 
 # Encoding
-encoder = MAIFEncoder(agent_id="advanced_agent")
+encoder = MAIFEncoder("advanced.maif", agent_id="advanced_agent")
 encoder.add_text_block("Content", metadata={"custom": "data"})
-encoder.save("advanced.maif")
+encoder.finalize()
 
 # Decoding
 decoder = MAIFDecoder("advanced.maif")
 for block in decoder.read_blocks():
-    print(f"Block type: {block.block_type}")
+    print(f"Block type: {block.header.block_type.name}")
 ```
 
 ### Security Features

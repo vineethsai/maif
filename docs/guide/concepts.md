@@ -58,12 +58,13 @@ Each block contains:
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="demo")
+encoder = MAIFEncoder("output.maif", agent_id="demo")
 
 # Each method adds a block
 encoder.add_text_block("Text content")
 encoder.add_binary_block(binary_data)
 encoder.add_embeddings_block(vectors)
+encoder.finalize()
 ```
 
 ### 3. Agents
@@ -136,9 +137,9 @@ Low-level control for advanced use:
 from maif.core import MAIFEncoder, MAIFDecoder
 
 # Encode
-encoder = MAIFEncoder(agent_id="agent")
+encoder = MAIFEncoder("output.maif", agent_id="agent")
 encoder.add_text_block("Hello!", metadata={...})
-encoder.save("output.maif")
+encoder.finalize()
 
 # Decode
 decoder = MAIFDecoder("output.maif")

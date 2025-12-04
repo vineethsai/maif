@@ -21,6 +21,7 @@ from maif.core import MAIFEncoder
 
 # Enable memory mapping
 encoder = MAIFEncoder(
+    "large.maif",
     agent_id="performance-agent",
     enable_mmap=True
 )
@@ -29,7 +30,7 @@ encoder = MAIFEncoder(
 for i in range(10000):
     encoder.add_text_block(f"Document {i}")
 
-encoder.save("large.maif")
+encoder.finalize()
 ```
 
 ### Block Storage with mmap
@@ -53,6 +54,7 @@ from maif.core import MAIFEncoder
 
 # Configure buffer size
 encoder = MAIFEncoder(
+    "buffered.maif",
     agent_id="buffered-agent",
     buffer_size=128 * 1024  # 128KB buffer
 )
@@ -61,8 +63,8 @@ encoder = MAIFEncoder(
 for i in range(1000):
     encoder.add_text_block(f"Item {i}")
 
-# Buffer flushed on save
-encoder.save("buffered.maif")
+# Buffer flushed on finalize
+encoder.finalize()
 ```
 
 ## Compression
@@ -73,13 +75,14 @@ Enable compression to reduce file size and I/O:
 from maif.core import MAIFEncoder
 
 encoder = MAIFEncoder(
+    "compressed.maif",
     agent_id="compressed-agent",
     enable_compression=True
 )
 
 # Data is automatically compressed
 encoder.add_text_block("Large document content...")
-encoder.save("compressed.maif")
+encoder.finalize()
 ```
 
 ### Compression Manager
@@ -288,13 +291,13 @@ costs = tracker.get_summary()
 ### 1. Enable Memory Mapping for Large Files
 
 ```python
-encoder = MAIFEncoder(agent_id="fast", enable_mmap=True)
+encoder = MAIFEncoder("fast.maif", agent_id="fast", enable_mmap=True)
 ```
 
 ### 2. Use Compression
 
 ```python
-encoder = MAIFEncoder(agent_id="efficient", enable_compression=True)
+encoder = MAIFEncoder("efficient.maif", agent_id="efficient", enable_compression=True)
 ```
 
 ### 3. Batch Operations
@@ -353,6 +356,7 @@ metrics = initialize_metrics()
 
 # Create optimized encoder
 encoder = MAIFEncoder(
+    "optimized.maif",
     agent_id="optimized",
     enable_mmap=True,
     enable_compression=True,
@@ -371,7 +375,7 @@ for batch in processor.process(documents):
     for doc in batch:
         encoder.add_text_block(doc)
 
-encoder.save("optimized.maif")
+encoder.finalize()
 elapsed = time.time() - start
 
 print(f"Processed {len(documents)} documents in {elapsed:.2f}s")

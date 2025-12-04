@@ -403,7 +403,7 @@ class EnhancedMAIF:
             # Load MAIF to get block count if needed
             if self.metrics.block_count == 0:
                 try:
-                    decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
+                    decoder = MAIFDecoder(str(self.maif_path))
                     self.metrics.block_count = len(decoder.blocks)
                 except Exception as e:
                     logger.error(f"Error loading MAIF for metrics update: {e}")
@@ -878,8 +878,8 @@ class EnhancedMAIFProcessor:
             output_dir.mkdir(parents=True, exist_ok=True)
             
             try:
-                # Load MAIF
-                decoder = MAIFDecoder(str(maif.maif_path), str(maif.manifest_path))
+                # Load MAIF (v3 format - self-contained)
+                decoder = MAIFDecoder(str(maif.maif_path))
                 
                 # Extract content
                 extracted_files = []

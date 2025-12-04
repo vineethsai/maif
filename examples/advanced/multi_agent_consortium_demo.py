@@ -3460,13 +3460,11 @@ def demonstrate_multi_agent_consortium(num_rounds: int = 10, agent_counts: Dict[
     print("\nPHASE 4: Comprehensive Validation and Forensic Analysis...")
     print("-" * 60)
     
-    # Validate the consortium MAIF
+    # Validate the consortium MAIF (v3 format - self-contained)
     print("Validating consortium MAIF integrity...")
     try:
         validator = MAIFValidator()
-        manifest_path = output_path.replace('.maif', '_manifest.json')
-        saved_files.append(manifest_path)  # Track the manifest file
-        validation_report = validator.validate_file(output_path, manifest_path)
+        validation_report = validator.validate_file(output_path)
         
         print(f"✓ Validation complete:")
         print(f"  Valid: {validation_report.is_valid}")
@@ -3490,11 +3488,11 @@ def demonstrate_multi_agent_consortium(num_rounds: int = 10, agent_counts: Dict[
     print("\nPerforming forensic analysis...")
     try:
         from maif.core import MAIFParser
-        parser = MAIFParser(output_path, manifest_path)
+        parser = MAIFParser(output_path)
         verifier = MAIFVerifier()
         forensic_analyzer = ForensicAnalyzer()
         
-        forensic_report = forensic_analyzer.analyze_maif_file(output_path, manifest_path)
+        forensic_report = forensic_analyzer.analyze_maif_file(output_path)
         
         print(f"✓ Forensic analysis complete:")
         print(f"  File analyzed: {forensic_report['file_path']}")

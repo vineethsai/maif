@@ -38,17 +38,15 @@ class MAIFMigrator:
     
     def migrate_file_to_unified(self, 
                                source_maif_path: str, 
-                               source_manifest_path: str,
                                target_path: str,
                                use_aws: bool = False,
                                aws_bucket: Optional[str] = None,
                                aws_prefix: str = "maif/") -> Dict[str, any]:
         """
-        Migrate a legacy MAIF file to unified format.
+        Migrate a MAIF file to unified format (v3).
         
         Args:
             source_maif_path: Path to source MAIF file
-            source_manifest_path: Path to source manifest file
             target_path: Target path (file path or S3 prefix)
             use_aws: Whether to use AWS S3 storage
             aws_bucket: S3 bucket name (required if use_aws=True)
@@ -60,8 +58,9 @@ class MAIFMigrator:
         logger.info(f"Starting migration from {source_maif_path} to unified format")
         
         try:
-            # Read source MAIF file
-            decoder = MAIFDecoder(source_maif_path, source_manifest_path)
+            # Read source MAIF file (v3 format - self-contained)
+            decoder = MAIFDecoder(source_maif_path)
+            decoder.load()
             
             # Create unified storage
             unified_storage = UnifiedStorage(
@@ -230,7 +229,6 @@ class MAIFMigrator:
     def verify_migration(self,
                         source_path: str,
                         target_path: str,
-                        source_manifest_path: Optional[str] = None,
                         source_is_aws: bool = False,
                         target_is_aws: bool = False,
                         source_bucket: Optional[str] = None,
@@ -252,10 +250,11 @@ class MAIFMigrator:
         }
         
         try:
-            # For legacy source files
-            if source_manifest_path:
-                decoder = MAIFDecoder(source_path, source_manifest_path)
-                source_blocks = {block.block_id: block for block in decoder.blocks}
+            # For MAIF source files (v3 format)
+            if not source_is_aws and os.path.exists(source_path):
+                decoder = MAIFDecoder(source_path)
+                decoder.load()
+                source_blocks = {block.header.block_id: block for block in decoder.blocks}
             else:
                 # Unified source
                 source_storage = UnifiedStorage(

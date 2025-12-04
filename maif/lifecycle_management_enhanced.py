@@ -22,7 +22,6 @@ import numpy as np
 # Import MAIF components
 from .core import MAIFEncoder, MAIFDecoder
 from .validation import MAIFValidator
-from .security import SecurityManager
 from .semantic_optimized import OptimizedSemanticEmbedder, CryptographicSemanticBinding
 from .self_optimizing import SelfOptimizingMAIF
 from .distributed import DistributedCoordinator
@@ -445,8 +444,7 @@ class EnhancedSelfGoverningMAIF:
             
             # Block count
             try:
-                manifest_path = self.maif_path.with_suffix('.json')
-                decoder = MAIFDecoder(str(self.maif_path), str(manifest_path))
+                decoder = MAIFDecoder(str(self.maif_path))
                 self.metrics.block_count = len(decoder.blocks)
             except:
                 pass
@@ -548,8 +546,10 @@ class EnhancedSelfGoverningMAIF:
             # Check if the MAIF file exists
             if not self.maif_path.exists():
                 logger.info(f"MAIF file {self.maif_path} does not exist, creating an empty file")
-                # Create an empty MAIF file using the encoder
-                self.optimizer.encoder.build_maif(str(self.maif_path), str(self.maif_path.with_suffix('.json')))
+                # Create an empty MAIF file using the encoder (v3 format)
+                from .core import MAIFEncoder
+                temp_encoder = MAIFEncoder(str(self.maif_path), agent_id="lifecycle_manager")
+                temp_encoder.finalize()
                 logger.info(f"Created empty MAIF file {self.maif_path}")
             
             import gzip

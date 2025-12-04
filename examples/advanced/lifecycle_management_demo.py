@@ -48,8 +48,7 @@ def create_sample_maifs(workspace: Path, num_files: int = 3) -> list:
         # Add some binary data
         encoder.add_binary_block(
             b"Binary data sample" * 100,
-            "data",
-            {"type": "test_data", "file_id": i}
+            metadata={"type": "test_data", "file_id": i}
         )
         
         # Finalize (signs with Ed25519, self-contained)

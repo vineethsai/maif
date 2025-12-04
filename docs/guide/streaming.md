@@ -140,6 +140,7 @@ from maif.core import MAIFEncoder, MAIFDecoder
 
 # Enable memory mapping when creating
 encoder = MAIFEncoder(
+    "large.maif",
     agent_id="mmap-demo",
     enable_mmap=True
 )
@@ -148,7 +149,7 @@ encoder = MAIFEncoder(
 for i in range(10000):
     encoder.add_text_block(f"Content {i}")
 
-encoder.save("large.maif")
+encoder.finalize()
 ```
 
 ### Reading with Memory Mapping
@@ -172,6 +173,7 @@ from maif.core import MAIFEncoder
 
 # Configure buffer size
 encoder = MAIFEncoder(
+    "buffered.maif",
     agent_id="buffered",
     buffer_size=128 * 1024  # 128KB buffer
 )
@@ -180,8 +182,8 @@ encoder = MAIFEncoder(
 for i in range(1000):
     encoder.add_text_block(f"Item {i}")
 
-# Buffer is flushed on save
-encoder.save("buffered.maif")
+# Buffer is flushed on finalize
+encoder.finalize()
 ```
 
 ## Hot Buffer
@@ -220,7 +222,7 @@ with MAIFStreamReader("huge.maif") as reader:
 ### 2. Enable Memory Mapping
 
 ```python
-encoder = MAIFEncoder(agent_id="fast", enable_mmap=True)
+encoder = MAIFEncoder("fast.maif", agent_id="fast", enable_mmap=True)
 ```
 
 ### 3. Batch Operations

@@ -160,6 +160,7 @@ privacy_engine = PrivacyEngine()
 
 # Create encoder with privacy
 encoder = MAIFEncoder(
+    "secure_artifact.maif",
     agent_id="secure-encoder",
     enable_privacy=True,
     privacy_engine=privacy_engine
@@ -173,7 +174,7 @@ encoder.add_text_block(
     metadata={"classification": "top_secret"}
 )
 
-encoder.save("secure_artifact.maif")
+encoder.finalize()
 ```
 
 ## Access Control
@@ -251,6 +252,7 @@ from maif.privacy import PrivacyEngine, PrivacyLevel, EncryptionMode
 
 privacy = PrivacyEngine()
 encoder = MAIFEncoder(
+    "classified.maif",
     agent_id="classified-demo",
     enable_privacy=True,
     privacy_engine=privacy
@@ -276,7 +278,7 @@ encoder.add_text_block(
     encryption_mode=EncryptionMode.AES_GCM
 )
 
-encoder.save("classified.maif")
+encoder.finalize()
 ```
 
 ## Data Anonymization

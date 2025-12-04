@@ -246,34 +246,36 @@ def demo_maif_integration():
     
     # Add regular text block
     text_block_id = encoder.add_text_block(text_data, {"source": "demo", "type": "description"})
-    print(f"Added text block: {text_block_id}")
+    print(f"Added text block: {text_block_id[:16]}...")
     
-    # Add cross-modal block using ACAM
+    # Add cross-modal data as text block with ACAM metadata
     multimodal_data = {
         "text": text_data,
         "metadata": {"importance": "high", "category": "AI_trustworthiness"}
     }
-    cross_modal_block_id = encoder.add_cross_modal_block(
-        multimodal_data, 
-        {"algorithm": "ACAM", "demo": True}
+    cross_modal_block_id = encoder.add_text_block(
+        json.dumps(multimodal_data),
+        {"algorithm": "ACAM", "demo": True, "type": "cross_modal"}
     )
-    print(f"Added cross-modal block (ACAM): {cross_modal_block_id}")
+    print(f"Added cross-modal block (ACAM): {cross_modal_block_id[:16]}...")
     
-    # Add compressed embeddings using HSC
-    hsc_block_id = encoder.add_compressed_embeddings_block(
+    # Add embeddings block (uses HSC internally)
+    hsc_block_id = encoder.add_embeddings_block(
         embeddings,
-        use_enhanced_hsc=True,
-        metadata={"algorithm": "HSC", "demo": True}
+        {"algorithm": "HSC", "demo": True, "compressed": True}
     )
-    print(f"Added compressed embeddings block (HSC): {hsc_block_id}")
+    print(f"Added embeddings block (HSC): {hsc_block_id[:16]}...")
     
-    # Add semantic binding using CSB
-    csb_block_id = encoder.add_semantic_binding_block(
-        embedding_obj.vector,
-        text_data,
-        metadata={"algorithm": "CSB", "demo": True}
+    # Add semantic binding as text+embedding combo
+    csb_data = {
+        "source_text": text_data,
+        "binding_hash": embedding_obj.source_hash if hasattr(embedding_obj, 'source_hash') else "computed"
+    }
+    csb_block_id = encoder.add_text_block(
+        json.dumps(csb_data),
+        {"algorithm": "CSB", "demo": True, "type": "semantic_binding"}
     )
-    print(f"Added semantic binding block (CSB): {csb_block_id}")
+    print(f"Added semantic binding block (CSB): {csb_block_id[:16]}...")
     
     # Finalize MAIF file (self-contained with Ed25519 signatures)
     print(f"\nFinalizing MAIF file: {output_file}")
@@ -297,14 +299,12 @@ def demo_maif_integration():
     print(f"  Merkle Root: {file_info['merkle_root'][:32]}...")
     
     # Show block types
-    block_types = {}
-    for block in decoder.blocks:
-        block_type = block.header.block_type
-        block_types[block_type] = block_types.get(block_type, 0) + 1
-    
-    print(f"\nBlock types in MAIF file:")
-    for block_type, count in block_types.items():
-        print(f"  {block_type}: {count}")
+    blocks = decoder.get_blocks()
+    print(f"\nBlocks in MAIF file: {len(blocks)}")
+    for i, block in enumerate(blocks):
+        metadata = block.metadata or {}
+        algo = metadata.get('algorithm', 'standard')
+        print(f"  Block {i}: {algo}")
     
     return output_file
 

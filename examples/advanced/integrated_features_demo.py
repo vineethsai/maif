@@ -17,8 +17,15 @@ import time
 import logging
 from pathlib import Path
 import numpy as np
-import matplotlib.pyplot as plt
 from typing import Dict, List, Any
+
+# matplotlib is optional - for visualization only
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    plt = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

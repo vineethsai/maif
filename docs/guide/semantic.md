@@ -33,7 +33,7 @@ print(f"Embedding dimension: {len(embedding.vector)}")
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="semantic-demo")
+encoder = MAIFEncoder("semantic.maif", agent_id="semantic-demo")
 
 # Add text with embeddings
 text = "Important document content"
@@ -46,7 +46,7 @@ encoder.add_embeddings_block(
     metadata={"model": "custom", "dimension": 3}
 )
 
-encoder.save("semantic.maif")
+encoder.finalize()
 ```
 
 ### Using the Simple API
@@ -266,7 +266,7 @@ from maif.semantic import (
 )
 
 # Create encoder
-encoder = MAIFEncoder(agent_id="semantic-demo")
+encoder = MAIFEncoder("semantic_demo.maif", agent_id="semantic-demo")
 
 # Create semantic components
 embedder = SemanticEmbedder()
@@ -292,7 +292,7 @@ kg_builder.add_triple(KnowledgeTriple(
 ))
 
 # Save
-encoder.save("semantic_demo.maif")
+encoder.finalize()
 print("Semantic artifact created!")
 ```
 

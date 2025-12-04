@@ -32,7 +32,8 @@ def _get_maif_api():
 
 def create_maif(agent_id: str = "default_agent", enable_privacy: bool = False):
     """Create a MAIF instance (wrapper to avoid circular import)."""
-    return _get_maif_api().create_maif(agent_id, enable_privacy)
+    # Use MAIF class directly - it's the high-level API
+    return _get_maif_api().MAIF(agent_id)
 
 def load_maif(filepath: str):
     """Load a MAIF instance from file (wrapper to avoid circular import)."""
@@ -306,7 +307,7 @@ class MAIFAgent(ABC):
         
         state_artifact.add_text(
             json.dumps(state_data),
-            title="Agent State"
+            {"title": "Agent State"}
         )
         
         state_artifact.save(str(self.workspace_path / f"{self.agent_id}_state.maif"))
@@ -341,21 +342,21 @@ class MAIFAgent(ABC):
         # Add state data
         state_artifact.add_text(
             json.dumps(state_data, indent=2),
-            title="Agent Final State"
+            {"title": "Agent Final State"}
         )
         
         # Add memory reference if exists
         if self.memory_path.exists():
             state_artifact.add_text(
                 f"Memory path: {self.memory_path}",
-                title="Memory Reference"
+                {"title": "Memory Reference"}
             )
         
         # Add knowledge reference if exists
         if self.knowledge_path.exists():
             state_artifact.add_text(
                 f"Knowledge path: {self.knowledge_path}",
-                title="Knowledge Reference"
+                {"title": "Knowledge Reference"}
             )
         
         # Save the complete dump
@@ -547,7 +548,7 @@ class PerceptionSystem:
         embedding_vec = embeddings[0].vector if embeddings else None
         
         # Add to artifact
-        artifact.add_text(text, title="Text Perception")
+        artifact.add_text(text, {"title": "Text Perception"})
         
         if embedding_vec is not None:
             # Convert to list if numpy array, otherwise use as-is
@@ -573,11 +574,11 @@ class PerceptionSystem:
     async def _process_audio(self, audio_data: bytes, artifact: MAIFArtifact):
         """Process audio perception."""
         # Store audio as text description for now
-        artifact.add_text(f"Audio data: {len(audio_data)} bytes", title="Audio Perception")
+        artifact.add_text(f"Audio data: {len(audio_data)} bytes", {"title": "Audio Perception"})
     
     async def _process_generic(self, data: Any, data_type: str, artifact: MAIFArtifact):
         """Process generic perception."""
-        artifact.add_text(str(data), title=f"{data_type} Perception")
+        artifact.add_text(str(data), {"title": f"{data_type} Perception"})
 
 # Reasoning System
 class ReasoningSystem:
@@ -628,7 +629,7 @@ class ReasoningSystem:
             "timestamp": time.time()
         }
         
-        artifact.add_text(json.dumps(reasoning_data, indent=2), title="Reasoning Result")
+        artifact.add_text(json.dumps(reasoning_data, indent=2), {"title": "Reasoning Result"})
         
         # Save to knowledge base
         artifact.save(str(self.agent.knowledge_path))
@@ -685,7 +686,7 @@ class PlanningSystem:
             "created_at": time.time()
         }
         
-        artifact.add_text(json.dumps(plan_data, indent=2), title=f"Action Plan: {goal}")
+        artifact.add_text(json.dumps(plan_data, indent=2), {"title": f"Action Plan: {goal}"})
         
         artifact.save(str(self.agent.knowledge_path))
         
@@ -762,7 +763,7 @@ class ExecutionSystem:
             "execution_time": time.time() - plan_data.get('created_at', time.time())
         }
         
-        artifact.add_text(json.dumps(execution_data, indent=2), title="Execution Results")
+        artifact.add_text(json.dumps(execution_data, indent=2), {"title": "Execution Results"})
         
         # Save locally
         artifact.save(str(self.agent.memory_path))
@@ -845,7 +846,7 @@ class LearningSystem:
         # Update knowledge base
         if patterns:
             knowledge_artifact = create_maif(agent_id=f"patterns_{int(time.time() * 1000000)}", enable_privacy=True)
-            knowledge_artifact.add_text(json.dumps(patterns, indent=2), title="Learned Patterns")
+            knowledge_artifact.add_text(json.dumps(patterns, indent=2), {"title": "Learned Patterns"})
             knowledge_artifact.save(str(self.agent.knowledge_path))
             
             # Trigger optimization
@@ -1071,7 +1072,7 @@ class MAIFAgentConsortium:
         # Broadcast to all agents
         if all_patterns:
             knowledge_artifact = create_maif(agent_id=f"shared_{int(time.time() * 1000000)}", enable_privacy=False)
-            knowledge_artifact.add_text(json.dumps(all_patterns, indent=2, default=str), title="Shared Knowledge")
+            knowledge_artifact.add_text(json.dumps(all_patterns, indent=2, default=str), {"title": "Shared Knowledge"})
             
             # Save to shared location
             shared_path = self.workspace_path / "shared_knowledge.maif"
@@ -1190,7 +1191,7 @@ class MAIFAgentConsortium:
         task_artifact = create_maif(agent_id=f"task_{task_info['id']}", enable_privacy=True)
         task_artifact.add_text(
             json.dumps(task_info['task']),
-            title=f"Task from {task_info['source_agent']}"
+            {"title": f"Task from {task_info['source_agent']}"}
         )
         
         # Store in agent's working memory

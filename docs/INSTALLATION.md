@@ -82,10 +82,10 @@ print(f"Integrity: {loaded.verify_integrity()}")
 ### Using the Advanced API
 
 ```python
-from maif import MAIFEncoder, MAIFDecoder, MAIFSigner
+from maif import MAIFEncoder, MAIFDecoder
 
-# Create encoder
-encoder = MAIFEncoder(agent_id="advanced_agent")
+# Create encoder with output path (v3 self-contained format)
+encoder = MAIFEncoder("advanced.maif", agent_id="advanced_agent")
 
 # Add content with full control
 text_id = encoder.add_text_block(
@@ -93,12 +93,14 @@ text_id = encoder.add_text_block(
     metadata={"category": "documentation"}
 )
 
-# Save with manifest
-encoder.build_maif("advanced.maif", "advanced_manifest.json")
+# Finalize - automatically signs with Ed25519 and embeds provenance
+encoder.finalize()
 
-# Sign for provenance
-signer = MAIFSigner(agent_id="advanced_agent")
-signer.add_provenance_entry("create", text_id)
+# Load and verify
+decoder = MAIFDecoder("advanced.maif")
+decoder.load()
+is_valid, errors = decoder.verify_integrity()
+print(f"Integrity: {'✓ Valid' if is_valid else '✗ Invalid'}")
 ```
 
 ## Command Line Interface
