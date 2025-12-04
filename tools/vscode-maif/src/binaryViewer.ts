@@ -5,11 +5,15 @@ interface BlockInfo {
     offset: number;
     size: number;
     dataSize?: number;
+    dataOffset?: number;
     blockId?: string;
     isSigned?: boolean;
     hash?: string;
     previousHash?: string;
     signature?: string;
+    content?: string;
+    contentType?: 'text' | 'json' | 'binary';
+    metadata?: Record<string, any>;
 }
 
 interface FileInfo {
@@ -141,18 +145,107 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
             // Read signature (256 bytes at offset 104)
             const signature = this.bytesToHex(data.slice(offset + 104, offset + 360));
 
+            const dataOffset = offset + MAIFBinaryViewerProvider.SECURE_BLOCK_HEADER_SIZE;
             const dataSize = size - MAIFBinaryViewerProvider.SECURE_BLOCK_HEADER_SIZE - metadataSize;
+
+            // Extract content and metadata
+            let content: string | undefined;
+            let contentType: 'text' | 'json' | 'binary' = 'binary';
+            let metadata: Record<string, any> | undefined;
+
+            // Parse metadata if present
+            if (metadataSize > 0) {
+                try {
+                    const metaBytes = data.slice(dataOffset + dataSize, dataOffset + dataSize + metadataSize);
+                    const metaStr = new TextDecoder().decode(metaBytes);
+                    metadata = JSON.parse(metaStr);
+                } catch (e) {
+                    // Ignore metadata parse errors
+                }
+            }
+
+            // Extract content based on block type
+            if (dataSize > 0 && dataSize < 1024 * 100) { // Limit to 100KB for display
+                const contentData = data.slice(dataOffset, dataOffset + dataSize);
+                
+                if (type === 'TEXT') {
+                    // Text content - decode as UTF-8
+                    try {
+                        content = new TextDecoder().decode(contentData);
+                        contentType = 'text';
+                    } catch (e) {
+                        content = this.generateBlockHexPreview(contentData);
+                        contentType = 'binary';
+                    }
+                } else if (type === 'META' || type === 'BINA') {
+                    // Try to decode as JSON first
+                    try {
+                        const jsonStr = new TextDecoder().decode(contentData);
+                        const parsed = JSON.parse(jsonStr);
+                        content = JSON.stringify(parsed, null, 2);
+                        contentType = 'json';
+                    } catch (e) {
+                        // Fall back to hex preview
+                        content = this.generateBlockHexPreview(contentData);
+                        contentType = 'binary';
+                    }
+                } else if (type === 'EMBD') {
+                    // Embeddings - show stats
+                    const floatCount = Math.floor(dataSize / 4);
+                    content = `Embedding vector: ${floatCount} dimensions (${this.formatSize(dataSize)})`;
+                    contentType = 'text';
+                } else if (type === 'AUDI') {
+                    // Audio content - show metadata
+                    const audioInfo = this.parseAudioInfo(metadata, dataSize);
+                    content = audioInfo;
+                    contentType = 'text';
+                } else if (type === 'VIDE') {
+                    // Video content - show metadata
+                    const videoInfo = this.parseVideoInfo(metadata, dataSize);
+                    content = videoInfo;
+                    contentType = 'text';
+                } else if (type === 'IMAG') {
+                    // Image content - show metadata
+                    const imageInfo = this.parseImageInfo(metadata, dataSize);
+                    content = imageInfo;
+                    contentType = 'text';
+                } else {
+                    // Other types - try text first, then hex
+                    try {
+                        const textContent = new TextDecoder().decode(contentData);
+                        // Check if it looks like valid text (mostly printable)
+                        const printableRatio = (textContent.match(/[\x20-\x7E\n\r\t]/g) || []).length / textContent.length;
+                        if (printableRatio > 0.8) {
+                            content = textContent;
+                            contentType = 'text';
+                        } else {
+                            content = this.generateBlockHexPreview(contentData);
+                            contentType = 'binary';
+                        }
+                    } catch (e) {
+                        content = this.generateBlockHexPreview(contentData);
+                        contentType = 'binary';
+                    }
+                }
+            } else if (dataSize >= 1024 * 100) {
+                content = `[Large content: ${this.formatSize(dataSize)}]`;
+                contentType = 'text';
+            }
 
             blocks.push({
                 type,
                 offset,
                 size,
                 dataSize,
+                dataOffset,
                 blockId,
                 isSigned: !!(flags & 0x01),
                 hash,
                 previousHash,
-                signature
+                signature,
+                content,
+                contentType,
+                metadata
             });
 
             offset += size;
@@ -160,6 +253,226 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
         }
 
         return blocks;
+    }
+
+    private generateBlockHexPreview(data: Uint8Array, maxBytes: number = 256): string {
+        const previewBytes = data.slice(0, Math.min(maxBytes, data.length));
+        const lines: string[] = [];
+        
+        for (let i = 0; i < previewBytes.length; i += 16) {
+            const lineBytes = previewBytes.slice(i, Math.min(i + 16, previewBytes.length));
+            const offsetStr = i.toString(16).padStart(6, '0');
+            const hex = Array.from(lineBytes).map(b => b.toString(16).padStart(2, '0')).join(' ').padEnd(47, ' ');
+            const ascii = Array.from(lineBytes).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+            lines.push(`${offsetStr}  ${hex}  ${ascii}`);
+        }
+        
+        if (data.length > maxBytes) {
+            lines.push(`... ${(data.length - maxBytes).toLocaleString()} more bytes ...`);
+        }
+        
+        return lines.join('\n');
+    }
+
+    private parseAudioInfo(metadata: Record<string, any> | undefined, dataSize: number): string {
+        const lines: string[] = ['🎵 Audio Content'];
+        lines.push('─'.repeat(40));
+        
+        if (metadata) {
+            if (metadata.format || metadata.codec) {
+                lines.push(`Format: ${metadata.format || metadata.codec || 'Unknown'}`);
+            }
+            if (metadata.duration) {
+                const duration = typeof metadata.duration === 'number' 
+                    ? this.formatDuration(metadata.duration)
+                    : metadata.duration;
+                lines.push(`Duration: ${duration}`);
+            }
+            if (metadata.sample_rate) {
+                lines.push(`Sample Rate: ${metadata.sample_rate.toLocaleString()} Hz`);
+            }
+            if (metadata.channels) {
+                lines.push(`Channels: ${metadata.channels} (${metadata.channels === 1 ? 'Mono' : metadata.channels === 2 ? 'Stereo' : 'Surround'})`);
+            }
+            if (metadata.bitrate) {
+                lines.push(`Bitrate: ${Math.round(metadata.bitrate / 1000)} kbps`);
+            }
+            if (metadata.bit_depth) {
+                lines.push(`Bit Depth: ${metadata.bit_depth}-bit`);
+            }
+        }
+        
+        lines.push(`Raw Size: ${this.formatSize(dataSize)}`);
+        
+        if (metadata?.waveform_preview) {
+            lines.push('');
+            lines.push('Waveform: ▁▂▃▅▆▇█▇▆▅▃▂▁▂▃▅▆▇█▇▆▅▃▂▁');
+        }
+        
+        return lines.join('\n');
+    }
+
+    private parseVideoInfo(metadata: Record<string, any> | undefined, dataSize: number): string {
+        const lines: string[] = ['🎬 Video Content'];
+        lines.push('─'.repeat(40));
+        
+        if (metadata) {
+            if (metadata.format || metadata.codec) {
+                lines.push(`Format: ${metadata.format || metadata.codec || 'Unknown'}`);
+            }
+            if (metadata.width && metadata.height) {
+                lines.push(`Resolution: ${metadata.width}×${metadata.height}`);
+            }
+            if (metadata.duration) {
+                const duration = typeof metadata.duration === 'number' 
+                    ? this.formatDuration(metadata.duration)
+                    : metadata.duration;
+                lines.push(`Duration: ${duration}`);
+            }
+            if (metadata.fps || metadata.frame_rate) {
+                lines.push(`Frame Rate: ${metadata.fps || metadata.frame_rate} fps`);
+            }
+            if (metadata.bitrate) {
+                lines.push(`Bitrate: ${Math.round(metadata.bitrate / 1000)} kbps`);
+            }
+            if (metadata.audio_codec) {
+                lines.push(`Audio: ${metadata.audio_codec}`);
+            }
+            if (metadata.frame_count) {
+                lines.push(`Frames: ${metadata.frame_count.toLocaleString()}`);
+            }
+        }
+        
+        lines.push(`Raw Size: ${this.formatSize(dataSize)}`);
+        
+        // Visual thumbnail placeholder
+        lines.push('');
+        lines.push('┌─────────────────────────┐');
+        lines.push('│                         │');
+        lines.push('│       ▶ PREVIEW         │');
+        lines.push('│                         │');
+        lines.push('│    [Frame Thumbnail]    │');
+        lines.push('│                         │');
+        lines.push('└─────────────────────────┘');
+        
+        return lines.join('\n');
+    }
+
+    private parseImageInfo(metadata: Record<string, any> | undefined, dataSize: number): string {
+        const lines: string[] = ['🖼️ Image Content'];
+        lines.push('─'.repeat(40));
+        
+        if (metadata) {
+            if (metadata.format || metadata.mime_type) {
+                lines.push(`Format: ${metadata.format || metadata.mime_type || 'Unknown'}`);
+            }
+            if (metadata.width && metadata.height) {
+                lines.push(`Dimensions: ${metadata.width}×${metadata.height} px`);
+            }
+            if (metadata.color_mode || metadata.channels) {
+                lines.push(`Color Mode: ${metadata.color_mode || (metadata.channels === 3 ? 'RGB' : metadata.channels === 4 ? 'RGBA' : 'Grayscale')}`);
+            }
+            if (metadata.bit_depth) {
+                lines.push(`Bit Depth: ${metadata.bit_depth}-bit`);
+            }
+            if (metadata.dpi) {
+                lines.push(`DPI: ${metadata.dpi}`);
+            }
+        }
+        
+        lines.push(`Raw Size: ${this.formatSize(dataSize)}`);
+        
+        return lines.join('\n');
+    }
+
+    private formatDuration(seconds: number): string {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (hrs > 0) {
+            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    private getBlockIcon(type: string): string {
+        const icons: Record<string, string> = {
+            'TEXT': '📝',
+            'EMBD': '🧠',
+            'KNOW': '🔗',
+            'KGRF': '🔗',
+            'AUDI': '🎵',
+            'VIDE': '🎬',
+            'IMAG': '🖼️',
+            'META': '📋',
+            'BINA': '📦',
+            'SECU': '🔒',
+            'LIFE': '♻️',
+            'COMP': '🗜️',
+            'ENCR': '🔐'
+        };
+        return icons[type] || '📄';
+    }
+
+    private getBlockTypeName(type: string): string {
+        const names: Record<string, string> = {
+            'TEXT': 'Text Data',
+            'EMBD': 'Embeddings',
+            'KNOW': 'Knowledge Graph',
+            'KGRF': 'Knowledge Graph',
+            'AUDI': 'Audio',
+            'VIDE': 'Video',
+            'IMAG': 'Image',
+            'META': 'Metadata',
+            'BINA': 'Binary Data',
+            'SECU': 'Security',
+            'LIFE': 'Lifecycle',
+            'COMP': 'Compressed',
+            'ENCR': 'Encrypted'
+        };
+        return names[type] || type;
+    }
+
+    private getBlockTypeClass(type: string): string {
+        const classes: Record<string, string> = {
+            'TEXT': 'type-text',
+            'EMBD': 'type-embeddings',
+            'KNOW': 'type-knowledge',
+            'KGRF': 'type-knowledge',
+            'AUDI': 'type-audio',
+            'VIDE': 'type-video',
+            'IMAG': 'type-image',
+            'META': 'type-metadata',
+            'BINA': 'type-binary',
+            'SECU': 'type-security',
+            'LIFE': 'type-lifecycle'
+        };
+        return classes[type] || '';
+    }
+
+    private getContentTitle(type: string): string {
+        const titles: Record<string, string> = {
+            'TEXT': 'Text Content',
+            'EMBD': 'Embedding Information',
+            'KNOW': 'Knowledge Graph Data',
+            'KGRF': 'Knowledge Graph Data',
+            'AUDI': 'Audio Information',
+            'VIDE': 'Video Information',
+            'IMAG': 'Image Information',
+            'META': 'Metadata Content',
+            'BINA': 'Binary Content Preview'
+        };
+        return titles[type] || 'Content Preview';
+    }
+
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     private parseLegacyBlocks(data: Uint8Array): BlockInfo[] {
@@ -224,8 +537,9 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
         const isSecure = fileInfo.format === 'secure';
         
         const blockHtml = blocks.map((b, i) => `
-            <div class="block-item ${b.isSigned ? 'signed' : ''}" onclick="toggleBlockDetail(${i})">
+            <div class="block-item ${b.isSigned ? 'signed' : ''} ${this.getBlockTypeClass(b.type)}" onclick="toggleBlockDetail(${i})">
                 <div class="block-left">
+                    <span class="block-type-icon">${this.getBlockIcon(b.type)}</span>
                     <span class="block-type">${b.type}</span>
                     ${b.isSigned ? '<span class="signed-badge">🔐</span>' : ''}
                     <span class="expand-icon">▶</span>
@@ -240,7 +554,7 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
                 <div class="detail-section">
                     <div class="detail-title">Block Information</div>
                     <div class="detail-grid">
-                        <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${b.type}</span></div>
+                        <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${this.getBlockTypeName(b.type)}</span></div>
                         <div class="detail-row"><span class="detail-label">Index</span><span class="detail-value">#${i}</span></div>
                         <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${b.isSigned ? '🔐 Signed & Immutable' : 'Unsigned'}</span></div>
                         <div class="detail-row"><span class="detail-label">Offset</span><span class="detail-value">${b.offset} (0x${b.offset.toString(16)})</span></div>
@@ -248,6 +562,22 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
                         ${b.dataSize !== undefined ? `<div class="detail-row"><span class="detail-label">Data Size</span><span class="detail-value">${this.formatSize(b.dataSize)} (${b.dataSize} bytes)</span></div>` : ''}
                     </div>
                 </div>
+                ${b.content ? `
+                <div class="detail-section">
+                    <div class="detail-title">${this.getContentTitle(b.type)}</div>
+                    <div class="content-preview ${b.contentType || 'text'} ${this.getBlockTypeClass(b.type)}">
+                        <pre>${this.escapeHtml(b.content)}</pre>
+                    </div>
+                </div>
+                ` : ''}
+                ${b.metadata ? `
+                <div class="detail-section">
+                    <div class="detail-title">Metadata</div>
+                    <div class="content-preview json">
+                        <pre>${this.escapeHtml(JSON.stringify(b.metadata, null, 2))}</pre>
+                    </div>
+                </div>
+                ` : ''}
                 ${b.blockId ? `
                 <div class="detail-section">
                     <div class="detail-title">Block ID</div>
@@ -564,6 +894,85 @@ export class MAIFBinaryViewerProvider implements vscode.CustomReadonlyEditorProv
                     font-size: 9px;
                     max-height: 100px;
                     overflow-y: auto;
+                }
+                
+                .content-preview {
+                    background: var(--vscode-textCodeBlock-background);
+                    border-radius: 8px;
+                    padding: 16px;
+                    overflow: auto;
+                    max-height: 400px;
+                }
+                
+                .content-preview pre {
+                    margin: 0;
+                    font-family: var(--vscode-editor-font-family);
+                    font-size: 12px;
+                    line-height: 1.6;
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                }
+                
+                .content-preview.text pre {
+                    color: var(--vscode-foreground);
+                }
+                
+                .content-preview.json pre {
+                    color: #10b981;
+                }
+                
+                .content-preview.binary pre {
+                    color: var(--vscode-textLink-foreground);
+                    font-size: 11px;
+                    line-height: 1.4;
+                }
+                
+                .content-preview.type-audio,
+                .content-preview.type-video,
+                .content-preview.type-image {
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+                    border: 1px solid rgba(139, 92, 246, 0.3);
+                }
+                
+                .content-preview.type-audio pre {
+                    color: #f59e0b;
+                }
+                
+                .content-preview.type-video pre {
+                    color: #ef4444;
+                }
+                
+                .content-preview.type-image pre {
+                    color: #10b981;
+                }
+                
+                .block-type-icon {
+                    font-size: 18px;
+                    margin-right: 4px;
+                }
+                
+                .block-item.type-audio {
+                    border-left: 3px solid #f59e0b;
+                }
+                
+                .block-item.type-video {
+                    border-left: 3px solid #ef4444;
+                }
+                
+                .block-item.type-image {
+                    border-left: 3px solid #10b981;
+                }
+                
+                .block-item.type-text {
+                    border-left: 3px solid #3b82f6;
+                }
+                
+                .block-item.type-embeddings {
+                    border-left: 3px solid #8b5cf6;
+                }
+                
+                .block-item.type-knowledge {
+                    border-left: 3px solid #ec4899;
                 }
                 
                 .block-left {

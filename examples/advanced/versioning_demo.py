@@ -16,7 +16,7 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from maif import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder, SecureBlockType
 from maif.security import MAIFSigner
 from maif.forensics import ForensicAnalyzer
 
@@ -93,13 +93,13 @@ def analyze_version_history(decoder: MAIFDecoder):
     print("\n3. Analyzing version history from blocks...")
     
     blocks = decoder.get_blocks()
-    text_blocks = [b for b in blocks if b.header.block_type == 1]  # TEXT type
+    text_blocks = [b for b in blocks if b.block_type == SecureBlockType.TEXT]
     
     print(f"   Found {len(text_blocks)} text versions:")
     
     versions = []
     for block in text_blocks:
-        metadata = block.header.metadata
+        metadata = block.metadata or {}
         version = metadata.get("version", "?")
         author = metadata.get("author", "unknown")
         description = metadata.get("change_description", "no description")

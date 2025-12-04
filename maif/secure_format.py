@@ -324,6 +324,31 @@ class SecureBlock:
     data: bytes
     metadata: Optional[Dict[str, Any]] = None
     
+    @property
+    def block_id(self) -> str:
+        """Backwards-compatible property: returns block_id as hex string."""
+        return self.header.block_id.hex()
+    
+    @property
+    def block_type(self) -> int:
+        """Backwards-compatible property: returns block_type from header."""
+        return self.header.block_type
+    
+    @property
+    def block_type_name(self) -> str:
+        """Get block type as a human-readable string."""
+        type_names = {
+            SecureBlockType.TEXT: "TEXT",
+            SecureBlockType.EMBEDDINGS: "EMBED",
+            SecureBlockType.IMAGE: "IMAGE",
+            SecureBlockType.AUDIO: "AUDIO",
+            SecureBlockType.VIDEO: "VIDEO",
+            SecureBlockType.KNOWLEDGE: "KNOW",
+            SecureBlockType.BINARY: "BINARY",
+            SecureBlockType.METADATA: "META",
+        }
+        return type_names.get(self.header.block_type, "UNKNOWN")
+    
     def get_content_hash(self) -> bytes:
         """Calculate SHA-256 hash of block content."""
         content_hash = hashlib.sha256(self.data).digest()

@@ -335,7 +335,7 @@ class KBManager:
             
             chunks = []
             for block in decoder.blocks:
-                if block.block_type == "text":
+                if block.block_type == SecureBlockType.TEXT:
                     block_data = decoder.get_block_data(block.block_id)
                     if block_data:
                         text = block_data.decode('utf-8')

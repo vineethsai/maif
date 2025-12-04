@@ -988,20 +988,22 @@ class EnhancedMAIFProcessor:
         
         maif.add_binary_block(content, "binary", metadata)
     
-    def _extract_block(self, block: MAIFBlock, output_dir: Path) -> Optional[str]:
+    def _extract_block(self, block, output_dir: Path) -> Optional[str]:
         """Extract a block to a file."""
+        from .secure_format import SecureBlockType
         try:
             # Determine filename
             if block.metadata and "filename" in block.metadata:
                 filename = block.metadata["filename"]
             else:
-                if block.block_type == "text":
+                block_type = block.block_type
+                if block_type == SecureBlockType.TEXT:
                     filename = f"{block.block_id}.txt"
-                elif block.block_type == "image":
+                elif block_type == SecureBlockType.IMAGE:
                     filename = f"{block.block_id}.png"
-                elif block.block_type == "audio":
+                elif block_type == SecureBlockType.AUDIO:
                     filename = f"{block.block_id}.mp3"
-                elif block.block_type == "video":
+                elif block_type == SecureBlockType.VIDEO:
                     filename = f"{block.block_id}.mp4"
                 else:
                     filename = f"{block.block_id}.bin"
@@ -1009,12 +1011,12 @@ class EnhancedMAIFProcessor:
             output_path = output_dir / filename
             
             # Write content
-            if block.block_type == "text":
+            if block.block_type == SecureBlockType.TEXT:
                 with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(block.content)
+                    f.write(block.data.decode('utf-8', errors='replace'))
             else:
                 with open(output_path, 'wb') as f:
-                    f.write(block.content)
+                    f.write(block.data)
             
             return str(output_path)
             

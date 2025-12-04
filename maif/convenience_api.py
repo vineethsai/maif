@@ -297,8 +297,9 @@ class SimpleMAIFAgent:
             return
         
         # Load text blocks as memories
+        from .secure_format import SecureBlockType
         for block in self.decoder.blocks:
-            if block.block_type == "text":
+            if block.block_type == SecureBlockType.TEXT:
                 content = self.decoder.get_block_data(block.block_id).decode('utf-8')
                 
                 # Try to parse JSON

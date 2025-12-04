@@ -333,8 +333,8 @@ class MAIFParser {
                 signerId: this.securityInfo?.signerId,
                 signerDid: this.securityInfo?.signerDid,
                 timestamp: this.securityInfo?.signedAt,
-                algorithm: this.securityInfo?.signatureAlgorithm || 'RSA-PSS-SHA256',
-                keyAlgorithm: this.securityInfo?.keyAlgorithm || 'RSA-2048'
+                algorithm: this.securityInfo?.signatureAlgorithm || 'Ed25519',
+                keyAlgorithm: this.securityInfo?.keyAlgorithm || 'Ed25519'
             };
         }
         return {
@@ -342,7 +342,7 @@ class MAIFParser {
             publicKey: this.manifest?.public_key,
             signerId: this.manifest?.signature_metadata?.signer_id,
             timestamp: this.manifest?.signature_metadata?.timestamp,
-            algorithm: 'RSA-PSS with SHA-256'
+            algorithm: 'Ed25519'
         };
     }
     getBlockTypeInfo(type) {

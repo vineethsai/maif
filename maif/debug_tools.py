@@ -105,9 +105,9 @@ class MAIFDebugger:
         lines.append("-" * 80)
         
         for block in sorted_blocks:
-            offset_str = f"0x{block.offset:08X}"
-            size_str = self._format_size(block.size).rjust(10)
-            type_str = block.block_type.ljust(8)
+            offset_str = f"0x{block.offset:08X}" if hasattr(block, 'offset') else "0x00000000"
+            size_str = self._format_size(block.size if hasattr(block, 'size') else len(block.data)).rjust(10)
+            type_str = (block.block_type_name if hasattr(block, 'block_type_name') else str(block.block_type)).ljust(8)
             id_str = block.block_id[:40] + "..." if len(block.block_id) > 40 else block.block_id
             
             lines.append(f"{offset_str}  {size_str}  {type_str}  {id_str}")
@@ -122,10 +122,12 @@ class MAIFDebugger:
         bar_width = 70
         
         for block in sorted_blocks:
-            block_chars = max(1, int(block.size / total_size * bar_width))
-            char = self._get_block_char(block.block_type)
+            block_size = block.size if hasattr(block, 'size') else len(block.data)
+            block_chars = max(1, int(block_size / total_size * bar_width))
+            type_name = block.block_type_name if hasattr(block, 'block_type_name') else str(block.block_type)
+            char = self._get_block_char(type_name)
             bar = char * block_chars
-            lines.append(f"{block.block_type[:4]:4} |{bar}")
+            lines.append(f"{type_name[:4]:4} |{bar}")
         
         lines.append("-" * 80)
         lines.append("Legend: H=Header, T=Text, E=Embedding, K=Knowledge, S=Security, B=Binary")
@@ -374,8 +376,10 @@ class MAIFDebugger:
         sizes_by_type = defaultdict(list)
         
         for block in blocks:
-            by_type[block.block_type] += 1
-            sizes_by_type[block.block_type].append(block.size)
+            type_name = block.block_type_name if hasattr(block, 'block_type_name') else str(block.block_type)
+            block_size = block.size if hasattr(block, 'size') else len(block.data)
+            by_type[type_name] += 1
+            sizes_by_type[type_name].append(block_size)
         
         # Calculate statistics
         stats_by_type = {}
@@ -388,10 +392,13 @@ class MAIFDebugger:
                 "max_size": max(sizes) if sizes else 0
             }
         
+        def get_block_size(b):
+            return b.size if hasattr(b, 'size') else len(b.data)
+        
         return {
             "by_type": dict(by_type),
             "stats_by_type": stats_by_type,
-            "total_data_size": sum(b.size for b in blocks),
+            "total_data_size": sum(get_block_size(b) for b in blocks),
             "fragmentation": self._calculate_fragmentation()
         }
     

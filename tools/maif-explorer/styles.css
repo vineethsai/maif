@@ -1029,3 +1029,203 @@ code, pre {
     }
 }
 
+/* Content Preview Styles */
+.content-preview {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    overflow: auto;
+    max-height: 400px;
+}
+
+.content-preview pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text-primary);
+}
+
+.content-preview.text-content {
+    border-left: 3px solid var(--info);
+}
+
+.content-preview.json-content pre {
+    color: var(--success);
+}
+
+.content-preview.hex-content {
+    border-left: 3px solid var(--text-muted);
+}
+
+.content-preview.hex-content pre {
+    font-size: 11px;
+    color: var(--accent-primary);
+}
+
+/* Media Content Styles */
+.content-preview.audio-content,
+.content-preview.video-content,
+.content-preview.image-content,
+.content-preview.embeddings-content,
+.content-preview.knowledge-content {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+}
+
+.content-preview.audio-content {
+    border-left: 3px solid var(--warning);
+}
+
+.content-preview.video-content {
+    border-left: 3px solid var(--error);
+}
+
+.content-preview.image-content {
+    border-left: 3px solid var(--success);
+}
+
+.content-preview.embeddings-content {
+    border-left: 3px solid var(--accent-secondary);
+}
+
+.content-preview.knowledge-content {
+    border-left: 3px solid #ec4899;
+}
+
+.media-info {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.media-icon {
+    font-size: 48px;
+    opacity: 0.8;
+}
+
+.media-details {
+    flex: 1;
+}
+
+.media-row {
+    display: flex;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.media-row:last-child {
+    border-bottom: none;
+}
+
+.media-label {
+    color: var(--text-muted);
+    min-width: 100px;
+}
+
+/* Video Thumbnail */
+.video-thumbnail {
+    width: 160px;
+    height: 90px;
+    background: linear-gradient(135deg, #1a1a24 0%, #2a2a38 100%);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+}
+
+.play-button {
+    width: 40px;
+    height: 40px;
+    background: var(--accent-gradient);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    padding-left: 3px;
+}
+
+.video-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 8px;
+}
+
+/* Image Thumbnail */
+.image-thumbnail {
+    width: 100px;
+    height: 100px;
+    background: linear-gradient(135deg, #1a1a24 0%, #2a2a38 100%);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color);
+}
+
+.image-placeholder {
+    font-size: 36px;
+    opacity: 0.6;
+}
+
+.image-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Waveform */
+.waveform-preview {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.waveform {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--warning);
+    text-align: center;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+/* Embedding Visualization */
+.embedding-visualization {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 4px;
+    align-items: flex-end;
+    height: 60px;
+}
+
+.embedding-bar {
+    flex: 1;
+    background: var(--accent-gradient);
+    border-radius: 2px;
+    height: var(--value);
+    min-height: 4px;
+    opacity: 0.7;
+    transition: opacity var(--transition-fast);
+}
+
+.embedding-bar:hover {
+    opacity: 1;
+}
+

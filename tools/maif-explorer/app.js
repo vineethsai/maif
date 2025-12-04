@@ -528,12 +528,7 @@ class MAIFExplorer {
                 </div>
             ` : ''}
 
-            ${block.type === 'TEXT' ? `
-                <div class="detail-section">
-                    <div class="detail-section-title">Content Preview</div>
-                    <div class="key-display">${this.parser.getTextContent(index) || 'Unable to read content'}</div>
-                </div>
-            ` : ''}
+            ${this.getContentPreviewHtml(block, index)}
         `;
 
         panel.classList.remove('hidden');
@@ -753,6 +748,250 @@ class MAIFExplorer {
                 setTimeout(() => { btn.textContent = original; }, 2000);
             }
         });
+    }
+
+    getContentPreviewHtml(block, index) {
+        const type = block.type;
+        const metadata = block.metadata || {};
+        const dataSize = block.dataSize || block.size || 0;
+
+        if (type === 'TEXT') {
+            const content = this.parser.getTextContent(index);
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">📝 Text Content</div>
+                    <div class="content-preview text-content">
+                        <pre>${this.escapeHtml(content || 'Unable to read content')}</pre>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'AUDI') {
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">🎵 Audio Content</div>
+                    <div class="content-preview audio-content">
+                        <div class="media-info">
+                            <div class="media-icon">🎵</div>
+                            <div class="media-details">
+                                <div class="media-row"><span class="media-label">Format:</span> ${metadata.format || metadata.codec || 'Unknown'}</div>
+                                ${metadata.duration ? `<div class="media-row"><span class="media-label">Duration:</span> ${this.formatDuration(metadata.duration)}</div>` : ''}
+                                ${metadata.sample_rate ? `<div class="media-row"><span class="media-label">Sample Rate:</span> ${metadata.sample_rate?.toLocaleString()} Hz</div>` : ''}
+                                ${metadata.channels ? `<div class="media-row"><span class="media-label">Channels:</span> ${metadata.channels} (${metadata.channels === 1 ? 'Mono' : metadata.channels === 2 ? 'Stereo' : 'Surround'})</div>` : ''}
+                                ${metadata.bitrate ? `<div class="media-row"><span class="media-label">Bitrate:</span> ${Math.round(metadata.bitrate / 1000)} kbps</div>` : ''}
+                                ${metadata.bit_depth ? `<div class="media-row"><span class="media-label">Bit Depth:</span> ${metadata.bit_depth}-bit</div>` : ''}
+                                <div class="media-row"><span class="media-label">Raw Size:</span> ${MAIFParser.formatSize(dataSize)}</div>
+                            </div>
+                        </div>
+                        <div class="waveform-preview">
+                            <div class="waveform">▁▂▃▅▆▇█▇▆▅▃▂▁▂▃▅▆▇█▇▆▅▃▂▁▂▃▅▆▇█▇▆▅▃▂▁</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'VIDE') {
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">🎬 Video Content</div>
+                    <div class="content-preview video-content">
+                        <div class="media-info">
+                            <div class="video-thumbnail">
+                                <div class="play-button">▶</div>
+                                <div class="video-label">Video Preview</div>
+                            </div>
+                            <div class="media-details">
+                                <div class="media-row"><span class="media-label">Format:</span> ${metadata.format || metadata.codec || 'Unknown'}</div>
+                                ${metadata.width && metadata.height ? `<div class="media-row"><span class="media-label">Resolution:</span> ${metadata.width}×${metadata.height}</div>` : ''}
+                                ${metadata.duration ? `<div class="media-row"><span class="media-label">Duration:</span> ${this.formatDuration(metadata.duration)}</div>` : ''}
+                                ${metadata.fps || metadata.frame_rate ? `<div class="media-row"><span class="media-label">Frame Rate:</span> ${metadata.fps || metadata.frame_rate} fps</div>` : ''}
+                                ${metadata.bitrate ? `<div class="media-row"><span class="media-label">Bitrate:</span> ${Math.round(metadata.bitrate / 1000)} kbps</div>` : ''}
+                                ${metadata.audio_codec ? `<div class="media-row"><span class="media-label">Audio:</span> ${metadata.audio_codec}</div>` : ''}
+                                ${metadata.frame_count ? `<div class="media-row"><span class="media-label">Frames:</span> ${metadata.frame_count?.toLocaleString()}</div>` : ''}
+                                <div class="media-row"><span class="media-label">Raw Size:</span> ${MAIFParser.formatSize(dataSize)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'IMAG') {
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">🖼️ Image Content</div>
+                    <div class="content-preview image-content">
+                        <div class="media-info">
+                            <div class="image-thumbnail">
+                                <div class="image-placeholder">🖼️</div>
+                                <div class="image-label">Image Data</div>
+                            </div>
+                            <div class="media-details">
+                                <div class="media-row"><span class="media-label">Format:</span> ${metadata.format || metadata.mime_type || 'Unknown'}</div>
+                                ${metadata.width && metadata.height ? `<div class="media-row"><span class="media-label">Dimensions:</span> ${metadata.width}×${metadata.height} px</div>` : ''}
+                                ${metadata.color_mode || metadata.channels ? `<div class="media-row"><span class="media-label">Color Mode:</span> ${metadata.color_mode || (metadata.channels === 3 ? 'RGB' : metadata.channels === 4 ? 'RGBA' : 'Grayscale')}</div>` : ''}
+                                ${metadata.bit_depth ? `<div class="media-row"><span class="media-label">Bit Depth:</span> ${metadata.bit_depth}-bit</div>` : ''}
+                                ${metadata.dpi ? `<div class="media-row"><span class="media-label">DPI:</span> ${metadata.dpi}</div>` : ''}
+                                <div class="media-row"><span class="media-label">Raw Size:</span> ${MAIFParser.formatSize(dataSize)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'EMBD') {
+            const floatCount = Math.floor(dataSize / 4);
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">🧠 Embedding Data</div>
+                    <div class="content-preview embeddings-content">
+                        <div class="media-info">
+                            <div class="media-icon">🧠</div>
+                            <div class="media-details">
+                                <div class="media-row"><span class="media-label">Dimensions:</span> ${metadata.dimensions || floatCount}</div>
+                                <div class="media-row"><span class="media-label">Data Type:</span> ${metadata.dtype || 'float32'}</div>
+                                ${metadata.model ? `<div class="media-row"><span class="media-label">Model:</span> ${metadata.model}</div>` : ''}
+                                <div class="media-row"><span class="media-label">Raw Size:</span> ${MAIFParser.formatSize(dataSize)}</div>
+                            </div>
+                        </div>
+                        <div class="embedding-visualization">
+                            <div class="embedding-bar" style="--value: 75%"></div>
+                            <div class="embedding-bar" style="--value: 45%"></div>
+                            <div class="embedding-bar" style="--value: 90%"></div>
+                            <div class="embedding-bar" style="--value: 30%"></div>
+                            <div class="embedding-bar" style="--value: 60%"></div>
+                            <div class="embedding-bar" style="--value: 80%"></div>
+                            <div class="embedding-bar" style="--value: 25%"></div>
+                            <div class="embedding-bar" style="--value: 55%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'KNOW' || type === 'KGRF') {
+            const content = this.parser.getTextContent(index);
+            let graphData = null;
+            try {
+                graphData = JSON.parse(content);
+            } catch (e) {}
+            
+            return `
+                <div class="detail-section">
+                    <div class="detail-section-title">🔗 Knowledge Graph</div>
+                    <div class="content-preview knowledge-content">
+                        ${graphData ? `
+                            <div class="media-info">
+                                <div class="media-icon">🔗</div>
+                                <div class="media-details">
+                                    <div class="media-row"><span class="media-label">Nodes:</span> ${graphData.nodes?.length || 0}</div>
+                                    <div class="media-row"><span class="media-label">Edges:</span> ${graphData.edges?.length || 0}</div>
+                                    <div class="media-row"><span class="media-label">Raw Size:</span> ${MAIFParser.formatSize(dataSize)}</div>
+                                </div>
+                            </div>
+                            <pre class="key-display" style="max-height: 200px; overflow: auto;">${JSON.stringify(graphData, null, 2)}</pre>
+                        ` : `
+                            <pre class="key-display">${this.escapeHtml(content || 'Unable to read content')}</pre>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (type === 'META' || type === 'BINA') {
+            const content = this.parser.getTextContent(index);
+            let jsonData = null;
+            try {
+                jsonData = JSON.parse(content);
+            } catch (e) {}
+            
+            if (jsonData) {
+                return `
+                    <div class="detail-section">
+                        <div class="detail-section-title">${type === 'META' ? '📋 Metadata Content' : '📦 Binary Content'}</div>
+                        <div class="content-preview json-content">
+                            <pre class="key-display">${JSON.stringify(jsonData, null, 2)}</pre>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // Show hex preview for non-JSON binary
+                return this.getHexPreviewHtml(index, dataSize);
+            }
+        }
+
+        // Default: try to show content or hex dump
+        const content = this.parser.getTextContent(index);
+        if (content && content.length > 0) {
+            // Check if mostly printable
+            const printableRatio = (content.match(/[\x20-\x7E\n\r\t]/g) || []).length / content.length;
+            if (printableRatio > 0.8) {
+                return `
+                    <div class="detail-section">
+                        <div class="detail-section-title">📄 Content Preview</div>
+                        <div class="content-preview text-content">
+                            <pre>${this.escapeHtml(content.slice(0, 2000))}${content.length > 2000 ? '\n... (truncated)' : ''}</pre>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        return this.getHexPreviewHtml(index, dataSize);
+    }
+
+    getHexPreviewHtml(index, dataSize) {
+        const blockData = this.parser.getBlockData(index);
+        if (!blockData) return '';
+        
+        const hexLines = [];
+        const maxBytes = Math.min(blockData.length, 256);
+        
+        for (let i = 0; i < maxBytes; i += 16) {
+            const lineBytes = blockData.slice(i, Math.min(i + 16, maxBytes));
+            const offset = i.toString(16).padStart(6, '0');
+            const hex = Array.from(lineBytes).map(b => b.toString(16).padStart(2, '0')).join(' ').padEnd(47, ' ');
+            const ascii = Array.from(lineBytes).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '.').join('');
+            hexLines.push(`${offset}  ${hex}  ${ascii}`);
+        }
+        
+        if (blockData.length > 256) {
+            hexLines.push(`... ${(blockData.length - 256).toLocaleString()} more bytes ...`);
+        }
+        
+        return `
+            <div class="detail-section">
+                <div class="detail-section-title">📦 Binary Content Preview</div>
+                <div class="content-preview hex-content">
+                    <pre>${hexLines.join('\n')}</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    formatDuration(seconds) {
+        if (typeof seconds !== 'number') return seconds;
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (hrs > 0) {
+            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     formatAction(action) {
