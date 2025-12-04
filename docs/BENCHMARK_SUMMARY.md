@@ -19,7 +19,7 @@ This document provides a comprehensive analysis of the MAIF (Multimodal Artifact
 - **CSB**: [`CryptographicSemanticBinding`](maif/semantic_optimized.py:347-516) - Hash-based commitment schemes
 
 **Security Framework:**
-- **Digital Signatures**: [`MAIFSigner`](maif/security.py:36-134) with RSA/ECDSA support
+- **Digital Signatures**: [`MAIFSigner`](maif/security.py:36-134) with Ed25519 (64-byte signatures)
 - **Provenance Chains**: Immutable operation history with cryptographic linking
 - **Access Control**: [`AccessController`](maif/security.py:268-299) with granular permissions
 
@@ -90,10 +90,10 @@ Commitment = Hash(embedding || source_data || nonce)
 ### **Security & Privacy Validation**
 
 **Cryptographic Security**:
-- **Digital Signatures**: RSA-2048, ECDSA P-256 with provenance chains
-- **Hash Verification**: SHA-256 block-level integrity with file-level root hash
+- **Digital Signatures**: Ed25519 with 64-byte signatures and embedded provenance chains
+- **Hash Verification**: SHA-256 block-level integrity with Merkle root
 - **Access Control**: Granular permissions with time-based and conditional access
-- **Tamper Detection**: 100% detection rate with immediate verification
+- **Tamper Detection**: 100% detection rate in <0.1ms
 
 **Privacy-by-Design**:
 - **Anonymization**: Pattern-based PII detection (SSN, credit cards, emails, names)

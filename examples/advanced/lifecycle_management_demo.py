@@ -1,6 +1,11 @@
 """
 MAIF Lifecycle Management Demo
 Demonstrates merging, splitting, and self-governing data fabric capabilities.
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import asyncio
@@ -22,15 +27,16 @@ from maif.lifecycle_management import (
     GovernanceRule,
     MAIFLifecycleState
 )
-from maif.core import MAIFEncoder
+from maif import MAIFEncoder
 from maif_api import create_maif
 
 def create_sample_maifs(workspace: Path, num_files: int = 3) -> list:
-    """Create sample MAIF files for testing."""
+    """Create sample MAIF files for testing (secure format with Ed25519)."""
     maif_paths = []
     
     for i in range(num_files):
-        encoder = MAIFEncoder()
+        maif_path = workspace / f"sample_{i}.maif"
+        encoder = MAIFEncoder(str(maif_path), agent_id=f"lifecycle-agent-{i}")
         
         # Add various content
         for j in range(20):
@@ -46,10 +52,8 @@ def create_sample_maifs(workspace: Path, num_files: int = 3) -> list:
             {"type": "test_data", "file_id": i}
         )
         
-        # Build MAIF
-        maif_path = workspace / f"sample_{i}.maif"
-        manifest_path = maif_path.with_suffix('.json')
-        encoder.build_maif(str(maif_path), str(manifest_path))
+        # Finalize (signs with Ed25519, self-contained)
+        encoder.finalize()
         
         maif_paths.append(str(maif_path))
         logger.info(f"Created sample MAIF: {maif_path}")
@@ -97,8 +101,9 @@ def demonstrate_splitting():
     workspace = Path("./demo_workspace/splitting")
     workspace.mkdir(parents=True, exist_ok=True)
     
-    # Create a large MAIF
-    encoder = MAIFEncoder()
+    # Create a large MAIF (secure format)
+    maif_path = workspace / "large_file.maif"
+    encoder = MAIFEncoder(str(maif_path), agent_id="splitting-demo")
     
     # Add content of different types
     for i in range(100):
@@ -114,9 +119,8 @@ def demonstrate_splitting():
             {"block_id": i, "type": "binary"}
         )
     
-    maif_path = workspace / "large_file.maif"
-    manifest_path = maif_path.with_suffix('.json')
-    encoder.build_maif(str(maif_path), str(manifest_path))
+    # Finalize (self-contained with Ed25519 signatures)
+    encoder.finalize()
     
     splitter = MAIFSplitter()
     
@@ -152,8 +156,9 @@ def demonstrate_self_governance():
     workspace = Path("./demo_workspace/governance")
     workspace.mkdir(parents=True, exist_ok=True)
     
-    # Create a MAIF file
-    encoder = MAIFEncoder()
+    # Create a MAIF file (secure format)
+    maif_path = workspace / "governed.maif"
+    encoder = MAIFEncoder(str(maif_path), agent_id="governance-demo")
     
     for i in range(200):
         encoder.add_text_block(
@@ -161,9 +166,8 @@ def demonstrate_self_governance():
             {"block_id": i, "timestamp": time.time()}
         )
     
-    maif_path = workspace / "governed.maif"
-    manifest_path = maif_path.with_suffix('.json')
-    encoder.build_maif(str(maif_path), str(manifest_path))
+    # Finalize (self-contained with Ed25519 signatures)
+    encoder.finalize()
     
     # Create custom governance rules
     rules = [
@@ -283,8 +287,9 @@ def demonstrate_advanced_governance():
     workspace = Path("./demo_workspace/advanced_governance")
     workspace.mkdir(parents=True, exist_ok=True)
     
-    # Create a MAIF that will trigger various rules
-    encoder = MAIFEncoder()
+    # Create a MAIF that will trigger various rules (secure format)
+    maif_path = workspace / "fragmented.maif"
+    encoder = MAIFEncoder(str(maif_path), agent_id="advanced-governance-demo")
     
     # Add fragmented content (non-sequential)
     import random
@@ -297,9 +302,8 @@ def demonstrate_advanced_governance():
             {"original_index": i, "timestamp": time.time() - random.randint(0, 86400)}
         )
     
-    maif_path = workspace / "fragmented.maif"
-    manifest_path = maif_path.with_suffix('.json')
-    encoder.build_maif(str(maif_path), str(manifest_path))
+    # Finalize (self-contained with Ed25519 signatures)
+    encoder.finalize()
     
     # Create governance with all default rules
     governed = SelfGoverningMAIF(str(maif_path))
@@ -355,6 +359,10 @@ def main():
     print("- Lifecycle Manager for coordinating multiple MAIFs")
     print("- Advanced governance scenarios with custom rules")
     print("- Automatic reorganization, archiving, and optimization")
+    print("\nSecure Format Features:")
+    print("- Ed25519 signatures (64 bytes per block)")
+    print("- Self-contained files (no external manifest needed)")
+    print("- Embedded provenance chain for audit trail")
 
 if __name__ == "__main__":
     main()

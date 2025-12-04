@@ -2,15 +2,20 @@
 
 Examples demonstrating MAIF's security and privacy features including encryption, access control, and classified data handling.
 
+All examples use the **secure MAIF format** with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest needed)
+- Embedded provenance chain for complete audit trail
+
 ## Overview
 
 These examples show how to:
-- Encrypt sensitive data
-- Implement access control
-- Handle classified information
+- Encrypt sensitive data with AES-GCM or ChaCha20
+- Implement access control with Ed25519-signed blocks
+- Handle classified information with immutable signatures
 - Apply differential privacy
 - Manage security clearances
-- Audit security events
+- Audit security events via embedded provenance
 
 ## Examples
 

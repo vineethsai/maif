@@ -1,13 +1,18 @@
 """
 Advanced MAIF Features Demonstration
 
-This example showcases the comprehensive capabilities of MAIF 2.0 including:
+This example showcases the comprehensive capabilities of MAIF including:
 - Advanced compression algorithms
 - Binary format handling
 - Validation and repair
 - Streaming operations
 - Format conversion
 - Performance profiling
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import os
@@ -18,7 +23,7 @@ import time
 from pathlib import Path
 
 # Import MAIF modules
-from maif.core import MAIFEncoder, MAIFParser
+from maif import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner, MAIFVerifier
 from maif.compression import MAIFCompressor, CompressionAlgorithm
 from maif.binary_format import MAIFBinaryWriter, MAIFBinaryParser

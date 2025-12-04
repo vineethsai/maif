@@ -71,7 +71,7 @@ Commitment = Hash(embedding || source_data || nonce)
 | Metric | Paper Target | Implementation | Status |
 |--------|--------------|----------------|---------|
 | Hash Verification | 500+ MB/s | ✅ Implemented | ALIGNED |
-| ECDSA Operations | 1000+ ops/sec | ✅ Implemented | ALIGNED |
+| Ed25519 Signatures | 30,000+ ops/sec | ✅ Implemented | EXCEEDS |
 | Text Compression | 2.5-5× | ✅ Achieved | ALIGNED |
 | Semantic Search | Sub-50ms | ✅ Optimized | ALIGNED |
 | Memory Buffer | 64KB minimum | ✅ Streaming | ALIGNED |
@@ -81,8 +81,8 @@ Commitment = Hash(embedding || source_data || nonce)
 **Paper Specification (README.tex:295-329)**:
 
 **Digital Signatures**: ✅ ALIGNED
-- RSA-2048, ECDSA P-256, EdDSA support
-- Implementation: [`maif/security.py`](../maif/security.py)
+- Ed25519 signatures (64 bytes, fast signing/verification)
+- Implementation: [`maif/security.py`](../maif/security.py) and [`maif/secure_format.py`](../maif/secure_format.py)
 
 **Access Control**: ✅ ALIGNED
 - Granular permissions (block-level, field-level)

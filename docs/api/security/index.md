@@ -277,7 +277,7 @@ def sign_data(self, data: bytes) -> str:
         data: Data to sign
 
     Returns:
-        Base64-encoded RSA-PSS signature
+        Base64-encoded Ed25519 signature (64 bytes)
 
     Raises:
         ValueError: If data is empty

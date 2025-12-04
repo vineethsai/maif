@@ -1,6 +1,11 @@
 """
 Video functionality demonstration for MAIF.
 Shows enhanced video storage, metadata extraction, and querying capabilities.
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import os
@@ -11,7 +16,7 @@ import struct
 # Add the parent directory to the path so we can import maif
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from maif.core import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder
 from maif.privacy import PrivacyPolicy, PrivacyLevel, EncryptionMode
 
 
@@ -81,7 +86,10 @@ def demonstrate_video_storage():
     """Demonstrate video storage with metadata extraction."""
     print("=== Video Storage Demonstration ===")
     
-    encoder = MAIFEncoder(agent_id="video-demo-agent")
+    # Create temp file path for secure MAIF format
+    temp_dir = tempfile.mkdtemp()
+    maif_path = os.path.join(temp_dir, "video_demo.maif")
+    encoder = MAIFEncoder(maif_path, agent_id="video-demo-agent")
     
     # Create sample videos with different properties
     videos = [
@@ -145,16 +153,16 @@ def demonstrate_video_querying(encoder: MAIFEncoder):
     """Demonstrate video querying capabilities."""
     print("\n=== Video Querying Demonstration ===")
     
-    # Save MAIF file
-    temp_dir = tempfile.mkdtemp()
-    maif_path = os.path.join(temp_dir, "video_demo.maif")
-    manifest_path = os.path.join(temp_dir, "video_demo.maif.manifest.json")
-    
-    encoder.build_maif(maif_path, manifest_path)
+    # Finalize the MAIF file (self-contained with Ed25519 signatures)
+    encoder.finalize()
+    maif_path = encoder.file_path
+    temp_dir = os.path.dirname(maif_path)
     print(f"MAIF file saved to: {maif_path}")
+    print("  (Self-contained with Ed25519 signatures)")
     
-    # Load and query
-    decoder = MAIFDecoder(maif_path, manifest_path)
+    # Load and query (no manifest needed)
+    decoder = MAIFDecoder(maif_path)
+    decoder.load()
     
     print("\n--- Basic Video Information ---")
     video_blocks = decoder.get_video_blocks()
@@ -255,7 +263,9 @@ def demonstrate_privacy_features():
     """Demonstrate video storage with privacy controls."""
     print("\n=== Privacy-Enabled Video Storage ===")
     
-    encoder = MAIFEncoder(enable_privacy=True, agent_id="privacy-demo-agent")
+    temp_dir = tempfile.mkdtemp()
+    maif_path = os.path.join(temp_dir, "privacy_video.maif")
+    encoder = MAIFEncoder(maif_path, agent_id="privacy-demo-agent", enable_privacy=True)
     
     # Create privacy policy for sensitive video content
     confidential_policy = PrivacyPolicy(
@@ -350,6 +360,10 @@ def main():
         print("✓ Video statistics and summaries")
         print("✓ Privacy-controlled video storage")
         print("✓ Video data retrieval")
+        print("\nSecure format features:")
+        print("✓ Ed25519 signatures (64 bytes per block)")
+        print("✓ Self-contained files (no external manifest)")
+        print("✓ Embedded provenance chain")
         
         # Cleanup
         import shutil

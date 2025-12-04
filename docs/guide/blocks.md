@@ -6,7 +6,7 @@ Blocks are the fundamental unit of data storage in MAIF. This guide explains blo
 
 Every MAIF file consists of blocks, each containing:
 
-- **Header**: ID, type, size, hash
+- **Header**: ID, type, size, hash, and Ed25519 signature
 - **Data**: The actual content
 - **Metadata**: Additional information
 
@@ -15,8 +15,11 @@ Every MAIF file consists of blocks, each containing:
 │            Block Header              │
 │  - Block ID (UUID)                  │
 │  - Block Type (4 chars)             │
-│  - Data Size                        │
+│  - Data Size + Flags                │
 │  - Hash (SHA-256)                   │
+│  - Previous Block Hash              │
+│  - Ed25519 Signature (64 bytes)     │
+│  - Timestamp                        │
 ├─────────────────────────────────────┤
 │            Block Data                │
 │  - Content (text, binary, vectors)  │
@@ -25,10 +28,11 @@ Every MAIF file consists of blocks, each containing:
 ├─────────────────────────────────────┤
 │           Block Metadata             │
 │  - Custom JSON metadata             │
-│  - Timestamps                       │
 │  - Privacy level                    │
 └─────────────────────────────────────┘
 ```
+
+Each block is signed immediately when written, making it immutable and tamper-evident.
 
 ## Block Types
 

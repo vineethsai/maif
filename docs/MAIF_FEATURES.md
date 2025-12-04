@@ -14,11 +14,12 @@ MAIF (Multimodal Artifact File Format) is a comprehensive, AI-native file format
 - **Versioning**: Block-level versioning with append-on-write architecture
 
 ### Security Features
-- **Digital Signatures**: RSA/ECDSA signatures with certificate chains
+- **Ed25519 Digital Signatures**: Fast, compact 64-byte signatures on every block
+- **Self-Contained Format**: All signatures, provenance, and keys embedded in the file
 - **Cryptographic Provenance**: Immutable audit trails with cryptographic verification
+- **Merkle Root Verification**: Fast whole-file integrity checking
 - **Access Control**: Role-based permissions and encryption
-- **Integrity Verification**: Multi-level checksums and validation
-- **Classified Data Support** (NEW):
+- **Classified Data Support**:
   - Mandatory Access Control (Bell-LaPadula model)
   - PKI/CAC/PIV authentication
   - Hardware MFA integration
@@ -67,7 +68,7 @@ metadata = decoder.manifest
 ```python
 from maif.security import MAIFSigner, MAIFVerifier
 
-signer = MAIFSigner(private_key_path="key.pem", agent_id="signer")
+signer = MAIFSigner(agent_id="signer")
 signer.add_provenance_entry("create", block_hash)
 signed_manifest = signer.sign_maif_manifest(manifest)
 
@@ -76,9 +77,9 @@ is_valid = verifier.verify_maif_signature(signed_manifest)
 ```
 
 **Features:**
-- RSA/ECDSA signature support
-- Certificate chain validation
+- Ed25519 signatures (64 bytes, fast signing and verification)
 - Provenance chain tracking with cryptographic hash chaining
+- Embedded public keys for self-contained verification
 - Timestamp verification
 - Non-repudiation guarantees
 
@@ -412,14 +413,15 @@ encoder.add_validation_schema(data_schema)
 ## Security Guarantees
 
 ### Cryptographic Strength
-- **Signatures**: RSA-2048/ECDSA-256
-- **Hashing**: SHA-256/SHA-3
+- **Signatures**: Ed25519 (128-bit security, 64-byte signatures)
+- **Hashing**: SHA-256
 - **Encryption**: AES-256-GCM
 
 ### Provenance Integrity
-- **Immutable History**: Append-only structure
-- **Chain Validation**: Cryptographic linking
-- **Timestamp Verification**: RFC 3161 compliance
+- **Immutable History**: Append-only structure with signed blocks
+- **Chain Validation**: Cryptographic linking via previous block hashes
+- **Merkle Root**: Fast verification of entire file integrity
+- **Embedded Keys**: Public keys stored in file header for self-contained verification
 
 ## Standards Compliance
 

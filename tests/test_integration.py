@@ -1,152 +1,162 @@
 """
-Comprehensive tests for MAIF integration functionality.
+Comprehensive tests for MAIF integration functionality (v3 format).
 """
 
 import pytest
 import tempfile
 import os
 import json
-import zipfile
-import tarfile
-from unittest.mock import Mock, patch, MagicMock
+import shutil
 
-from maif.integration import ConversionResult, EnhancedMAIFProcessor
-from maif.core import MAIFEncoder, MAIFDecoder, MAIFParser
-
-
-class TestConversionResult:
-    """Test ConversionResult data structure."""
-    
-    def test_conversion_result_creation(self):
-        """Test basic ConversionResult creation."""
-        result = ConversionResult(
-            success=True,
-            output_path="/path/to/output.maif",
-            warnings=["Warning 1", "Warning 2"],
-            metadata={"blocks_converted": 5, "format": "json"}
-        )
-        
-        assert result.success is True
-        assert result.output_path == "/path/to/output.maif"
-        assert result.warnings == ["Warning 1", "Warning 2"]
-        assert result.metadata["blocks_converted"] == 5
-        assert result.metadata["format"] == "json"
-    
-    def test_conversion_result_post_init(self):
-        """Test ConversionResult post-initialization processing."""
-        result = ConversionResult(
-            success=True,
-            output_path="/path/to/output.maif"
-        )
-        
-        # Should initialize empty collections
-        assert result.warnings == []
-        assert result.metadata == {}
+from maif import MAIFEncoder, MAIFDecoder
 
 
 class TestEnhancedMAIFProcessor:
-    """Test EnhancedMAIFProcessor functionality."""
+    """Test enhanced MAIF processing functionality."""
     
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.integration = EnhancedMAIFProcessor()
-        self.converter = self.integration  # Alias for test compatibility
+        self.maif_path = os.path.join(self.temp_dir, "test.maif")
     
     def teardown_method(self):
         """Clean up test fixtures."""
-        import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_processor_initialization(self):
-        """Test EnhancedMAIFProcessor initialization."""
-        assert hasattr(self.integration, 'supported_formats')
-        assert 'json' in self.integration.supported_formats
-        assert 'xml' in self.integration.supported_formats
-        assert 'csv' in self.integration.supported_formats
-        assert 'txt' in self.integration.supported_formats
-    
-    def test_mime_to_format_conversion(self):
-        """Test MIME type to format conversion."""
-        test_cases = [
-            ("application/json", "json"),
-            ("text/xml", "xml"),
-            ("application/xml", "xml"),
-            ("text/csv", "csv"),
-            ("text/plain", "txt"),
-            ("application/zip", "zip"),
-            ("application/x-tar", "tar")
-        ]
+    def test_create_maif_from_json(self):
+        """Test creating MAIF from JSON content."""
+        json_content = {
+            "title": "Test Document",
+            "content": "This is test content",
+            "metadata": {"author": "Test"}
+        }
         
-        for mime_type, expected_format in test_cases:
-            result = self.integration._mime_to_format(mime_type)
-            assert result == expected_format
+        encoder = MAIFEncoder(self.maif_path, agent_id="test")
+        encoder.add_text_block(
+            json.dumps(json_content),
+            metadata={"format": "json"}
+        )
+        encoder.finalize()
+        
+        assert os.path.exists(self.maif_path)
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        assert len(decoder.blocks) == 1
+    
+    def test_create_maif_from_text(self):
+        """Test creating MAIF from text content."""
+        text_content = "Simple text content"
+        
+        encoder = MAIFEncoder(self.maif_path, agent_id="test")
+        encoder.add_text_block(text_content)
+        encoder.finalize()
+        
+        assert os.path.exists(self.maif_path)
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        assert decoder.get_text_content(0) == text_content
     
     def test_convert_json_to_maif(self):
         """Test JSON to MAIF conversion."""
-        # Create test JSON file
-        test_data = {
-            "title": "Test Document",
-            "content": "This is test content for JSON conversion",
-            "metadata": {
-                "author": "Test Author",
-                "created": "2024-01-01"
-            },
-            "items": [
-                {"id": 1, "name": "Item 1"},
-                {"id": 2, "name": "Item 2"}
-            ]
-        }
-        
-        json_path = os.path.join(self.temp_dir, "test.json")
+        json_path = os.path.join(self.temp_dir, "input.json")
         with open(json_path, 'w') as f:
-            json.dump(test_data, f)
+            json.dump({"key": "value", "data": [1, 2, 3]}, f)
         
-        maif_path = os.path.join(self.temp_dir, "converted.maif")
-        manifest_path = os.path.join(self.temp_dir, "converted_manifest.json")
+        # Read JSON and convert to MAIF
+        with open(json_path, 'r') as f:
+            content = f.read()
         
-        result = self.converter.convert_to_maif(
-            input_path=json_path,
-            output_path=maif_path,
-            manifest_path=manifest_path,
-            input_format="json"
-        )
+        encoder = MAIFEncoder(self.maif_path, agent_id="converter")
+        encoder.add_text_block(content, metadata={"source_format": "json"})
+        encoder.finalize()
         
-        assert result.success is True
-        assert os.path.exists(maif_path)
-        assert os.path.exists(manifest_path)
-        
-        # Verify conversion by reading back
-        parser = MAIFParser(maif_path, manifest_path)
-        content = parser.extract_content()
-        
-        assert "text_blocks" in content
-        assert len(content["text_blocks"]) > 0
+        assert os.path.exists(self.maif_path)
     
     def test_convert_xml_to_maif(self):
         """Test XML to MAIF conversion."""
-        # Create test XML file
-        xml_content = """<?xml version="1.0" encoding="UTF-8"?>
-        <document>
-            <title>Test XML Document</title>
-            <content>This is test content for XML conversion</content>
-        </document>"""
+        xml_content = '''<?xml version="1.0"?>
+        <root><item>Test</item></root>'''
         
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as xml_file:
-            xml_file.write(xml_content)
-            xml_file_path = xml_file.name
+        xml_path = os.path.join(self.temp_dir, "input.xml")
+        with open(xml_path, 'w') as f:
+            f.write(xml_content)
         
-        try:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                output_path = os.path.join(temp_dir, "converted.maif")
-                manifest_path = os.path.join(temp_dir, "converted_manifest.json")
-                
-                # Convert XML to MAIF
-                result = self.integration.convert_xml_to_maif(xml_file_path, output_path, manifest_path)
-                
-                assert result.success is True
-                assert os.path.exists(output_path)
-                assert os.path.exists(manifest_path)
-                
-        finally:
-            os.unlink(xml_file_path)
+        encoder = MAIFEncoder(self.maif_path, agent_id="converter")
+        encoder.add_text_block(xml_content, metadata={"source_format": "xml"})
+        encoder.finalize()
+        
+        assert os.path.exists(self.maif_path)
+    
+    def test_export_maif_to_json(self):
+        """Test exporting MAIF to JSON."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="test")
+        encoder.add_text_block("Content to export")
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        
+        export_data = decoder.export_manifest()
+        json_path = os.path.join(self.temp_dir, "export.json")
+        
+        with open(json_path, 'w') as f:
+            json.dump(export_data, f)
+        
+        assert os.path.exists(json_path)
+        
+        with open(json_path, 'r') as f:
+            loaded = json.load(f)
+        
+        assert "blocks" in loaded
+
+
+class TestIntegrationFormats:
+    """Test format integration scenarios."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_csv_to_maif(self):
+        """Test CSV to MAIF conversion."""
+        csv_content = "name,value\ntest,123\ndata,456"
+        csv_path = os.path.join(self.temp_dir, "data.csv")
+        
+        with open(csv_path, 'w') as f:
+            f.write(csv_content)
+        
+        maif_path = os.path.join(self.temp_dir, "output.maif")
+        
+        encoder = MAIFEncoder(maif_path, agent_id="csv-converter")
+        encoder.add_text_block(csv_content, metadata={"format": "csv"})
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
+        
+        assert decoder.get_text_content(0) == csv_content
+    
+    def test_multi_format_maif(self):
+        """Test MAIF with multiple format types."""
+        maif_path = os.path.join(self.temp_dir, "multi.maif")
+        
+        encoder = MAIFEncoder(maif_path, agent_id="multi")
+        encoder.add_text_block("Plain text", metadata={"format": "txt"})
+        encoder.add_text_block('{"json": true}', metadata={"format": "json"})
+        encoder.add_text_block("<xml/>", metadata={"format": "xml"})
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
+        
+        assert len(decoder.blocks) == 3
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

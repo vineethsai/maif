@@ -1,5 +1,10 @@
 """
 Demonstration of MAIF versioning and forensic capabilities.
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import json
@@ -11,7 +16,7 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from maif import MAIFEncoder, MAIFParser, MAIFSigner, MAIFVerifier
+from maif import MAIFEncoder, MAIFDecoder, MAIFSigner, MAIFVerifier
 from maif.forensics import ForensicAnalyzer
 
 def demonstrate_versioning():
@@ -19,10 +24,10 @@ def demonstrate_versioning():
     print("MAIF Versioning and Forensics Demonstration")
     print("=" * 50)
     
-    # Create initial MAIF with agent 1
+    # Create initial MAIF with agent 1 (secure format with Ed25519)
     print("\n1. Creating initial MAIF file...")
     agent1_id = "agent-001-alice"
-    encoder = MAIFEncoder(agent_id=agent1_id)
+    encoder = MAIFEncoder("versioned_doc.maif", agent_id=agent1_id)
     signer = MAIFSigner(agent_id=agent1_id)
     
     # Add initial content
@@ -39,15 +44,9 @@ def demonstrate_versioning():
     text_block_id = text_block.block_id
     print(f"   Created block ID: {text_block_id}")
     
-    # Build initial MAIF
-    encoder.build_maif("versioned_doc.maif", "versioned_doc_manifest.json")
-    
-    # Sign manifest
-    with open("versioned_doc_manifest.json", "r") as f:
-        manifest = json.load(f)
-    signed_manifest = signer.sign_maif_manifest(manifest)
-    with open("versioned_doc_manifest.json", "w") as f:
-        json.dump(signed_manifest, f, indent=2)
+    # Finalize initial MAIF (self-contained with Ed25519 signatures)
+    encoder.finalize()
+    print("   (Self-contained with Ed25519 signatures, no manifest needed)")
     
     print("   ✓ Initial MAIF created and signed")
     

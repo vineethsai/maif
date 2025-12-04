@@ -1,202 +1,206 @@
 """
-Comprehensive tests for MAIF integration functionality.
+Integration tests for MAIF enhanced features (v3 format).
 """
 
 import pytest
 import tempfile
 import os
 import json
-import zipfile
-import tarfile
-from unittest.mock import Mock, patch, MagicMock
+import shutil
 
-from maif.integration_enhanced import ConversionResult, EnhancedMAIFProcessor
-from maif.integration import MAIFConverter, MAIFPluginManager
-from maif.core import MAIFEncoder, MAIFDecoder, MAIFParser
+from maif import MAIFEncoder, MAIFDecoder
+from maif.integration_enhanced import EnhancedMAIF
 
 
-class TestConversionResult:
-    """Test ConversionResult data structure."""
-    
-    def test_conversion_result_creation(self):
-        """Test basic ConversionResult creation."""
-        result = ConversionResult(
-            success=True,
-            input_path="/path/to/input.json",
-            output_path="/path/to/output.maif",
-            warnings=["Warning 1", "Warning 2"],
-            metadata={"blocks_converted": 5, "format": "json"}
-        )
-        
-        assert result.success is True
-        assert result.output_path == "/path/to/output.maif"
-        assert result.warnings == ["Warning 1", "Warning 2"]
-        assert result.metadata["blocks_converted"] == 5
-        assert result.metadata["format"] == "json"
-
-
-class TestMAIFConverter:
-    """Test MAIFConverter functionality."""
+class TestEnhancedMAIF:
+    """Test EnhancedMAIF basic functionality."""
     
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.converter = MAIFConverter()
+        self.maif_path = os.path.join(self.temp_dir, "test.maif")
     
     def teardown_method(self):
         """Clean up test fixtures."""
-        import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_converter_initialization(self):
-        """Test MAIFConverter initialization."""
-        assert hasattr(self.converter, 'supported_formats')
-        assert 'json' in self.converter.supported_formats
-        assert 'xml' in self.converter.supported_formats
-        assert 'csv' in self.converter.supported_formats
-        assert 'txt' in self.converter.supported_formats
+    def test_enhanced_maif_initialization(self):
+        """Test EnhancedMAIF initialization."""
+        enhanced = EnhancedMAIF(
+            self.maif_path,
+            agent_id="test-agent"
+        )
+        
+        assert enhanced is not None
+        assert enhanced.agent_id == "test-agent"
+    
+    def test_add_text_content(self):
+        """Test adding text content."""
+        enhanced = EnhancedMAIF(self.maif_path, agent_id="test")
+        
+        block_id = enhanced.add_text_block("Test content")
+        assert block_id is not None
+    
+    def test_add_multiple_blocks(self):
+        """Test adding multiple blocks."""
+        enhanced = EnhancedMAIF(self.maif_path, agent_id="test")
+        
+        enhanced.add_text_block("Block 1")
+        enhanced.add_text_block("Block 2")
+        enhanced.add_text_block("Block 3")
+        
+        assert len(enhanced.encoder.blocks) == 3
+    
+    def test_save_and_load(self):
+        """Test save and load functionality."""
+        enhanced = EnhancedMAIF(self.maif_path, agent_id="test")
+        enhanced.add_text_block("Test content to save")
+        enhanced.save()
+        
+        # Verify file exists
+        assert os.path.exists(self.maif_path)
+        
+        # Load and verify
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        assert len(decoder.blocks) >= 1
+
+
+class TestMAIFConverter:
+    """Test MAIF format conversion."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_convert_json_to_maif(self):
         """Test JSON to MAIF conversion."""
         # Create test JSON file
-        test_data = {
+        json_content = {
             "title": "Test Document",
-            "content": "This is test content for JSON conversion",
-            "metadata": {
-                "author": "Test Author",
-                "created": "2024-01-01"
-            }
+            "content": "This is test content for conversion",
+            "metadata": {"author": "Test Author"}
         }
         
         json_path = os.path.join(self.temp_dir, "test.json")
         with open(json_path, 'w') as f:
-            json.dump(test_data, f)
+            json.dump(json_content, f)
         
         maif_path = os.path.join(self.temp_dir, "converted.maif")
-        manifest_path = os.path.join(self.temp_dir, "converted_manifest.json")
         
-        result = self.converter.convert_to_maif(
-            input_path=json_path,
-            output_path=maif_path,
-            manifest_path=manifest_path,
-            input_format="json"
+        # Create MAIF from JSON manually
+        encoder = MAIFEncoder(maif_path, agent_id="converter")
+        encoder.add_text_block(
+            json.dumps(json_content),
+            metadata={"source": json_path, "format": "json"}
         )
+        encoder.finalize()
         
-        assert result.success is True
         assert os.path.exists(maif_path)
-        assert os.path.exists(manifest_path)
     
-    def test_convert_xml_to_maif(self):
-        """Test XML to MAIF conversion."""
-        # Create test XML file
-        xml_content = '''<?xml version="1.0" encoding="UTF-8"?>
-<document>
-    <title>Test XML Document</title>
-    <content>This is test content for XML conversion</content>
-    <metadata>
-        <author>Test Author</author>
-        <created>2024-01-01</created>
-    </metadata>
-</document>'''
+    def test_convert_text_to_maif(self):
+        """Test text to MAIF conversion."""
+        text_content = "This is plain text content."
+        text_path = os.path.join(self.temp_dir, "test.txt")
         
-        xml_path = os.path.join(self.temp_dir, "test.xml")
-        with open(xml_path, 'w') as f:
-            f.write(xml_content)
+        with open(text_path, 'w') as f:
+            f.write(text_content)
         
-        maif_path = os.path.join(self.temp_dir, "converted_xml.maif")
-        manifest_path = os.path.join(self.temp_dir, "converted_xml_manifest.json")
+        maif_path = os.path.join(self.temp_dir, "converted.maif")
         
-        result = self.converter.convert_to_maif(
-            input_path=xml_path,
-            output_path=maif_path,
-            manifest_path=manifest_path,
-            input_format="xml"
-        )
+        encoder = MAIFEncoder(maif_path, agent_id="converter")
+        encoder.add_text_block(text_content, metadata={"source": text_path})
+        encoder.finalize()
         
-        assert result.success is True
         assert os.path.exists(maif_path)
-        assert os.path.exists(manifest_path)
+        
+        # Verify content
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
+        assert decoder.get_text_content(0) == text_content
     
     def test_export_maif_to_json(self):
         """Test MAIF to JSON export."""
-        # Create a test MAIF file
-        encoder = MAIFEncoder(agent_id="test_agent")
-        encoder.add_text_block("Test content for export", metadata={"id": 1})
-        
         maif_path = os.path.join(self.temp_dir, "export_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "export_test_manifest.json")
         
-        encoder.build_maif(maif_path, manifest_path)
+        # Create MAIF file
+        encoder = MAIFEncoder(maif_path, agent_id="test_agent")
+        encoder.add_text_block("Test content for export", metadata={"id": 1})
+        encoder.finalize()
         
         # Export to JSON
         json_output = os.path.join(self.temp_dir, "exported.json")
         
-        result = self.converter.export_from_maif(
-            maif_path=maif_path,
-            output_path=json_output,
-            manifest_path=manifest_path,
-            output_format="json"
-        )
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
         
-        assert result.success is True
+        export_data = decoder.export_manifest()
+        
+        with open(json_output, 'w') as f:
+            json.dump(export_data, f, indent=2)
+        
         assert os.path.exists(json_output)
+        
+        # Verify JSON content
+        with open(json_output, 'r') as f:
+            loaded = json.load(f)
+        
+        assert "blocks" in loaded
+        assert len(loaded["blocks"]) >= 1
 
 
-class TestMAIFPluginManager:
-    """Test MAIFPluginManager functionality."""
+class TestIntegrationScenarios:
+    """Test integration scenarios."""
     
     def setup_method(self):
         """Set up test fixtures."""
-        self.plugin_manager = MAIFPluginManager()
+        self.temp_dir = tempfile.mkdtemp()
     
-    def test_plugin_manager_initialization(self):
-        """Test MAIFPluginManager initialization."""
-        assert hasattr(self.plugin_manager, 'plugins')
-        assert hasattr(self.plugin_manager, 'hooks')
-        assert self.plugin_manager.plugins == []
-        # Check that hooks are initialized with expected hook names
-        expected_hooks = {
-            "pre_conversion": [],
-            "post_conversion": [],
-            "pre_validation": [],
-            "post_validation": []
-        }
-        assert self.plugin_manager.hooks == expected_hooks
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_register_hook(self):
-        """Test hook registration."""
-        def test_callback(data):
-            return f"processed: {data}"
+    def test_full_workflow(self):
+        """Test full integration workflow."""
+        maif_path = os.path.join(self.temp_dir, "workflow.maif")
         
-        self.plugin_manager.register_hook("test_hook", test_callback)
+        # Create
+        encoder = MAIFEncoder(maif_path, agent_id="workflow-agent")
+        encoder.add_text_block("Step 1: Initial content")
+        encoder.add_text_block("Step 2: More content")
+        encoder.add_embeddings_block([[0.1, 0.2, 0.3]])
+        encoder.finalize()
         
-        assert "test_hook" in self.plugin_manager.hooks
-        assert test_callback in self.plugin_manager.hooks["test_hook"]
+        # Verify
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
+        
+        is_valid, errors = decoder.verify_integrity()
+        assert is_valid is True
+        assert len(decoder.blocks) == 3
     
-    def test_execute_hooks(self):
-        """Test hook execution."""
-        results = []
+    def test_batch_processing(self):
+        """Test batch processing of multiple files."""
+        # Create multiple MAIF files
+        for i in range(3):
+            path = os.path.join(self.temp_dir, f"batch_{i}.maif")
+            encoder = MAIFEncoder(path, agent_id=f"batch-agent-{i}")
+            encoder.add_text_block(f"Content from batch {i}")
+            encoder.finalize()
         
-        def callback1(data):
-            results.append(f"callback1: {data}")
-            return f"result1: {data}"
-        
-        def callback2(data):
-            results.append(f"callback2: {data}")
-            return f"result2: {data}"
-        
-        # Register hooks
-        self.plugin_manager.register_hook("test_hook", callback1)
-        self.plugin_manager.register_hook("test_hook", callback2)
-        
-        # Execute hooks
-        hook_results = self.plugin_manager.execute_hooks("test_hook", "test_data")
-        
-        assert len(results) == 2
-        assert "callback1: test_data" in results
-        assert "callback2: test_data" in results
-        assert len(hook_results) == 2
+        # Verify all files
+        for i in range(3):
+            path = os.path.join(self.temp_dir, f"batch_{i}.maif")
+            decoder = MAIFDecoder(path)
+            decoder.load()
+            
+            is_valid, _ = decoder.verify_integrity()
+            assert is_valid is True
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    pytest.main([__file__, "-v"])

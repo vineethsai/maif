@@ -1,15 +1,15 @@
 # Cryptographic Operations
 
-MAIF provides FIPS-compliant cryptographic operations for data encryption, signing, and integrity verification. These capabilities are accessed through `SecurityManager` and `MAIFSigner`/`MAIFVerifier`.
+MAIF provides cryptographic operations for data encryption, signing, and integrity verification. These capabilities are accessed through `SecurityManager` and `MAIFSigner`/`MAIFVerifier`.
 
 ## Overview
 
-| Feature | Algorithm | Standard |
-|---------|-----------|----------|
-| Encryption | AES-256-GCM | FIPS 140-2 |
-| Key Derivation | PBKDF2-HMAC-SHA256 | NIST SP 800-132 |
-| Signing | RSA-PSS | PKCS#1 v2.1 |
-| Hashing | SHA-256 | FIPS 180-4 |
+| Feature | Algorithm | Notes |
+|---------|-----------|-------|
+| Encryption | AES-256-GCM | FIPS 140-2 compliant |
+| Key Derivation | PBKDF2-HMAC-SHA256 | 100,000 iterations |
+| **Signing** | **Ed25519** | **64-byte signatures, fast** |
+| Hashing | SHA-256 | For block integrity |
 
 ## Encryption
 
@@ -72,7 +72,7 @@ KMS supports two modes:
 
 ## Digital Signatures
 
-MAIF uses RSA-2048 with PSS padding for digital signatures.
+MAIF uses **Ed25519** for digital signatures — fast, compact, and secure.
 
 ### Signing Data
 
@@ -81,21 +81,21 @@ from maif.security import MAIFSigner
 
 signer = MAIFSigner(agent_id="my-agent")
 
-# Sign data
+# Sign data - returns 64-byte Ed25519 signature
 data = b"Important document"
 signature = signer.sign_data(data)
 
-# Get public key for verification
+# Get public key for verification (32 bytes)
 public_key_pem = signer.get_public_key_pem()
 ```
 
 ### Signature Format
 
-Signatures are:
-- Base64-encoded
-- RSA-2048 with PSS padding
-- SHA-256 message digest
-- PSS salt length = digest length
+Ed25519 signatures are:
+- 64 bytes (compact)
+- Deterministic (no random nonce required)
+- Fast to sign and verify
+- 128-bit security level
 
 ### Verifying Signatures
 
@@ -311,9 +311,10 @@ security = SecurityManager(
 - **Iterations**: 100,000 (minimum)
 - **Output key size**: 256 bits
 
-### RSA-PSS
+### Ed25519
 
-- **Key size**: 2048 bits
-- **Hash**: SHA-256
-- **Salt length**: Hash digest length
-- **Trailer field**: 0xBC
+- **Key size**: 256 bits (32 bytes)
+- **Signature size**: 512 bits (64 bytes)
+- **Security level**: 128 bits
+- **Performance**: ~70,000 signatures/second on modern hardware
+- **Verification**: ~30,000 verifications/second

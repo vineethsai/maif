@@ -1,207 +1,159 @@
+#!/usr/bin/env python3
 """
-Basic usage example for MAIF library.
+MAIF Basic Usage Example
+
+Demonstrates the core functionality of the MAIF library:
+- Creating MAIF files with text and embeddings
+- Verifying file integrity
+- Reading and inspecting MAIF files
+- Provenance tracking
 """
 
-import sys
 import os
+import sys
+
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-import json
-import logging
-from maif import MAIFEncoder, MAIFParser, MAIFSigner, MAIFVerifier
-from maif.semantic import SemanticEmbedder, KnowledgeGraphBuilder, SemanticEmbedding
-from maif.forensics import ForensicAnalyzer
+from maif import (
+    MAIFEncoder, MAIFDecoder, MAIFParser,
+    BlockType, verify_maif
+)
 
-# Set up logging
-logger = logging.getLogger(__name__)
-
-def create_sample_maif():
-    """Create a sample MAIF file with multimodal content."""
-    print("Creating sample MAIF file...")
-    
-    # Initialize components
-    encoder = MAIFEncoder()
-    signer = MAIFSigner(agent_id="demo-agent-001")
-    embedder = SemanticEmbedder()
-    kg_builder = KnowledgeGraphBuilder()
-    
-    # Add text content
-    texts = [
-        "Artificial intelligence is transforming how we work and live.",
-        "Machine learning models require careful validation and testing.",
-        "Trustworthy AI systems need transparency and accountability."
-    ]
-    
-    for i, text in enumerate(texts):
-        # Add text block
-        text_hash = encoder.add_text_block(text, metadata={"source": f"document_{i}.txt"})
-        
-        # Add provenance entry
-        signer.add_provenance_entry(f"add_text_block", text_hash)
-        
-        # Generate embeddings
-        embedding = embedder.embed_text(text)
-        
-        # Extract entities for knowledge graph
-        entities = kg_builder.extract_entities_from_text(text, source=f"document_{i}")
-    
-    # Add embeddings block
-    embeddings = [emb.vector for emb in embedder.embeddings]
-    embed_hash = encoder.add_embeddings_block(embeddings, metadata={
-        "model": embedder.model_name,
-        "dimensions": len(embeddings[0]) if embeddings else 0
-    })
-    signer.add_provenance_entry("add_embeddings_block", embed_hash)
-    
-    # Add knowledge graph block
-    kg_data = kg_builder.export_to_json()
-    kg_json = json.dumps(kg_data).encode('utf-8')
-    kg_hash = encoder.add_binary_block(kg_json, "knowledge_graph", metadata={
-        "format": "json",
-        "triples_count": len(kg_builder.triples)
-    })
-    signer.add_provenance_entry("add_knowledge_graph", kg_hash)
-    
-    # Build MAIF file
-    encoder.build_maif("sample.maif", "sample_manifest.json")
-    
-    # Sign the manifest
-    with open("sample_manifest.json", "r") as f:
-        manifest = json.load(f)
-    
-    signed_manifest = signer.sign_maif_manifest(manifest)
-    
-    with open("sample_manifest.json", "w") as f:
-        json.dump(signed_manifest, f, indent=2)
-    
-    print("✓ Sample MAIF file created: sample.maif")
-    print("✓ Signed manifest created: sample_manifest.json")
-    
-    return "sample.maif", "sample_manifest.json"
-
-def verify_and_analyze_maif(maif_path, manifest_path):
-    """Verify and analyze a MAIF file."""
-    print(f"\nVerifying and analyzing {maif_path}...")
-    
-    # Parse MAIF file
-    parser = MAIFParser(maif_path, manifest_path)
-    
-    # Verify integrity
-    integrity_ok = parser.verify_integrity()
-    print(f"✓ File integrity: {'VALID' if integrity_ok else 'INVALID'}")
-    
-    # Verify signatures and provenance
-    verifier = MAIFVerifier()
-    with open(manifest_path, "r") as f:
-        manifest = json.load(f)
-    
-    manifest_valid, errors = verifier.verify_maif_manifest(manifest)
-    print(f"✓ Manifest verification: {'VALID' if manifest_valid else 'INVALID'}")
-    if errors:
-        for error in errors:
-            print(f"  - {error}")
-    
-    # Extract content
-    content = parser.extract_content()
-    print(f"✓ Extracted {len(content['texts'])} text blocks")
-    print(f"✓ Extracted {len(content['embeddings'])} embeddings")
-    
-    # Perform forensic analysis
-    print("\nPerforming forensic analysis...")
-    forensic_analyzer = ForensicAnalyzer()
-    report = forensic_analyzer.analyze_maif_file(maif_path, manifest_path)
-    
-    print(f"✓ Forensic status: {report.get('status', 'analyzed')}")
-    print(f"✓ Risk assessment: {report.get('risk_assessment', {}).get('overall_risk', 'unknown')}")
-    print(f"✓ Total evidence: {report.get('total_evidence', 0)}")
-    
-    evidence_list = report.get('evidence', [])
-    if evidence_list:
-        print(f"⚠ Found {len(evidence_list)} pieces of evidence:")
-        for evidence in evidence_list[:3]:  # Show first 3
-            print(f"  - {evidence.get('severity', 'unknown').upper()}: {evidence.get('description', 'No description')}")
-    
-    recommendations = report.get('recommendations', [])
-    print(f"✓ Recommendations: {len(recommendations)}")
-    for rec in recommendations[:3]:  # Show first 3 recommendations
-        print(f"  - {rec}")
-    
-    return report
-
-def demonstrate_semantic_search():
-    """Demonstrate semantic search capabilities."""
-    print("\nDemonstrating semantic search...")
-    
-    # Parse the MAIF file
-    parser = MAIFParser("sample.maif", "sample_manifest.json")
-    content = parser.extract_content()
-    
-    if not content['embeddings']:
-        print("No embeddings found for semantic search")
-        return
-    
-    # Initialize embedder for query
-    embedder = SemanticEmbedder()
-    
-    # Create query embedding
-    query = "How can we make AI more trustworthy?"
-    query_embedding = embedder.embed_text(query)
-    
-    # Simple similarity search (in a real implementation, you'd use FAISS)
-    similarities = []
-    for i, embedding_vector in enumerate(content['embeddings']):
-        # Create embedding object for comparison
-        doc_embedding = SemanticEmbedding(
-            vector=embedding_vector,
-            source_hash="",
-            model_name=embedder.model_name,
-            timestamp=0
-        )
-        
-        similarity = embedder.compute_similarity(query_embedding, doc_embedding)
-        similarities.append((i, similarity))
-    
-    # Sort by similarity
-    similarities.sort(key=lambda x: x[1], reverse=True)
-    
-    print(f"Query: '{query}'")
-    print("Most similar content:")
-    for i, (doc_idx, similarity) in enumerate(similarities[:2]):
-        if doc_idx < len(content['texts']):
-            print(f"  {i+1}. (similarity: {similarity:.3f}) {content['texts'][doc_idx][:100]}...")
 
 def main():
     """Main demonstration function."""
-    print("MAIF Library Demonstration")
-    print("=" * 50)
+    print("=" * 60)
+    print("MAIF Library Demonstration - Secure Format v3")
+    print("=" * 60)
     
-    try:
-        # Create sample MAIF
-        maif_path, manifest_path = create_sample_maif()
-        
-        # Verify and analyze
-        report = verify_and_analyze_maif(maif_path, manifest_path)
-        
-        # Demonstrate semantic search
-        demonstrate_semantic_search()
-        
-        # Save forensic report
-        with open("forensic_report.json", "w") as f:
-            json.dump(report, f, indent=2, default=str)
-        print(f"\n✓ Forensic report saved: forensic_report.json")
-        
-        print("\n" + "=" * 50)
-        print("Demonstration completed successfully!")
-        print("Files created:")
-        print("  - sample.maif (MAIF container)")
-        print("  - sample_manifest.json (signed manifest)")
-        print("  - forensic_report.json (analysis report)")
-        
-    except Exception as e:
-        print(f"Error during demonstration: {e}")
-        import traceback
-        traceback.print_exc()
+    output_file = "sample.maif"
+    
+    # =========================================================================
+    # Create a MAIF file
+    # =========================================================================
+    print("\n📝 Creating MAIF file...")
+    
+    encoder = MAIFEncoder(output_file, agent_id="demo-agent-001")
+    
+    # Add text blocks
+    encoder.add_text_block(
+        "This is the first text block in the MAIF file.",
+        metadata={"source": "demo", "language": "en"}
+    )
+    
+    encoder.add_text_block(
+        "MAIF provides secure, verifiable storage for AI-generated content.",
+        metadata={"source": "demo", "topic": "description"}
+    )
+    
+    encoder.add_text_block(
+        "Each block is cryptographically signed with Ed25519 on creation.",
+        metadata={"source": "demo", "topic": "security"}
+    )
+    
+    # Add embeddings (example vectors)
+    sample_embeddings = [
+        [0.1, 0.2, 0.3, 0.4, 0.5] * 20,  # 100-dim vector
+        [0.2, 0.3, 0.4, 0.5, 0.6] * 20,
+        [0.3, 0.4, 0.5, 0.6, 0.7] * 20,
+    ]
+    encoder.add_embeddings_block(
+        sample_embeddings,
+        metadata={"model": "demo-embeddings", "dimensions": 100}
+    )
+    
+    # Finalize (signs the file)
+    encoder.finalize()
+    
+    file_size = os.path.getsize(output_file)
+    print(f"✓ Created: {output_file} ({file_size:,} bytes)")
+    
+    # =========================================================================
+    # Verify the file
+    # =========================================================================
+    print("\n🔐 Verifying file integrity...")
+    
+    is_valid, report = verify_maif(output_file)
+    print(f"✓ File integrity: {'VALID ✅' if is_valid else 'INVALID ❌'}")
+    if not is_valid:
+        print(f"  Errors: {report.get('errors', [])}")
+    
+    # =========================================================================
+    # Read and inspect the file
+    # =========================================================================
+    print("\n📖 Reading MAIF file...")
+    
+    decoder = MAIFDecoder(output_file)
+    decoder.load()
+    
+    # File info
+    file_info = decoder.get_file_info()
+    print(f"\n📋 File Information:")
+    print(f"  Version: {file_info['version']}")
+    print(f"  Agent: {file_info['agent_did']}")
+    print(f"  Blocks: {file_info['block_count']}")
+    print(f"  Signed: {'Yes' if file_info['is_signed'] else 'No'}")
+    print(f"  Finalized: {'Yes' if file_info['is_finalized'] else 'No'}")
+    print(f"  Merkle Root: {file_info['merkle_root'][:32]}...")
+    
+    # List blocks
+    print(f"\n📦 Blocks ({len(decoder.blocks)}):")
+    for i, block in enumerate(decoder.blocks):
+        type_name = BlockType(block.header.block_type).name
+        size = block.header.size
+        is_signed = bool(block.header.flags & 0x01)
+        print(f"  [{i}] {type_name}: {size} bytes {'🔐' if is_signed else ''}")
+    
+    # Read text content
+    print("\n📄 Text Content:")
+    for i, block in enumerate(decoder.blocks):
+        if block.header.block_type == BlockType.TEXT:
+            text = decoder.get_text_content(i)
+            if text:
+                preview = text[:60] + "..." if len(text) > 60 else text
+                print(f"  [{i}] \"{preview}\"")
+    
+    # Provenance chain
+    print(f"\n🔗 Provenance Chain ({len(decoder.provenance)} entries):")
+    for entry in decoder.provenance:
+        action = entry.action
+        agent = entry.agent_id
+        print(f"  • {action} by {agent}")
+    
+    # Security info
+    security = decoder.get_security_info()
+    print(f"\n🔒 Security:")
+    print(f"  Algorithm: {security.get('key_algorithm', 'Ed25519')}")
+    print(f"  Signer: {security.get('signer_id', 'N/A')}")
+    
+    # =========================================================================
+    # Using the high-level parser
+    # =========================================================================
+    print("\n📊 Using MAIFParser (high-level API):")
+    
+    parser = MAIFParser(output_file)
+    parser.load()
+    
+    print(f"  Loaded {len(parser.blocks)} blocks")
+    print(f"  Provenance: {len(parser.provenance)} entries")
+    is_valid, errors = parser.verify()
+    print(f"  Integrity: {'Valid' if is_valid else 'Issues found'}")
+    
+    # =========================================================================
+    # Summary
+    # =========================================================================
+    print("\n" + "=" * 60)
+    print("✅ Demonstration completed successfully!")
+    print("=" * 60)
+    print(f"\nFiles created:")
+    print(f"  - {output_file}")
+    print("\nKey features demonstrated:")
+    print("  - Self-contained MAIF files (no manifest needed)")
+    print("  - Ed25519 cryptographic signatures")
+    print("  - Provenance tracking")
+    print("  - Tamper detection")
+
 
 if __name__ == "__main__":
     main()

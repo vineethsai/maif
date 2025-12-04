@@ -7,7 +7,10 @@ Demonstrates the three novel algorithms implemented in MAIF:
 2. HSC - Hierarchical Semantic Compression  
 3. CSB - Cryptographic Semantic Binding
 
-And showcases cross-modal AI with deep semantic understanding.
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import sys
@@ -20,7 +23,7 @@ from pathlib import Path
 # Add the parent directory to the path so we can import maif
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from maif import MAIFEncoder, MAIFParser
+from maif import MAIFEncoder, MAIFDecoder, MAIFParser
 from maif.semantic import (
     SemanticEmbedder,
     CrossModalAttention,
@@ -231,8 +234,9 @@ def demo_maif_integration():
     print("MAIF Integration Demo - Novel Algorithms in Action")
     print("="*60)
     
-    # Create MAIF encoder
-    encoder = MAIFEncoder(agent_id="novel_algorithms_demo")
+    # Create MAIF encoder (secure format with Ed25519)
+    output_file = "novel_algorithms_demo.maif"
+    encoder = MAIFEncoder(output_file, agent_id="novel_algorithms_demo")
     
     # Sample data
     text_data = "MAIF enables trustworthy AI through novel algorithms and cross-modal understanding."
@@ -271,39 +275,38 @@ def demo_maif_integration():
     )
     print(f"Added semantic binding block (CSB): {csb_block_id}")
     
-    # Build MAIF file
-    output_file = "novel_algorithms_demo.maif"
-    manifest_file = "novel_algorithms_demo_manifest.json"
-    
-    print(f"\nBuilding MAIF file: {output_file}")
-    encoder.build_maif(output_file, manifest_file)
+    # Finalize MAIF file (self-contained with Ed25519 signatures)
+    print(f"\nFinalizing MAIF file: {output_file}")
+    encoder.finalize()
+    print("  (Self-contained with Ed25519 signatures, no manifest needed)")
     
     # Parse and verify the MAIF file
     print(f"Parsing MAIF file...")
-    parser = MAIFParser(output_file, manifest_file)
+    decoder = MAIFDecoder(output_file)
+    decoder.load()
     
     # Verify integrity
-    integrity_ok = parser.verify_integrity()
-    print(f"File integrity: {'VALID' if integrity_ok else 'INVALID'}")
+    is_valid, errors = decoder.verify_integrity()
+    print(f"File integrity: {'VALID ✅' if is_valid else 'INVALID ❌'}")
     
-    # Extract content
-    content = parser.extract_content()
-    print(f"\nExtracted content:")
-    print(f"  Text blocks: {len(content.get('texts', []))}")
-    print(f"  Embeddings: {len(content.get('embeddings', []))}")
-    print(f"  Total blocks: {len(parser.list_blocks())}")
+    # Get file info
+    file_info = decoder.get_file_info()
+    print(f"\nFile Information:")
+    print(f"  Blocks: {file_info['block_count']}")
+    print(f"  Signed: {'Yes' if file_info['is_signed'] else 'No'}")
+    print(f"  Merkle Root: {file_info['merkle_root'][:32]}...")
     
     # Show block types
     block_types = {}
-    for block in parser.list_blocks():
-        block_type = block.get('type', 'unknown')
+    for block in decoder.blocks:
+        block_type = block.header.block_type
         block_types[block_type] = block_types.get(block_type, 0) + 1
     
     print(f"\nBlock types in MAIF file:")
     for block_type, count in block_types.items():
         print(f"  {block_type}: {count}")
     
-    return output_file, manifest_file
+    return output_file
 
 def main():
     """Run all novel algorithm demonstrations."""
@@ -324,7 +327,7 @@ def main():
         cross_modal_result = demo_cross_modal_ai()
         
         # Demonstrate MAIF integration
-        maif_file, manifest_file = demo_maif_integration()
+        maif_file = demo_maif_integration()
         
         print("\n" + "="*60)
         print("Demo Summary")
@@ -336,10 +339,10 @@ def main():
         print("✓ MAIF Integration: Successfully created MAIF file with novel algorithms")
         
         print(f"\nGenerated files:")
-        print(f"  - {maif_file}")
-        print(f"  - {manifest_file}")
+        print(f"  - {maif_file} (self-contained, Ed25519 signed)")
         
         print("\nNovel algorithms are now integrated and operational in MAIF!")
+        print("Using secure format with Ed25519 signatures and embedded provenance.")
         
     except Exception as e:
         print(f"\nError during demonstration: {e}")

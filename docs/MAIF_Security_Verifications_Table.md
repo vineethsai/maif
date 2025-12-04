@@ -18,7 +18,7 @@
 | **Property** | **Implementation** | **Guarantee** |
 |--------------|-------------------|---------------|
 | **Integrity** | SHA-256 hashing | Tamper detection with 99.999...% probability |
-| **Authenticity** | ECDSA/RSA signatures | Cryptographic proof of origin |
+| **Authenticity** | Ed25519 signatures | Cryptographic proof of origin |
 | **Non-repudiation** | Digital signatures + DIDs | Undeniable action attribution |
 | **Confidentiality** | AES-256/ChaCha20 encryption | Data protection at rest and transit |
 | **Provenance** | Immutable audit trails | Complete action history |
@@ -46,7 +46,7 @@
 | **Operation** | **Performance** | **Scalability** |
 |---------------|----------------|-----------------|
 | **Hash Verification** | 500+ MB/s | Hardware accelerated |
-| **Signature Verification** | 1000+ ops/sec | ECDSA P-256 |
+| **Signature Verification** | 30,000+ ops/sec | Ed25519 |
 | **Semantic Validation** | 50-100 MB/s | Context-aware |
 | **Memory Usage** | 64KB minimum | Streaming compatible |
 | **Compression** | 2.5-5× text, 3-4× embeddings | Algorithm-specific optimization |

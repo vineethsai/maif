@@ -192,17 +192,19 @@ if maif.verify_integrity():
 
 ### Digital Signatures
 
-Sign data with Ed25519:
+MAIF uses Ed25519 for all signatures — fast and compact (64 bytes each):
 
 ```python
 from maif.security import MAIFSigner, MAIFVerifier
 
 signer = MAIFSigner(agent_id="signer")
-signature = signer.sign_data(data)
+signature = signer.sign_data(data)  # Returns 64-byte Ed25519 signature
 
 verifier = MAIFVerifier()
 is_valid = verifier.verify_signature(data, signature, public_key)
 ```
+
+Ed25519 provides high security with excellent performance — signing and verification are nearly instant.
 
 ### Access Control
 
@@ -267,15 +269,19 @@ maif.add_multimodal({
 
 ## File Structure
 
-A MAIF artifact consists of:
-
-1. **MAIF File** (`.maif`): Binary file with blocks
-2. **Manifest** (`_manifest.json`): Index and metadata
+MAIF files are **self-contained** — everything is in a single `.maif` file:
 
 ```
-my_artifact.maif          # Binary data
-my_artifact_manifest.json # Metadata, signatures
+my_artifact.maif          # Contains all blocks, signatures, provenance, and metadata
 ```
+
+The secure format includes:
+- **File header** with Ed25519 public key and Merkle root
+- **Signed blocks** with 64-byte signatures
+- **Embedded provenance chain** for complete audit trail
+- **Security section** with verification metadata
+
+No external manifest files are required.
 
 ## Common Patterns
 

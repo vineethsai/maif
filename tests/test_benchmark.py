@@ -16,30 +16,29 @@ def test_basic_maif_functionality():
     print("Testing basic MAIF functionality...")
     
     try:
-        from maif.core import MAIFEncoder, MAIFDecoder
+        from maif import MAIFEncoder, MAIFDecoder, BlockType
         
-        # Test encoding
-        encoder = MAIFEncoder()
-        text_hash = encoder.add_text_block("Hello, MAIF!")
-        embeddings_hash = encoder.add_embeddings_block([[1.0, 2.0, 3.0]])
-        
-        # Test building
         with tempfile.TemporaryDirectory() as tmpdir:
             maif_path = os.path.join(tmpdir, "test.maif")
-            manifest_path = os.path.join(tmpdir, "test_manifest.json")
             
-            encoder.build_maif(maif_path, manifest_path)
+            # Test encoding (v3 format)
+            encoder = MAIFEncoder(maif_path, agent_id="benchmark_test")
+            encoder.add_text_block("Hello, MAIF!")
+            encoder.add_embeddings_block([[1.0, 2.0, 3.0]])
+            encoder.finalize()
             
             # Test decoding
-            decoder = MAIFDecoder(maif_path, manifest_path)
-            texts = decoder.get_text_blocks()
-            embeddings = decoder.get_embeddings()
+            decoder = MAIFDecoder(maif_path)
+            decoder.load()
+            
+            # Get blocks
+            text_blocks = [b for b in decoder.blocks if b.header.block_type == BlockType.TEXT]
+            emb_blocks = [b for b in decoder.blocks if b.header.block_type == BlockType.EMBEDDINGS]
             
             # Verify
-            assert len(texts) == 1
-            assert texts[0] == "Hello, MAIF!"
-            assert len(embeddings) == 1
-            assert embeddings[0] == [1.0, 2.0, 3.0]
+            assert len(text_blocks) == 1
+            assert text_blocks[0].data.decode('utf-8') == "Hello, MAIF!"
+            assert len(emb_blocks) == 1
             
             print("✓ Basic MAIF functionality works")
             

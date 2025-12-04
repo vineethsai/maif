@@ -6,6 +6,11 @@ This example demonstrates MAIF's architecture for different use cases:
 2. Native SDK - Direct access for advanced use cases
 3. File-based operations - POSIX-style operations
 
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
+
 Run this demo to see how each interface serves different use cases.
 """
 
@@ -18,7 +23,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from maif_api import create_maif, MAIF, load_maif, quick_text_maif
-from maif.core import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder
 
 
 def demo_simple_api():
@@ -69,13 +74,14 @@ def demo_simple_api():
 
 
 def demo_native_encoder():
-    """Demonstrate the native MAIFEncoder interface."""
+    """Demonstrate the native MAIFEncoder interface (secure format)."""
     print("\n" + "="*60)
     print("2. NATIVE ENCODER DEMO - Direct Access Interface")
     print("="*60)
     
-    # Create an encoder directly
-    encoder = MAIFEncoder(agent_id="native_agent")
+    # Create an encoder directly (secure format with Ed25519)
+    test_file = Path("demo_native.maif")
+    encoder = MAIFEncoder(str(test_file), agent_id="native_agent")
     
     print(f"📝 Created MAIFEncoder for native access...")
     

@@ -50,11 +50,8 @@ class MAIFStreamReader:
     def blocks(self):
         """Get the blocks from the decoder."""
         if not self.decoder:
-            manifest_path = str(self._maif_path).replace('.maif', '_manifest.json')
-            if os.path.exists(manifest_path):
-                self.decoder = MAIFDecoder(str(self._maif_path), manifest_path)
-            else:
-                return []
+            self.decoder = MAIFDecoder(str(self._maif_path))
+            self.decoder.load()
         return self.decoder.blocks
         
     def __enter__(self):
@@ -118,140 +115,63 @@ class MAIFStreamReader:
         if not self.decoder or not self.decoder.blocks:
             return
         
-        if not self.file_handle:
-            # File handle not initialized, fall back to regular I/O
-            yield from self._stream_blocks_optimized()
-            return
-            
-        try:
-            with mmap.mmap(self.file_handle.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                # Optimize memory access pattern - check platform support
-                try:
-                    if hasattr(mmap, 'MADV_SEQUENTIAL'):
-                        mm.madvise(mmap.MADV_SEQUENTIAL)
-                    if hasattr(mmap, 'MADV_WILLNEED'):
-                        mm.madvise(mmap.MADV_WILLNEED)
-                except AttributeError:
-                    # madvise not available on this platform
-                    pass
-                
-                # Sort blocks by offset for sequential access
-                sorted_blocks = sorted(self.decoder.blocks, key=lambda b: b.offset)
-                
-                for block in sorted_blocks:
-                    try:
-                        header_size = 32
-                        data_size = max(0, block.size - header_size)
-                        
-                        if data_size > 0:
-                            start_pos = block.offset + header_size
-                            end_pos = start_pos + data_size
-                            
-                            # Validate bounds
-                            if start_pos < 0 or data_size < 0:
-                                yield block.block_type or "unknown", b"invalid_bounds"
-                            elif end_pos <= len(mm):
-                                # Zero-copy slice
-                                data = mm[start_pos:end_pos]
-                                self._total_bytes_read += len(data)
-                                yield block.block_type or "unknown", bytes(data)
-                            else:
-                                yield block.block_type or "unknown", b"boundary_error"
-                        else:
-                            yield block.block_type or "unknown", b"empty"
-                            
-                    except Exception as e:
-                        logger.error(f"Error reading block: {e}")
-                        yield "error", f"fast_read_error: {str(e)}".encode()
-                        
-        except Exception as e:
-            logger.error(f"Error in zero-copy streaming: {e}")
-            # Fallback to regular streaming
-            yield from self._stream_blocks_optimized()
-    
-    def _stream_blocks_optimized(self) -> Iterator[Tuple[str, bytes]]:
-        """Optimized fallback streaming method."""
+        # For v3 format, stream blocks directly from decoder
         if not self.decoder:
             self._initialize_decoder_fast()
         
         if not self.decoder or not self.decoder.blocks:
             return
         
-        # Use large buffer reads
-        buffer_size = 64 * 1024 * 1024  # 64MB buffer
-        sorted_blocks = sorted(self.decoder.blocks, key=lambda b: b.offset)
-        
-        current_buffer_start = 0
-        current_buffer = b""
-        
-        for block in sorted_blocks:
+        for block in self.decoder.blocks:
             try:
-                header_size = 32
-                data_size = max(0, block.size - header_size)
-                block_start = block.offset + header_size
-                block_end = block_start + data_size
-                
-                # Validate bounds
-                if start_pos < 0 or data_size < 0:
-                    yield block.block_type or "unknown", b"invalid_bounds"
-                    continue
-                    
-                # Check if we need to read more data
-                if (block_end > current_buffer_start + len(current_buffer) or
-                    block_start < current_buffer_start):
-                    
-                    # Read large chunk
-                    self.file_handle.seek(block_start)
-                    file_size = os.path.getsize(self.maif_path)
-                    remaining = file_size - block_start
-                    read_size = min(buffer_size, remaining) if remaining > 0 else 0
-                    
-                    if read_size > 0:
-                        current_buffer = self.file_handle.read(read_size)
-                        current_buffer_start = block_start
-                    else:
-                        yield block.block_type or "unknown", b"no_data"
-                        continue
-                
-                # Extract block data
-                buffer_offset = block_start - current_buffer_start
-                if (buffer_offset >= 0 and
-                    buffer_offset + data_size <= len(current_buffer)):
-                    
-                    data = current_buffer[buffer_offset:buffer_offset + data_size]
-                    self._total_bytes_read += len(data)
-                    yield block.block_type or "unknown", data
-                else:
-                    yield block.block_type or "unknown", b"buffer_miss"
-                    
+                block_type = self._get_block_type_name(block)
+                data = block.data if hasattr(block, 'data') else b""
+                self._total_bytes_read += len(data)
+                self._total_blocks_read += 1
+                yield block_type, data
+            except Exception as e:
+                logger.error(f"Error reading block: {e}")
+                yield "error", f"fast_read_error: {str(e)}".encode()
+    
+    def _get_block_type_name(self, block) -> str:
+        """Get block type name from block object."""
+        if hasattr(block, 'header') and hasattr(block.header, 'block_type'):
+            bt = block.header.block_type
+            type_names = {
+                0x54455854: "TEXT", 0x454D4244: "EMBD", 0x494D4147: "IMAG",
+                0x41554449: "AUDI", 0x56494445: "VIDE", 0x4B4E4F57: "KNOW",
+                0x42494E41: "BINA", 0x4D455441: "META"
+            }
+            return type_names.get(bt, str(bt))
+        return getattr(block, 'block_type', "unknown") or "unknown"
+    
+    def _stream_blocks_optimized(self) -> Iterator[Tuple[str, bytes]]:
+        """Optimized streaming for v3 format - iterate blocks directly."""
+        if not self.decoder:
+            self._initialize_decoder_fast()
+        
+        if not self.decoder or not self.decoder.blocks:
+            return
+        
+        for block in self.decoder.blocks:
+            try:
+                block_type = self._get_block_type_name(block)
+                data = block.data if hasattr(block, 'data') else b""
+                self._total_bytes_read += len(data)
+                self._total_blocks_read += 1
+                yield block_type, data
             except Exception as e:
                 logger.error(f"Error reading block in optimized mode: {e}")
                 yield "error", f"optimized_read_error: {str(e)}".encode()
     
     def _initialize_decoder_fast(self):
-        """Fast decoder initialization."""
-        manifest_paths = [
-            str(self.maif_path).replace('.maif', '_manifest.json'),
-            str(self.maif_path).replace('.maif', '.manifest.json'),
-            str(self.maif_path) + '_manifest.json',
-            str(self.maif_path) + '.manifest.json'
-        ]
-        
-        for manifest_path in manifest_paths:
-            if os.path.exists(manifest_path):
-                try:
-                    from .core import MAIFDecoder
-                    self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
-                    return
-                except Exception:
-                    continue
-        
-        # Try without manifest
+        """Fast decoder initialization for v3 self-contained format."""
         try:
             from .core import MAIFDecoder
-            self.decoder = MAIFDecoder(str(self.maif_path), None)
-        except Exception:
-            pass
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+        except Exception as e:
+            logger.debug(f"Failed to initialize decoder: {e}")
     
     def stream_blocks_parallel(self) -> Iterator[Tuple[str, bytes]]:
         """Stream blocks in parallel using ultra-fast methods."""
@@ -400,14 +320,13 @@ class MAIFStreamReader:
     def get_block_by_id(self, block_id: str) -> Optional[bytes]:
         """Get a specific block by ID."""
         if not self.decoder:
-            manifest_path = str(self.maif_path).replace('.maif', '_manifest.json')
-            if os.path.exists(manifest_path):
-                self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
-            else:
-                return None
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
         
         for block in self.decoder.blocks:
-            if block.block_id == block_id:
+            # Handle both old MAIFBlock and new SecureBlock
+            bid = getattr(block, 'block_id', None) or block.header.block_id.hex()
+            if bid == block_id:
                 return self._read_block_data(block)
         
         return None
@@ -432,10 +351,11 @@ class MAIFStreamReader:
 class MAIFStreamWriter:
     """High-performance streaming writer for MAIF files."""
     
-    def __init__(self, output_path: str, config: Optional[StreamingConfig] = None):
+    def __init__(self, output_path: str, config: Optional[StreamingConfig] = None, agent_id: str = "stream-writer"):
         self.output_path = output_path
         self.config = config or StreamingConfig()
-        self.encoder = MAIFEncoder()
+        self.agent_id = agent_id
+        self.encoder = MAIFEncoder(output_path, agent_id=agent_id)
         self._blocks_written = 0
         self._bytes_written = 0
         self._write_times = []
@@ -443,32 +363,21 @@ class MAIFStreamWriter:
         self._buffer = b""
         self.buffer = b""  # Add for test compatibility
         self._lock = threading.RLock()
+        self._finalized = False
     
     def __enter__(self):
         """Context manager entry."""
-        try:
-            self.file_handle = open(self.output_path, 'wb')
-            return self
-        except Exception as e:
-            logger.error(f"Error opening file for writing: {e}")
-            raise
+        return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         try:
             # Finalize the MAIF file before closing
-            if self.encoder and self.encoder.blocks:
-                manifest_path = str(self.output_path).replace('.maif', '_manifest.json')
-                self.encoder.build_maif(str(self.output_path), manifest_path)
+            if not self._finalized and self.encoder:
+                self.encoder.finalize()
+                self._finalized = True
         except Exception as e:
             logger.error(f"Error finalizing MAIF file: {e}")
-        
-        try:
-            if self.file_handle:
-                self.file_handle.close()
-                self.file_handle = None
-        except Exception as e:
-            logger.error(f"Error closing file handle: {e}")
     
     def write_block(self, block_data: bytes, block_type: str, metadata: Optional[Dict] = None) -> str:
         """Write a block to the stream."""
@@ -480,6 +389,7 @@ class MAIFStreamWriter:
         start_time = time.time()
         
         with self._lock:
+            from .core import BlockType
             if block_type == "text":
                 # Try to decode as UTF-8, but handle cases where it's already binary
                 try:
@@ -490,9 +400,9 @@ class MAIFStreamWriter:
                     block_id = self.encoder.add_text_block(text_data, metadata=metadata)
                 except UnicodeDecodeError:
                     # If decode fails, treat as binary
-                    block_id = self.encoder.add_binary_block(block_data, "binary_data", metadata=metadata)
+                    block_id = self.encoder.add_binary_block(block_data, BlockType.BINARY, metadata=metadata)
             else:
-                block_id = self.encoder.add_binary_block(block_data, block_type, metadata=metadata)
+                block_id = self.encoder.add_binary_block(block_data, BlockType.BINARY, metadata=metadata)
             
             self._blocks_written += 1
             self._bytes_written += len(block_data)
@@ -535,9 +445,11 @@ class MAIFStreamWriter:
         """Write a binary block to the stream."""
         return self.write_block(data, block_type, metadata)
     
-    def finalize(self, manifest_path: str) -> None:
+    def finalize(self, manifest_path: str = None) -> None:
         """Finalize the stream and write the MAIF file."""
-        self.encoder.build_maif(self.output_path, manifest_path)
+        if not self._finalized:
+            self.encoder.finalize()
+            self._finalized = True
     
     def get_stats(self) -> Dict[str, Any]:
         """Get writing statistics."""
@@ -719,7 +631,7 @@ class StreamingMAIFProcessor:
         self.config = config or StreamingConfig()
         self.profiler = PerformanceProfiler()
     
-    def stream_copy(self, source_path: str, dest_path: str, manifest_dest: str) -> Dict[str, Any]:
+    def stream_copy(self, source_path: str, dest_path: str, manifest_dest: str = None) -> Dict[str, Any]:
         """Stream copy a MAIF file with performance monitoring."""
         with self.profiler.context_timer("stream_copy"):
             with MAIFStreamReader(source_path, self.config) as reader:
@@ -729,13 +641,14 @@ class StreamingMAIFProcessor:
                         # Find the corresponding block metadata
                         block_metadata = None
                         for block in reader.blocks:
-                            if block.block_id == block_id:
-                                block_metadata = block.metadata
+                            bid = getattr(block, 'block_id', None) or block.header.block_id.hex()
+                            if bid == block_id:
+                                block_metadata = getattr(block, 'metadata', None)
                                 break
                         
                         writer.write_block(block_data, "data", block_metadata)
                     
-                    writer.finalize(manifest_dest)
+                    writer.finalize()
         
         return {
             "source_stats": reader.get_stats() if hasattr(reader, 'get_stats') else {},
@@ -895,28 +808,12 @@ class UltraHighThroughputReader(MAIFStreamReader):
         return results
     
     def _initialize_decoder(self):
-        """Initialize decoder with error handling."""
-        manifest_paths = [
-            str(self.maif_path).replace('.maif', '_manifest.json'),
-            str(self.maif_path).replace('.maif', '.manifest.json'),
-            str(self.maif_path) + '_manifest.json'
-        ]
-        
-        for manifest_path in manifest_paths:
-            if os.path.exists(manifest_path):
-                try:
-                    self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
-                    return
-                except Exception as e:
-                    logger.debug(f"Failed to load decoder from {manifest_path}: {e}")
-                    continue
-        
-        # Try without manifest
+        """Initialize decoder with error handling (v3 self-contained format)."""
         try:
-            self.decoder = MAIFDecoder(str(self.maif_path), None)
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
         except Exception as e:
             logger.error(f"Failed to initialize decoder: {e}")
-            pass
 
 
 # Raw file streaming for absolute maximum performance
@@ -980,20 +877,20 @@ class StreamIntegrityVerifier:
         self.tamper_detected = False
         self._hash_cache = {}  # Cache for performance
         
-    def load_expected_hashes(self, manifest_path: str):
-        """Load expected block hashes from manifest for verification."""
+    def load_expected_hashes(self, maif_path: str):
+        """Load expected block hashes from MAIF file (v3 self-contained format)."""
         if not self.enable_verification:
             return
             
         try:
-            import json
-            with open(manifest_path, 'r') as f:
-                manifest = json.load(f)
-                
-            # Extract expected hashes from manifest
-            for block in manifest.get('blocks', []):
-                block_id = block.get('block_id')
-                expected_hash = block.get('hash') or block.get('sha256')
+            from .core import MAIFDecoder
+            decoder = MAIFDecoder(maif_path)
+            decoder.load()
+            
+            # Extract expected hashes from blocks
+            for block in decoder.blocks:
+                block_id = block.header.block_id.hex()
+                expected_hash = block.header.content_hash.hex()
                 if block_id and expected_hash:
                     self.block_hashes[block_id] = expected_hash
                     
@@ -1071,17 +968,8 @@ class SecureStreamReader(UltraHighThroughputReader):
         self._load_verification_data()
     
     def _load_verification_data(self):
-        """Load verification data from manifest."""
-        manifest_paths = [
-            str(self.maif_path).replace('.maif', '_manifest.json'),
-            str(self.maif_path).replace('.maif', '.manifest.json'),
-            str(self.maif_path) + '_manifest.json'
-        ]
-        
-        for manifest_path in manifest_paths:
-            if os.path.exists(manifest_path):
-                self.verifier.load_expected_hashes(manifest_path)
-                break
+        """Load verification data from MAIF file (v3 self-contained format)."""
+        self.verifier.load_expected_hashes(str(self.maif_path))
     
     def stream_blocks_verified(self) -> Iterator[Tuple[str, bytes, bool]]:
         """Stream blocks with real-time tamper detection."""
@@ -1188,27 +1076,15 @@ class MAIFStreamer:
         self._current_block_index = 0
     
     def stream_blocks(self):
-        """Stream blocks from MAIF file."""
+        """Stream blocks from MAIF file (v3 self-contained format)."""
         try:
-            # Create decoder and read blocks
             from .core import MAIFDecoder
-            import os
             
-            # Try to find manifest file
-            manifest_path = self.file_path.replace('.maif', '_manifest.json')
-            if os.path.exists(manifest_path):
-                decoder = MAIFDecoder(self.file_path, manifest_path)
-            else:
-                decoder = MAIFDecoder(self.file_path)
+            decoder = MAIFDecoder(self.file_path)
+            decoder.load()
             
             # Yield all blocks directly from decoder
             for block in decoder.blocks:
-                # Ensure block has data attribute for compatibility
-                if not hasattr(block, 'data') or block.data is None:
-                    # Try to get block data
-                    block_data = decoder.get_block_data(block.block_id)
-                    if block_data:
-                        block.data = block_data
                 yield block
                     
         except Exception as e:

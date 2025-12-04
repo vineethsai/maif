@@ -77,12 +77,14 @@ class ForensicAnalyzer:
             "total_evidence_collected": 0
         }
     
-    def analyze_maif_file(self, maif_path: str, manifest_path: str) -> Dict[str, Any]:
+    def analyze_maif_file(self, maif_path: str, manifest_path: str = None) -> Dict[str, Any]:
         """
         Perform comprehensive forensic analysis of a MAIF file.
+        Note: manifest_path is deprecated in v3 format (self-contained files).
         """
         try:
-            decoder = MAIFDecoder(maif_path, manifest_path)
+            decoder = MAIFDecoder(maif_path)
+            decoder.load()
             
             # Perform multiple analysis passes
             version_analysis = self._analyze_version_history(decoder)
@@ -205,31 +207,21 @@ class ForensicAnalyzer:
         try:
             if not decoder.verify_integrity():
                 # Detailed hash checking
-                with open(decoder.maif_path, 'rb') as f:
-                    for block in decoder.blocks:
-                        try:
-                            header_size = 24 if hasattr(block, 'version') and block.version else 16
-                            f.seek(block.offset + header_size)
-                            data_size = block.size - header_size
-                            
-                            if data_size > 0:
-                                data = f.read(data_size)
-                                # Read header for complete hash calculation
-                                f.seek(block.offset)
-                                header_data = f.read(32)  # Read 32-byte header
-                                f.seek(block.offset + 32)  # Reset to data position
-                                computed_hash = hashlib.sha256(header_data + data).hexdigest()
-                                expected_hash = block.hash_value.replace('sha256:', '')
-                                
-                                if computed_hash != expected_hash:
-                                    hash_violations.append({
-                                        "block_id": block.block_id,
-                                        "expected_hash": expected_hash,
-                                        "computed_hash": computed_hash,
-                                        "block_type": block.block_type
-                                    })
-                        except Exception:
-                            continue
+                for block in decoder.blocks:
+                    try:
+                        # Get content hash from block
+                        expected_hash = block.header.content_hash.hex() if isinstance(block.header.content_hash, bytes) else block.header.content_hash
+                        computed_hash = hashlib.sha256(block.data).hexdigest()
+                        
+                        if computed_hash != expected_hash:
+                            hash_violations.append({
+                                "block_id": block.header.block_id,
+                                "expected_hash": expected_hash,
+                                "computed_hash": computed_hash,
+                                "block_type": str(block.header.block_type)
+                            })
+                    except Exception:
+                        continue
                 
                 if hash_violations:
                     evidence = ForensicEvidence(
@@ -453,16 +445,18 @@ class ForensicAnalyzer:
         # Check block size consistency
         size_anomalies = []
         for block in decoder.blocks:
-            if block.size < 32:  # Minimum size for header
+            block_size = block.header.size if hasattr(block.header, 'size') else len(block.data)
+            block_id = block.header.block_id
+            if block_size < 32:  # Minimum size for header
                 size_anomalies.append({
-                    "block_id": block.block_id,
-                    "size": block.size,
+                    "block_id": block_id,
+                    "size": block_size,
                     "issue": "too_small"
                 })
-            elif block.size > 100 * 1024 * 1024:  # Larger than 100MB
+            elif block_size > 100 * 1024 * 1024:  # Larger than 100MB
                 size_anomalies.append({
-                    "block_id": block.block_id,
-                    "size": block.size,
+                    "block_id": block_id,
+                    "size": block_size,
                     "issue": "unusually_large"
                 })
         
@@ -483,11 +477,13 @@ class ForensicAnalyzer:
         # Check for invalid hash formats
         invalid_hashes = []
         for block in decoder.blocks:
-            if not block.hash_value or not block.hash_value.startswith('sha256:'):
+            content_hash = block.header.content_hash
+            hash_value = content_hash.hex() if isinstance(content_hash, bytes) else str(content_hash)
+            if not hash_value:
                 invalid_hashes.append({
-                    "block_id": block.block_id,
-                    "hash_value": block.hash_value,
-                    "issue": "invalid_format"
+                    "block_id": block.header.block_id,
+                    "hash_value": hash_value,
+                    "issue": "empty_hash"
                 })
         
         if invalid_hashes:
@@ -798,10 +794,11 @@ class ForensicAnalyzer:
         hash_to_blocks = {}
         
         for block in blocks:
-            hash_val = block.hash_value
+            content_hash = block.header.content_hash
+            hash_val = content_hash.hex() if isinstance(content_hash, bytes) else str(content_hash)
             if hash_val not in hash_to_blocks:
                 hash_to_blocks[hash_val] = []
-            hash_to_blocks[hash_val].append(block.block_id or f"block_{block.offset}")
+            hash_to_blocks[hash_val].append(block.header.block_id or f"block_{id(block)}")
         
         # Return only hashes with multiple blocks
         return {hash_val: block_ids for hash_val, block_ids in hash_to_blocks.items() 
@@ -809,7 +806,7 @@ class ForensicAnalyzer:
     
     def _detect_missing_block_types(self, blocks: List[MAIFBlock]) -> List[str]:
         """Detect missing expected block types."""
-        present_types = set(block.block_type for block in blocks)
+        present_types = set(str(block.header.block_type) for block in blocks)
         expected_types = {"text_data", "embeddings", "security"}
         missing_types = []
         

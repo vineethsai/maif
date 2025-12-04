@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from pathlib import Path
 
 # Import core MAIF components
-from .core import MAIFEncoder, MAIFDecoder, MAIFBlock
+from .core import MAIFEncoder, MAIFDecoder, MAIFBlock, BlockType
 from .security import MAIFSigner, ProvenanceEntry
 from .validation import MAIFValidator
 
@@ -70,9 +70,9 @@ class EnhancedMAIF:
         self.maif_path = Path(maif_path)
         self.agent_id = agent_id or f"agent-{int(time.time())}"
         
-        # Core MAIF components
-        self.encoder = MAIFEncoder(agent_id=self.agent_id)
-        self.manifest_path = self.maif_path.with_suffix('.json')
+        # Core MAIF components (v3 format - self-contained)
+        self.encoder = MAIFEncoder(str(self.maif_path), agent_id=self.agent_id)
+        self.manifest_path = self.maif_path  # v3 is self-contained, no separate manifest
         
         # Initialize components based on enabled features
         self._init_event_sourcing() if enable_event_sourcing else None
@@ -455,10 +455,11 @@ class EnhancedMAIF:
             return results
     
     def save(self):
-        """Save MAIF to disk."""
+        """Save MAIF to disk (v3 format - finalize)."""
         with self._lock:
-            # Save core MAIF
-            self.encoder.save(str(self.maif_path), str(self.manifest_path))
+            # Finalize the MAIF file (v3 self-contained format)
+            if not self.encoder.finalized:
+                self.encoder.finalize()
             
             # Save columnar file if enabled
             if hasattr(self, 'columnar_file'):

@@ -13,6 +13,8 @@ pip install -e ".[full]"
 
 ## Your First MAIF File
 
+MAIF files are **self-contained** — all data, signatures, and provenance are stored in a single `.maif` file. Every block is signed with Ed25519 for tamper detection.
+
 ### Using the Simple API
 
 The easiest way to create a MAIF file:
@@ -212,13 +214,15 @@ print(f"Found {len(text_blocks)} text blocks")
 
 ## Digital Signatures
 
+MAIF uses Ed25519 for fast, compact signatures (64 bytes each):
+
 ```python
 from maif.security import MAIFSigner, MAIFVerifier
 
-# Create signer
+# Create signer (generates Ed25519 key pair)
 signer = MAIFSigner(agent_id="signer-demo")
 
-# Sign data
+# Sign data - returns 64-byte signature
 data = b"Important content"
 signature = signer.sign_data(data)
 

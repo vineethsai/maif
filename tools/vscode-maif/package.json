@@ -1,0 +1,162 @@
+{
+  "name": "vscode-maif-explorer",
+  "displayName": "MAIF Explorer",
+  "description": "View and explore MAIF (Multimodal Artifact File Format) files with provenance tracking and cryptographic verification",
+  "version": "1.0.0",
+  "publisher": "maif",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maif/maif"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "maif",
+    "ai",
+    "multimodal",
+    "artifact",
+    "provenance",
+    "cryptography"
+  ],
+  "activationEvents": [
+    "onLanguage:json",
+    "onCommand:maif.openExplorer",
+    "onCustomEditor:maif.binaryViewer"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "maif.openExplorer",
+        "title": "MAIF: Open Explorer",
+        "icon": "$(file-binary)"
+      },
+      {
+        "command": "maif.showProvenance",
+        "title": "MAIF: Show Provenance Chain"
+      },
+      {
+        "command": "maif.verifySignature",
+        "title": "MAIF: Verify Signature"
+      },
+      {
+        "command": "maif.showHexView",
+        "title": "MAIF: Show Hex View"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "maif.binaryViewer",
+        "displayName": "MAIF Binary Viewer",
+        "selector": [
+          {
+            "filenamePattern": "*.maif"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "languages": [
+      {
+        "id": "maif-manifest",
+        "aliases": ["MAIF Manifest"],
+        "filenames": ["*_manifest.json", "*-manifest.json"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "maif-manifest",
+        "scopeName": "source.json.maif",
+        "path": "./syntaxes/maif-manifest.tmLanguage.json"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "maif.openExplorer",
+          "when": "resourceExtname == .maif || resourceFilename =~ /_manifest\\.json$/",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "maif.showProvenance",
+          "when": "resourceFilename =~ /_manifest\\.json$/",
+          "group": "navigation"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "maif-explorer",
+          "title": "MAIF Explorer",
+          "icon": "media/maif-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "maif-explorer": [
+        {
+          "id": "maifOverview",
+          "name": "Overview"
+        },
+        {
+          "id": "maifBlocks",
+          "name": "Blocks"
+        },
+        {
+          "id": "maifProvenance",
+          "name": "Provenance"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MAIF Explorer",
+      "properties": {
+        "maif.autoDetectManifest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect and load manifest files"
+        },
+        "maif.showHexPreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hex preview for binary blocks"
+        },
+        "maif.maxBlockPreviewSize": {
+          "type": "number",
+          "default": 1024,
+          "description": "Maximum size (in bytes) for block content preview"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {}
+}
+
