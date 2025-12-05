@@ -35,7 +35,7 @@ MAIF uses modern cryptographic standards:
 
 ### Known Security Features
 
-✅ **Implemented:**
+**Implemented:**
 - Cryptographic provenance chains
 - Tamper detection (100% detection rate)
 - Block-level integrity verification
@@ -90,9 +90,9 @@ safety check --file requirements.txt
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 2.0.x   | ✅ Yes             |
-| 1.x.x   | ⚠️ Security fixes only |
-| < 1.0   | ❌ No              |
+| 2.0.x   | Yes (fully supported) |
+| 1.x.x   | Security fixes only |
+| < 1.0   | No longer supported |
 
 ## Security Updates
 
@@ -157,5 +157,5 @@ For security questions that aren't vulnerabilities:
 
 ---
 
-**Thank you for helping keep MAIF secure!** 🔒
+**Thank you for helping keep MAIF secure.**
 

@@ -104,6 +104,28 @@ demo_workspace/
 demo_agent
 benchmark_results/
 
+# Vitepress cache
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# VSCode extension builds
+*.vsix
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite3
+
+# ChromaDB
+**/chroma_db/
+
+# Binary data files
+*.bin
+
+# Duplicated example data (nested)
+examples/langgraph/examples/
+
 # But keep example files for reference
 !examples/*/sample_*
-
+!tools/sample_maif_files/*.maif

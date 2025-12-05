@@ -20,8 +20,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Add parent to path
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 # Import MAIF components
-from maif.lifecycle_management import (
+from maif.agents.lifecycle_management import (
     MAIFMerger,
     MAIFSplitter,
     SelfGoverningMAIF,
@@ -87,11 +92,11 @@ def demonstrate_merging():
         )
 
         print(f"Merge statistics for {strategy}:")
-        print(f"  - Total blocks: {stats['total_blocks']}")
-        print(f"  - Merged blocks: {stats['merged_blocks']}")
-        print(f"  - Duplicates removed: {stats['duplicate_blocks']}")
-        print(f"  - Merge time: {stats['merge_time']:.2f}s")
-        print(f"  - Valid: {stats['is_valid']}")
+        print(f"- Total blocks: {stats['total_blocks']}")
+        print(f"- Merged blocks: {stats['merged_blocks']}")
+        print(f"- Duplicates removed: {stats['duplicate_blocks']}")
+        print(f"- Merge time: {stats['merge_time']:.2f}s")
+        print(f"- Valid: {stats['is_valid']}")
 
 
 def demonstrate_splitting():
@@ -147,7 +152,7 @@ def demonstrate_splitting():
         print(f"Split into {len(parts)} parts:")
         for part in parts:
             size_mb = Path(part).stat().st_size / (1024 * 1024)
-            print(f"  - {Path(part).name}: {size_mb:.2f} MB")
+            print(f"- {Path(part).name}: {size_mb:.2f} MB")
 
 
 def demonstrate_self_governance():
@@ -247,10 +252,10 @@ def demonstrate_lifecycle_manager():
     status = manager.get_status()
     for path, report in status.items():
         print(f"\n{Path(path).name}:")
-        print(f"  State: {report['state']}")
-        print(f"  Size: {report['metrics']['size_mb']:.2f} MB")
-        print(f"  Blocks: {report['metrics']['block_count']}")
-        print(f"  Access frequency: {report['metrics']['access_frequency']:.2f}")
+        print(f"State: {report['state']}")
+        print(f"Size: {report['metrics']['size_mb']:.2f} MB")
+        print(f"Blocks: {report['metrics']['block_count']}")
+        print(f"Access frequency: {report['metrics']['access_frequency']:.2f}")
 
     # Test merging through manager
     print("\nMerging first 3 MAIFs...")

@@ -67,39 +67,24 @@ class TestSemanticEmbedder:
 
     def test_embedder_initialization(self):
         """Test SemanticEmbedder initialization."""
-        with patch("maif.semantic.SENTENCE_TRANSFORMERS_AVAILABLE", True), patch(
-            "maif.semantic.SentenceTransformer"
-        ) as mock_transformer:
-            mock_model = Mock()
-            mock_transformer.return_value = mock_model
+        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
 
-            embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
-
-            assert embedder.model_name == "all-MiniLM-L6-v2"
-            assert embedder.embeddings == []
-            mock_transformer.assert_called_once_with("all-MiniLM-L6-v2")
+        assert embedder.model_name == "all-MiniLM-L6-v2"
+        assert embedder.embeddings == []
 
     def test_embed_text(self):
         """Test text embedding generation."""
-        with patch("maif.semantic.SENTENCE_TRANSFORMERS_AVAILABLE", True), patch(
-            "maif.semantic.SentenceTransformer"
-        ) as mock_transformer:
-            # Mock the model
-            mock_model = Mock()
-            mock_model.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-            mock_transformer.return_value = mock_model
+        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
 
-            embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
+        text = "Hello, semantic world!"
+        metadata = {"source": "test"}
 
-            text = "Hello, semantic world!"
-            metadata = {"source": "test"}
+        embedding = embedder.embed_text(text, metadata)
 
-            embedding = embedder.embed_text(text, metadata)
-
-            assert isinstance(embedding, SemanticEmbedding)
-            assert len(embedding.vector) == 5
-            assert embedding.metadata["source"] == "test"
-            # No longer expect "text" in metadata in production code
+        assert isinstance(embedding, SemanticEmbedding)
+        # Embedding dimension depends on the model (384 for MiniLM)
+        assert len(embedding.vector) > 0
+        assert embedding.metadata["source"] == "test"
 
         # Check that embedding was stored
         assert len(embedder.embeddings) == 1

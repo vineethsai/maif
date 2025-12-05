@@ -43,7 +43,7 @@ def citation_node(state: RAGState) -> RAGState:
         draft_answer, chunks, verification_results.get("verified_claims", [])
     )
 
-    print(f"   ✅ Generated {len(citations)} citations")
+    print(f"  Generated {len(citations)} citations")
 
     # Format final answer with inline citations
     final_answer = format_answer_with_citations(draft_answer, chunks, citations)
@@ -67,11 +67,11 @@ def citation_node(state: RAGState) -> RAGState:
         metadata={"node": "cite", "num_citations": len(citations)},
     )
 
-    print(f"   📝 Logged to MAIF (block: {block_id[:8]}...)")
+    print(f"  Logged to MAIF (block: {block_id[:8]}...)")
     print(f"\n📄 Final answer ({len(final_answer_with_refs)} chars):\n")
-    print("   " + "\n   ".join(final_answer_with_refs.split("\n")[:5]))
+    print(" " + "\n   ".join(final_answer_with_refs.split("\n")[:5]))
     if len(final_answer_with_refs.split("\n")) > 5:
-        print("   ...")
+        print(" ...")
 
     # Update state
     state["answer"] = final_answer_with_refs

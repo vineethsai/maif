@@ -25,13 +25,13 @@ def verify_artifact(path: str) -> bool:
         is_valid = artifact.verify()
         
         if is_valid:
-            print(f"✅ {path}: Integrity verified")
+            print(f"{path}: Integrity verified")
         else:
-            print(f"❌ {path}: Integrity check failed")
+            print(f"{path}: Integrity check failed")
         
         return is_valid
     except Exception as e:
-        print(f"❌ {path}: Error - {e}")
+        print(f"{path}: Error - {e}")
         return False
 
 # Verify single artifact

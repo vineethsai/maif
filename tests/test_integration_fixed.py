@@ -9,7 +9,7 @@ import json
 import shutil
 
 from maif import MAIFEncoder, MAIFDecoder
-from maif.integration_enhanced import EnhancedMAIF
+from maif.integration.integration_enhanced import EnhancedMAIF
 
 
 class TestEnhancedMAIF:

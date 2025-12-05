@@ -32,8 +32,8 @@ def retrieve_node_enhanced(state: RAGState) -> RAGState:
     Returns:
         Updated state with retrieved_chunks populated
     """
-    print(f"🔍 [retrieve_enhanced] Searching with REAL vector DB...")
-    print(f"   Question: {state['question']}")
+    print(f"[retrieve_enhanced] Searching with REAL vector DB...")
+    print(f"Question: {state['question']}")
 
     question = state["question"]
     session_manager = SessionManager()
@@ -45,28 +45,28 @@ def retrieve_node_enhanced(state: RAGState) -> RAGState:
         # Check if DB has content
         stats = vector_db.get_stats()
         print(
-            f"   📊 Vector DB stats: {stats['total_chunks']} chunks, {stats['num_documents']} docs"
+            f"    Vector DB stats: {stats['total_chunks']} chunks, {stats['num_documents']} docs"
         )
 
         if stats["total_chunks"] == 0:
-            print(f"   ⚠️  Vector DB is empty! Run create_kb_enhanced.py first")
+            print(f"Vector DB is empty! Run create_kb_enhanced.py first")
             # Return empty results
             state["retrieved_chunks"] = []
             state["error"] = "Vector database is empty"
             return state
 
         # Perform real semantic search
-        print(f"   🧠 Generating query embedding...")
+        print(f"Generating query embedding...")
         retrieved_chunks = vector_db.search(question, top_k=5)
 
-        print(f"   ✅ Retrieved {len(retrieved_chunks)} chunks (REAL semantic search!)")
+        print(f"Retrieved {len(retrieved_chunks)} chunks (REAL semantic search!)")
         for i, chunk in enumerate(retrieved_chunks[:3], 1):  # Show first 3
-            print(f"      {i}. [{chunk['doc_id']}] Score: {chunk['score']:.3f}")
-            print(f"         {chunk['text'][:80]}...")
+            print(f" {i}. [{chunk['doc_id']}] Score: {chunk['score']:.3f}")
+            print(f"    {chunk['text'][:80]}...")
 
     except Exception as e:
-        print(f"   ❌ Vector DB error: {e}")
-        print(f"   ℹ️  Falling back to mock retrieval...")
+        print(f"Vector DB error: {e}")
+        print(f"  Falling back to mock retrieval...")
 
         # Fallback to mock (shouldn't happen in enhanced mode)
         from examples.langgraph.nodes.retrieve import mock_vector_search
@@ -83,7 +83,7 @@ def retrieve_node_enhanced(state: RAGState) -> RAGState:
         metadata={"node": "retrieve_enhanced", "method": "chromadb_semantic_search"},
     )
 
-    print(f"   📝 Logged to MAIF (block: {block_id[:8]}...)")
+    print(f"Logged to MAIF (block: {block_id[:8]}...)")
 
     # Update state
     state["retrieved_chunks"] = retrieved_chunks

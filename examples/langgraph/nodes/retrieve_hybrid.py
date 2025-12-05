@@ -36,8 +36,8 @@ def retrieve_node_hybrid(state: RAGState) -> RAGState:
     Returns:
         Updated state with retrieved_chunks
     """
-    print(f"🔍 [retrieve_hybrid] Intelligent search (local KB + web fallback)...")
-    print(f"   Question: {state['question']}")
+    print(f"[retrieve_hybrid] Intelligent search (local KB + web fallback)...")
+    print(f"Question: {state['question']}")
 
     question = state["question"]
     session_manager = SessionManager()
@@ -47,16 +47,16 @@ def retrieve_node_hybrid(state: RAGState) -> RAGState:
         vector_db = get_vector_db()
         stats = vector_db.get_stats()
 
-        print(f"   📚 Searching local KB ({stats['total_chunks']} chunks)...")
+        print(f"📚 Searching local KB ({stats['total_chunks']} chunks)...")
         local_chunks = vector_db.search(question, top_k=5)
 
-        print(f"   ✅ Found {len(local_chunks)} local chunks")
+        print(f"Found {len(local_chunks)} local chunks")
         for i, chunk in enumerate(local_chunks[:3], 1):
-            print(f"      {i}. [{chunk['doc_id']}] Score: {chunk['score']:.3f}")
-            print(f"         {chunk['text'][:80]}...")
+            print(f" {i}. [{chunk['doc_id']}] Score: {chunk['score']:.3f}")
+            print(f"    {chunk['text'][:80]}...")
 
     except Exception as e:
-        print(f"   ⚠️  Local KB error: {e}")
+        print(f"Local KB error: {e}")
         local_chunks = []
 
     # Check if web search is needed
@@ -65,9 +65,9 @@ def retrieve_node_hybrid(state: RAGState) -> RAGState:
     if use_web:
         best_score = local_chunks[0]["score"] if local_chunks else 0
         print(
-            f"\n   ℹ️  Local KB doesn't have good answer (best score: {best_score:.3f})"
+            f"\n     Local KB doesn't have good answer (best score: {best_score:.3f})"
         )
-        print(f"   🌐 Falling back to web search...")
+        print(f"Falling back to web search...")
 
         # Search web
         web_results = search_web(question, num_results=3)
@@ -80,14 +80,14 @@ def retrieve_node_hybrid(state: RAGState) -> RAGState:
             retrieved_chunks = web_chunks + local_chunks[:2]  # Web results first
 
             print(
-                f"   ✅ Combined: {len(web_chunks)} web + {min(2, len(local_chunks))} local"
+                f"    Combined: {len(web_chunks)} web + {min(2, len(local_chunks))} local"
             )
         else:
             retrieved_chunks = local_chunks
-            print(f"   ⚠️  Web search failed, using local results only")
+            print(f"Web search failed, using local results only")
     else:
         retrieved_chunks = local_chunks
-        print(f"   ✅ Local KB has good results, using them")
+        print(f"Local KB has good results, using them")
 
     # Log retrieval event to MAIF
     block_id = session_manager.log_retrieval_event(
@@ -105,7 +105,7 @@ def retrieve_node_hybrid(state: RAGState) -> RAGState:
         },
     )
 
-    print(f"   📝 Logged to MAIF (block: {block_id[:8]}...)")
+    print(f"Logged to MAIF (block: {block_id[:8]}...)")
 
     # Update state
     state["retrieved_chunks"] = retrieved_chunks

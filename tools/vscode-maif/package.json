@@ -6,7 +6,7 @@
   "publisher": "maif",
   "repository": {
     "type": "git",
-    "url": "https://github.com/maif/maif"
+    "url": "https://github.com/vineethsai/maif"
   },
   "license": "MIT",
   "engines": {

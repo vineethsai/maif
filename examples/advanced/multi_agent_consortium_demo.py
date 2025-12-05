@@ -50,16 +50,16 @@ except ImportError:
 import sys
 import os
 
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from maif_api import MAIF, create_maif, load_maif
 from maif.core import MAIFEncoder, MAIFDecoder, MAIFVersion
 from maif.security import MAIFSigner, MAIFVerifier
 from maif.privacy import PrivacyEngine, PrivacyLevel, PrivacyPolicy, EncryptionMode
 from maif.semantic import SemanticEmbedder, KnowledgeTriple
-from maif.metadata import MAIFMetadataManager
-from maif.validation import MAIFValidator, MAIFRepairTool
-from maif.forensics import ForensicAnalyzer
+from maif.utils import MAIFMetadataManager
+from maif.utils import MAIFValidator, MAIFRepairTool
+from maif.compliance import ForensicAnalyzer
 from maif.compression import MAIFCompressor
 
 
@@ -89,7 +89,7 @@ class BaseAgent:
         self.maif = (
             shared_maif
             if shared_maif is not None
-            else create_maif(agent_id, enable_privacy=True)
+            else MAIF(agent_id)
         )
         self.contributions = []
         self.content_blocks = {}  # Track content block IDs for updates
@@ -298,7 +298,7 @@ class BaseAgent:
         devils_advocate_feedback = feedback.get("devils_advocate_feedback", [])
         if devils_advocate_feedback:
             print(
-                f"    🔍 Applying {len(devils_advocate_feedback)} critical insights to {original.agent_id}"
+                f"     Applying {len(devils_advocate_feedback)} critical insights to {original.agent_id}"
             )
 
             # Add critical analysis section to content
@@ -352,7 +352,7 @@ class BaseAgent:
         # Additional confidence boost if devil's advocate feedback was addressed
         if devils_advocate_feedback:
             confidence_adjustment += 0.03  # Boost for addressing critical analysis
-            print(f"    📈 Confidence boosted by 0.03 for addressing critical analysis")
+            print(f"Confidence boosted by 0.03 for addressing critical analysis")
 
         new_confidence = min(1.0, max(0.0, original.confidence + confidence_adjustment))
 
@@ -1636,11 +1636,11 @@ class CollaborationStateMachine:
         self, agents: List[BaseAgent], query: str
     ) -> Dict[str, AgentContribution]:
         """Execute the full collaboration cycle using state machine with MAIF integration."""
-        print(f"\n🔄 STARTING COLLABORATION STATE MACHINE")
+        print(f"\n STARTING COLLABORATION STATE MACHINE")
         print(
             f"Max rounds: {self.max_rounds}, Convergence threshold: {self.convergence_threshold}"
         )
-        print(f"🎯 MAIF-powered context propagation and version tracking enabled")
+        print(f"MAIF-powered context propagation and version tracking enabled")
 
         current_contributions = {}
         devils_advocate_agent = self._find_devils_advocate(agents)
@@ -1652,7 +1652,7 @@ class CollaborationStateMachine:
         ):
             self.round_number += 1
             print(f"\n{'=' * 60}")
-            print(f"🔄 COLLABORATION ROUND {self.round_number}")
+            print(f"COLLABORATION ROUND {self.round_number}")
             print(f"Current State: {self.state.value}")
             print(f"{'=' * 60}")
 
@@ -1701,7 +1701,7 @@ class CollaborationStateMachine:
 
         # Max rounds reached
         print(
-            f"\n⚠️  Max rounds ({self.max_rounds}) reached. Proceeding to final synthesis."
+            f"\n  Max rounds ({self.max_rounds}) reached. Proceeding to final synthesis."
         )
         self._transition_to(CollaborationState.FINAL_SYNTHESIS)
         final_artifact = self._state_final_synthesis(current_contributions, query)
@@ -1738,13 +1738,13 @@ class CollaborationStateMachine:
             title=f"State Transition Round {self.round_number}",
         )
 
-        print(f"🔄 State Transition: {old_state.value} → {new_state.value}")
+        print(f"State Transition: {old_state.value} → {new_state.value}")
 
     def _state_collect_contributions(
         self, agents: List[BaseAgent], query: str
     ) -> Dict[str, AgentContribution]:
         """State: Collect contributions from all agents with MAIF context."""
-        print(f"\n📝 STATE: COLLECTING CONTRIBUTIONS (Round {self.round_number})")
+        print(f"\n STATE: COLLECTING CONTRIBUTIONS (Round {self.round_number})")
 
         contributions = {}
 
@@ -1772,7 +1772,7 @@ class CollaborationStateMachine:
             )
 
             print(
-                f"    ✅ Contribution collected (confidence: {contribution.confidence:.2f})"
+                f"     Contribution collected (confidence: {contribution.confidence:.2f})"
             )
 
         return contributions
@@ -1784,17 +1784,17 @@ class CollaborationStateMachine:
         query: str,
     ) -> Dict[str, Any]:
         """State: Devil's advocate provides targeted critical analysis."""
-        print(f"\n🔍 STATE: DEVIL'S ADVOCATE ANALYSIS")
+        print(f"\n STATE: DEVIL'S ADVOCATE ANALYSIS")
 
         if not devils_advocate:
-            print("  ⚠️  No devil's advocate agent found. Skipping critical analysis.")
+            print("No devil's advocate agent found. Skipping critical analysis.")
             return {}
 
         # Provide all contributions as context to devil's advocate
         devils_advocate.current_round_contributions = contributions
 
         print(
-            f"  🎯 {devils_advocate.agent_id} analyzing {len(contributions)} contributions"
+            f"   {devils_advocate.agent_id} analyzing {len(contributions)} contributions"
         )
 
         # Get devil's advocate analysis
@@ -1803,7 +1803,7 @@ class CollaborationStateMachine:
         # 🔥 FIX: Add devil's advocate contribution to the main contributions dict
         contributions[devils_advocate.agent_id] = da_contribution
         print(
-            f"  ✅ Added {devils_advocate.agent_id} contribution to main contributions"
+            f"   Added {devils_advocate.agent_id} contribution to main contributions"
         )
 
         # Store devil's advocate analysis in MAIF
@@ -1824,10 +1824,10 @@ class CollaborationStateMachine:
         )
 
         print(
-            f"  ✅ Critical analysis complete (confidence: {da_contribution.confidence:.2f})"
+            f"   Critical analysis complete (confidence: {da_contribution.confidence:.2f})"
         )
         print(
-            f"  📊 Generated {len(feedback.get('agent_specific_feedback', {}))} targeted critiques"
+            f"   Generated {len(feedback.get('agent_specific_feedback', {}))} targeted critiques"
         )
 
         return feedback
@@ -1961,7 +1961,7 @@ class CollaborationStateMachine:
         contributions: Dict[str, AgentContribution],
     ) -> Dict[str, Dict[str, Any]]:
         """State: Generate targeted feedback for each agent based on devil's advocate analysis."""
-        print(f"\n🎯 STATE: GENERATING TARGETED FEEDBACK")
+        print(f"\n STATE: GENERATING TARGETED FEEDBACK")
 
         targeted_feedback = {}
         agent_specific = devils_advocate_feedback.get("agent_specific_feedback", {})
@@ -1990,7 +1990,7 @@ class CollaborationStateMachine:
                 )
 
                 print(
-                    f"  🎯 {agent_id}: {len(da_feedback['action_items'])} action items (priority: {da_feedback['priority']})"
+                    f"   {agent_id}: {len(da_feedback['action_items'])} action items (priority: {da_feedback['priority']})"
                 )
 
             # Add general challenges as suggestions
@@ -2013,7 +2013,7 @@ class CollaborationStateMachine:
 
             targeted_feedback[agent_id] = feedback
 
-        print(f"  ✅ Generated targeted feedback for {len(targeted_feedback)} agents")
+        print(f"Generated targeted feedback for {len(targeted_feedback)} agents")
         return targeted_feedback
 
     def _state_refine_contributions(
@@ -2023,7 +2023,7 @@ class CollaborationStateMachine:
         feedback: Dict[str, Dict[str, Any]],
     ) -> Dict[str, AgentContribution]:
         """State: Agents refine their contributions based on targeted feedback."""
-        print(f"\n🔧 STATE: AGENT REFINEMENT")
+        print(f"\n STATE: AGENT REFINEMENT")
 
         # 🔥 FIX: Start with all existing contributions to preserve devil's advocate
         refined_contributions = contributions.copy()
@@ -2034,7 +2034,7 @@ class CollaborationStateMachine:
 
                 if agent_feedback.get("needs_refinement", False):
                     print(
-                        f"  🔧 Refining {agent.agent_id} (priority: {agent_feedback.get('priority', 'medium')})"
+                        f"   Refining {agent.agent_id} (priority: {agent_feedback.get('priority', 'medium')})"
                     )
 
                     original = contributions[agent.agent_id]
@@ -2051,11 +2051,11 @@ class CollaborationStateMachine:
 
                     refined_contributions[agent.agent_id] = refined
                     print(
-                        f"    ✅ Refined (confidence: {original.confidence:.2f} → {refined.confidence:.2f})"
+                        f"     Refined (confidence: {original.confidence:.2f} → {refined.confidence:.2f})"
                     )
                 else:
                     # No change needed, contribution already in refined_contributions
-                    print(f"  ✅ {agent.agent_id} - no refinement needed")
+                    print(f"{agent.agent_id} - no refinement needed")
 
         print(
             f"  🔥 DEBUG: Refinement preserving {len(refined_contributions)} contributions: {list(refined_contributions.keys())}"
@@ -2064,7 +2064,7 @@ class CollaborationStateMachine:
 
     def _check_convergence(self, contributions: Dict[str, AgentContribution]) -> bool:
         """Check if contributions have converged."""
-        print(f"\n📊 STATE: CONVERGENCE CHECK")
+        print(f"\n STATE: CONVERGENCE CHECK")
 
         confidences = [c.confidence for c in contributions.values()]
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0
@@ -2093,23 +2093,23 @@ class CollaborationStateMachine:
             title=f"Round {self.round_number} Convergence Check",
         )
 
-        print(f"  📊 Average confidence: {avg_confidence:.3f}")
-        print(f"  📊 Minimum confidence: {min_confidence:.3f}")
-        print(f"  📊 Improvement: {improvement:+.3f}")
-        print(f"  📊 Threshold: {self.convergence_threshold}")
+        print(f"Average confidence: {avg_confidence:.3f}")
+        print(f"Minimum confidence: {min_confidence:.3f}")
+        print(f"Improvement: {improvement:+.3f}")
+        print(f"Threshold: {self.convergence_threshold}")
 
         if metrics["converged"]:
-            print(f"  ✅ CONVERGENCE ACHIEVED!")
+            print(f"CONVERGENCE ACHIEVED!")
             return True
         else:
-            print(f"  🔄 Continuing to next round...")
+            print(f"Continuing to next round...")
             return False
 
     def _state_final_synthesis(
         self, contributions: Dict[str, AgentContribution], query: str
     ) -> AgentContribution:
         """State: Final synthesis of all contributions."""
-        print(f"\n🎯 STATE: FINAL SYNTHESIS")
+        print(f"\n STATE: FINAL SYNTHESIS")
 
         # Use coordinator's existing synthesis method
         self.coordinator.agent_contributions = contributions
@@ -2123,7 +2123,7 @@ class CollaborationStateMachine:
         )
 
         print(
-            f"  ✅ Final synthesis complete (confidence: {final_artifact.confidence:.2f})"
+            f"   Final synthesis complete (confidence: {final_artifact.confidence:.2f})"
         )
         return final_artifact
 
@@ -2193,9 +2193,9 @@ class CoordinatorAgent(BaseAgent):
         self, agents: List[BaseAgent], query: str, enable_refinement: bool = True
     ) -> Dict[str, AgentContribution]:
         """Collect contributions using the state machine for proper iterative refinement."""
-        print(f"\n🎯 USING STATE MACHINE FOR COLLABORATION")
+        print(f"\n USING STATE MACHINE FOR COLLABORATION")
         print(
-            f"🔄 State machine will handle: context propagation, devil's advocate feedback, and convergence"
+            f" State machine will handle: context propagation, devil's advocate feedback, and convergence"
         )
 
         # Use the state machine to execute the full collaboration cycle
@@ -2245,7 +2245,7 @@ class CoordinatorAgent(BaseAgent):
                 f"   📚 Loaded rich MAIF context from {len(context)} agents with embeddings and metadata"
             )
         else:
-            print(f"   📝 Starting fresh collaboration round")
+            print(f"Starting fresh collaboration round")
 
         print(f"\n=== COLLABORATION ROUND {self.collaboration_rounds} ===")
 
@@ -2257,16 +2257,16 @@ class CoordinatorAgent(BaseAgent):
 
             # Add contribution to agent's MAIF
             content_id = agent.add_contribution_to_maif(contribution)
-            print(f"    📁 Saved to MAIF with content ID: {content_id}")
+            print(f"📁 Saved to MAIF with content ID: {content_id}")
 
             # Save the MAIF file immediately to ensure content is persisted
             try:
                 maif_filename = f"{agent.agent_id}_contribution.maif"
                 agent.maif.save(maif_filename, sign=True)
-                print(f"    💾 MAIF file saved: {maif_filename}")
+                print(f"MAIF file saved: {maif_filename}")
             except Exception as e:
                 print(
-                    f"    ⚠️  Warning: Could not save MAIF file for {agent.agent_id}: {e}"
+                    f"      Warning: Could not save MAIF file for {agent.agent_id}: {e}"
                 )
 
             # Update context with rich MAIF data instead of basic content
@@ -2275,7 +2275,7 @@ class CoordinatorAgent(BaseAgent):
             )
             context[agent.agent_id] = agent_rich_context
             print(
-                f"    ✓ Updated context with rich MAIF data: {len(agent_rich_context)} fields"
+                f"     Updated context with rich MAIF data: {len(agent_rich_context)} fields"
             )
 
         # Iterative refinement if enabled
@@ -2298,13 +2298,13 @@ class CoordinatorAgent(BaseAgent):
         query: str,
     ) -> Dict[str, AgentContribution]:
         """Perform iterative refinement of contributions."""
-        print("🔄 Starting iterative refinement process...")
+        print("Starting iterative refinement process...")
 
         refined_contributions = initial_contributions.copy()
         max_iterations = 3
 
         for iteration in range(max_iterations):
-            print(f"  📝 Refinement iteration {iteration + 1}/{max_iterations}")
+            print(f"Refinement iteration {iteration + 1}/{max_iterations}")
 
             # Generate feedback for each agent based on other agents' contributions
             feedback_map = self._generate_inter_agent_feedback(refined_contributions)
@@ -2314,7 +2314,7 @@ class CoordinatorAgent(BaseAgent):
                 if agent.agent_id in feedback_map:
                     feedback = feedback_map[agent.agent_id]
                     if feedback.get("needs_refinement", False):
-                        print(f"    🔧 Refining {agent.agent_id} contribution...")
+                        print(f"Refining {agent.agent_id} contribution...")
 
                         original = refined_contributions[agent.agent_id]
                         refined = agent.refine_contribution(original, feedback)
@@ -2336,7 +2336,7 @@ class CoordinatorAgent(BaseAgent):
             )
 
             if not any_changes:
-                print("    ✅ No further refinements needed.")
+                print("No further refinements needed.")
                 break
 
         return refined_contributions
@@ -2374,7 +2374,7 @@ class CoordinatorAgent(BaseAgent):
                 # Check if agent has existing MAIF file
                 agent_maif_path = f"{agent.agent_id}_contribution.maif"
                 if os.path.exists(agent_maif_path):
-                    print(f"    📂 Loading MAIF context from {agent_maif_path}")
+                    print(f"📂 Loading MAIF context from {agent_maif_path}")
 
                     # Load the MAIF artifact
                     loaded_maif = load_maif(agent_maif_path)
@@ -2386,11 +2386,11 @@ class CoordinatorAgent(BaseAgent):
                     if agent_context:
                         rich_context[agent.agent_id] = agent_context
                         print(
-                            f"      ✓ Extracted {len(agent_context)} context elements"
+                            f"       Extracted {len(agent_context)} context elements"
                         )
 
             except Exception as e:
-                print(f"    ⚠️  Could not load MAIF context for {agent.agent_id}: {e}")
+                print(f"Could not load MAIF context for {agent.agent_id}: {e}")
                 continue
 
         return rich_context
@@ -2475,7 +2475,7 @@ class CoordinatorAgent(BaseAgent):
                                 else 0,
                             }
             except Exception as e:
-                print(f"      ⚠️  Could not extract embeddings: {e}")
+                print(f"Could not extract embeddings: {e}")
 
             # Extract cross-modal information from blocks
             for block in maif_artifact.decoder.blocks:
@@ -2499,7 +2499,7 @@ class CoordinatorAgent(BaseAgent):
                 }
 
         except Exception as e:
-            print(f"      ⚠️  Error extracting context from MAIF: {e}")
+            print(f"Error extracting context from MAIF: {e}")
 
         return context
 
@@ -2604,7 +2604,7 @@ class CoordinatorAgent(BaseAgent):
                 if agent.agent_id in feedback_map:
                     feedback = feedback_map[agent.agent_id]
                     if feedback.get("needs_refinement", False):
-                        print(f"  Refining {agent.agent_id} contribution...")
+                        print(f"Refining {agent.agent_id} contribution...")
 
                         original = refined_contributions[agent.agent_id]
                         refined = agent.refine_contribution(original, feedback)
@@ -2626,7 +2626,7 @@ class CoordinatorAgent(BaseAgent):
             )
 
             if not any_changes:
-                print("  No further refinements needed.")
+                print("No further refinements needed.")
                 break
 
         return refined_contributions
@@ -2693,7 +2693,7 @@ class CoordinatorAgent(BaseAgent):
         summary = "MULTI-AGENT CONSORTIUM COLLABORATION ANALYSIS\n\n"
 
         # Confidence evolution
-        summary += "📈 CONFIDENCE EVOLUTION:\n"
+        summary += " CONFIDENCE EVOLUTION:\n"
         for agent_id in all_rounds_data[0]["contributions"].keys():
             confidences = [
                 round_data["contributions"][agent_id]["confidence"]
@@ -2715,7 +2715,7 @@ class CoordinatorAgent(BaseAgent):
                 summary += f"  {agent_id}: No contributions found\n"
 
         # Agent specializations
-        summary += "\n🎯 AGENT SPECIALIZATIONS:\n"
+        summary += "\n AGENT SPECIALIZATIONS:\n"
         specializations = {}
         for round_data in all_rounds_data[-1:]:  # Use final round
             for agent_id, contrib_data in round_data["contributions"].items():
@@ -2725,7 +2725,7 @@ class CoordinatorAgent(BaseAgent):
             summary += f"  {agent_id}: {spec}\n"
 
         # Collaboration patterns
-        summary += "\n🔄 COLLABORATION PATTERNS:\n"
+        summary += "\n COLLABORATION PATTERNS:\n"
         summary += f"  Total Rounds: {len(all_rounds_data)}\n"
         summary += (
             f"  Participating Agents: {len(all_rounds_data[0]['contributions'])}\n"
@@ -2745,14 +2745,14 @@ class CoordinatorAgent(BaseAgent):
         summary += f"  Average Confidence Trend: {avg_confidence_per_round[0]:.2f} → {avg_confidence_per_round[-1]:.2f}\n"
 
         # Key insights
-        summary += "\n💡 KEY INSIGHTS:\n"
+        summary += "\n KEY INSIGHTS:\n"
         summary += "  • Multi-agent consortium demonstrated iterative collaboration\n"
         summary += "  • Each round built upon previous agent learnings\n"
         summary += "  • Diverse specializations provided comprehensive analysis\n"
         summary += "  • Devil's advocate provided critical perspective balance\n"
 
         # Overall assessment
-        summary += "\n🎯 OVERALL ASSESSMENT:\n"
+        summary += "\n OVERALL ASSESSMENT:\n"
         final_avg_confidence = avg_confidence_per_round[-1]
         if final_avg_confidence > 0.8:
             assessment = "High confidence consortium with strong convergence"
@@ -2786,7 +2786,7 @@ class CoordinatorAgent(BaseAgent):
         if devils_advocate_contribution and isinstance(
             devils_advocate_contribution.content, dict
         ):
-            print(f"  📋 Incorporating critical feedback from {devils_advocate_id}")
+            print(f"Incorporating critical feedback from {devils_advocate_id}")
 
             # Extract specific critiques for each agent type
             if "agent_critique" in devils_advocate_contribution.content:
@@ -2908,7 +2908,7 @@ class CoordinatorAgent(BaseAgent):
             if feedback["devils_advocate_feedback"]:
                 feedback["needs_refinement"] = True
                 print(
-                    f"    🔍 {agent_id} marked for refinement based on critical analysis"
+                    f"     {agent_id} marked for refinement based on critical analysis"
                 )
 
             feedback_map[agent_id] = feedback
@@ -3652,8 +3652,8 @@ def demonstrate_multi_agent_consortium(
     print("🔥 DEBUG: Using single shared MAIF file for all agents...")
 
     # Create single shared MAIF for all agents
-    shared_maif = create_maif("multi_agent_consortium", enable_privacy=True)
-    print(f"  ✓ Created shared MAIF: multi_agent_consortium")
+    shared_maif = MAIF("multi_agent_consortium")
+    print(f"Created shared MAIF: multi_agent_consortium")
 
     agents = []
 
@@ -3664,7 +3664,7 @@ def demonstrate_multi_agent_consortium(
             agent_id, is_devils_advocate=False, shared_maif=shared_maif
         )
         agents.append(geo_agent)
-        print(f"  - {geo_agent.agent_id}: Geographical analysis and routing")
+        print(f"- {geo_agent.agent_id}: Geographical analysis and routing")
 
     # Create cultural agents
     for i in range(agent_counts["culture"]):
@@ -3682,7 +3682,7 @@ def demonstrate_multi_agent_consortium(
         logistics_agent = LogisticsAgent(shared_maif=shared_maif)
         logistics_agent.agent_id = agent_id  # Override the default ID
         agents.append(logistics_agent)
-        print(f"  - {logistics_agent.agent_id}: Resource optimization and planning")
+        print(f"- {logistics_agent.agent_id}: Resource optimization and planning")
 
     # Create safety agents
     for i in range(agent_counts["safety"]):
@@ -3690,7 +3690,7 @@ def demonstrate_multi_agent_consortium(
         safety_agent = SafetyAgent(shared_maif=shared_maif)
         safety_agent.agent_id = agent_id  # Override the default ID
         agents.append(safety_agent)
-        print(f"  - {safety_agent.agent_id}: Risk mitigation and emergency response")
+        print(f"- {safety_agent.agent_id}: Risk mitigation and emergency response")
 
     # Create devils advocate agents
     for i in range(agent_counts["devils_advocate"]):
@@ -3705,12 +3705,12 @@ def demonstrate_multi_agent_consortium(
     # Create coordinator agent with shared MAIF
     coordinator_agent = CoordinatorAgent(shared_maif=shared_maif)
 
-    print(f"✓ Initialized {len(agents)} specialized agents + 1 coordinator")
+    print(f"Initialized {len(agents)} specialized agents + 1 coordinator")
 
     # Display agent capabilities
     for agent in agents:
         capabilities = agent._get_capabilities()
-        print(f"  {agent.agent_id}: {len(capabilities)} capabilities")
+        print(f"{agent.agent_id}: {len(capabilities)} capabilities")
 
     print()
 
@@ -3725,7 +3725,7 @@ def demonstrate_multi_agent_consortium(
     previous_contributions = None
 
     for round_num in range(1, num_rounds + 1):
-        print(f"\n🔄 COLLABORATION ROUND {round_num}/{num_rounds}")
+        print(f"\n COLLABORATION ROUND {round_num}/{num_rounds}")
         print("-" * 40)
 
         # Pass previous round's contributions as context for iterative building
@@ -3747,7 +3747,7 @@ def demonstrate_multi_agent_consortium(
 
         print(f"\nRound {round_num} Summary:")
         for agent_id, contribution in current_contributions.items():
-            print(f"  ✓ {agent_id}: Confidence {contribution.confidence:.2f}")
+            print(f"{agent_id}: Confidence {contribution.confidence:.2f}")
             round_data["contributions"][agent_id] = {
                 "confidence": contribution.confidence,
                 "contribution_type": contribution.contribution_type,
@@ -3760,8 +3760,8 @@ def demonstrate_multi_agent_consortium(
 
     # Use final round contributions (final_contributions should contain the last round's data)
     contributions = final_contributions
-    print(f"\n🎯 Using contributions from final collaboration round for synthesis.")
-    print(f"🔍 Final contributions count: {len(contributions) if contributions else 0}")
+    print(f"\n Using contributions from final collaboration round for synthesis.")
+    print(f"Final contributions count: {len(contributions) if contributions else 0}")
 
     # Generate LLM summary of all rounds
     print(
@@ -3771,7 +3771,7 @@ def demonstrate_multi_agent_consortium(
         all_rounds_data, query
     )
     print(f"\n" + "=" * 80)
-    print(f"🧠 LLM COMPREHENSIVE SUMMARY OF ALL {num_rounds} COLLABORATION ROUNDS")
+    print(f"LLM COMPREHENSIVE SUMMARY OF ALL {num_rounds} COLLABORATION ROUNDS")
     print("=" * 80)
     print(llm_summary)
     print("=" * 80)
@@ -3782,14 +3782,14 @@ def demonstrate_multi_agent_consortium(
     )
 
     # Ensure we pass the actual final contributions with content
-    print(f"🔍 DEBUG: Final contributions before trace generation:")
+    print(f"DEBUG: Final contributions before trace generation:")
     for agent_id, contrib in contributions.items():
         if hasattr(contrib, "content"):
             print(
                 f"  {agent_id}: content_size={len(str(contrib.content))}, type={type(contrib.content)}"
             )
         else:
-            print(f"  {agent_id}: NO CONTENT ATTRIBUTE")
+            print(f"{agent_id}: NO CONTENT ATTRIBUTE")
 
     trace_dump = generate_comprehensive_trace(
         agents, coordinator_agent, collaboration_history, contributions
@@ -3811,10 +3811,10 @@ def demonstrate_multi_agent_consortium(
         print(
             f"\n🤖 {agent_id.upper()}: {contribution_data.get('contribution_type', 'Unknown')}"
         )
-        print(f"   Confidence: {contribution_data.get('confidence', 0.0):.2f}")
-        print(f"   Specialization: {agent_profile.get('specialization', 'Unknown')}")
-        print(f"   Total Iterations: {agent_profile.get('iteration_count', 0)}")
-        print(f"   MAIF Blocks: {agent_profile.get('maif_blocks', 0)}")
+        print(f"Confidence: {contribution_data.get('confidence', 0.0):.2f}")
+        print(f"Specialization: {agent_profile.get('specialization', 'Unknown')}")
+        print(f"Total Iterations: {agent_profile.get('iteration_count', 0)}")
+        print(f"MAIF Blocks: {agent_profile.get('maif_blocks', 0)}")
         print(
             f"   Content Size: {len(contribution_data.get('content_summary', '')):,} chars"
         )
@@ -3822,7 +3822,7 @@ def demonstrate_multi_agent_consortium(
         # Show refinement evolution
         refinement_history = agent_profile.get("refinement_history", [])
         if refinement_history:
-            print(f"   📈 REFINEMENT EVOLUTION:")
+            print(f"REFINEMENT EVOLUTION:")
             for refinement in refinement_history[-2:]:  # Show last 2 refinements
                 print(
                     f"     • Iteration {refinement.get('iteration', 0)}: {refinement.get('feedback_summary', 'No feedback')}"
@@ -3832,20 +3832,20 @@ def demonstrate_multi_agent_consortium(
                 )
 
         # Show key content insights from trace
-        print(f"   📋 KEY CONTENT INSIGHTS:")
+        print(f"KEY CONTENT INSIGHTS:")
         content_summary = contribution_data.get("content_summary", "")
         if content_summary and len(content_summary) > 100:
             # Extract key insights from content summary
             if "route_segments" in content_summary:
-                print(f"     🗺️  Geographic analysis with route planning")
+                print(f"🗺️  Geographic analysis with route planning")
             if "cultural_regions" in content_summary:
-                print(f"     🏛️  Cultural framework across multiple regions")
+                print(f"🏛️  Cultural framework across multiple regions")
             if "resource_requirements" in content_summary:
-                print(f"     📦 Logistics optimization and resource planning")
+                print(f"Logistics optimization and resource planning")
             if "risk_categories" in content_summary:
-                print(f"     ⚠️  Comprehensive safety and risk assessment")
+                print(f"Comprehensive safety and risk assessment")
             if "critical_challenges" in content_summary:
-                print(f"     🔍 Critical analysis and challenge identification")
+                print(f"Critical analysis and challenge identification")
 
         print("-" * 60)
 
@@ -3858,12 +3858,12 @@ def demonstrate_multi_agent_consortium(
         version_history = agent.get_version_history()
         total_versions = sum(len(versions) for versions in version_history.values())
         print(
-            f"✓ {agent.agent_id}: {total_versions} total versions across {len(version_history)} content blocks"
+            f" {agent.agent_id}: {total_versions} total versions across {len(version_history)} content blocks"
         )
 
         # Show refinement history
         if agent.refinement_history:
-            print(f"  Refinements: {len(agent.refinement_history)} iterations")
+            print(f"Refinements: {len(agent.refinement_history)} iterations")
             for refinement in agent.refinement_history:
                 print(
                     f"    Iteration {refinement['iteration']}: confidence change {refinement['confidence_change']:+.3f}"
@@ -3875,8 +3875,8 @@ def demonstrate_multi_agent_consortium(
     print("PHASE 2: Synthesizing consortium artifact with version tracking...")
     print("-" * 60)
     final_artifact = coordinator_agent.synthesize_final_artifact(query)
-    print(f"✓ Synthesized final artifact: {final_artifact.contribution_type}")
-    print(f"  Synthesis confidence: {final_artifact.confidence:.2f}")
+    print(f"Synthesized final artifact: {final_artifact.contribution_type}")
+    print(f"Synthesis confidence: {final_artifact.confidence:.2f}")
 
     # Add final artifact to coordinator's MAIF with version tracking
     coordinator_agent.add_contribution_to_maif(final_artifact)
@@ -3900,7 +3900,7 @@ def demonstrate_multi_agent_consortium(
     )
 
     print(
-        f"✓ Refined final artifact confidence: {refined_final_artifact.confidence:.2f}"
+        f" Refined final artifact confidence: {refined_final_artifact.confidence:.2f}"
     )
     print()
 
@@ -3911,10 +3911,10 @@ def demonstrate_multi_agent_consortium(
     saved_files = []  # Track all files created during the demonstration
 
     if coordinator_agent.create_consortium_maif(final_artifact, output_path):
-        print(f"✓ Consortium MAIF artifact created: {output_path}")
+        print(f"Consortium MAIF artifact created: {output_path}")
         saved_files.append(output_path)
     else:
-        print(f"✗ Failed to create consortium MAIF artifact: {output_path}")
+        print(f"Failed to create consortium MAIF artifact: {output_path}")
 
     # Generate trace data for artifact summary
     collaboration_history = getattr(
@@ -3992,70 +3992,70 @@ def demonstrate_multi_agent_consortium(
     print("\n📍 GEOGRAPHY ANALYSIS (FROM TRACE):")
     geo_data = final_contributions_trace.get("geo_agent_001", {})
     if geo_data:
-        print(f"  Agent: geo_agent_001")
-        print(f"  Confidence: {geo_data.get('confidence', 0.0):.2f}")
-        print(f"  Contribution Type: {geo_data.get('contribution_type', 'Unknown')}")
+        print(f"Agent: geo_agent_001")
+        print(f"Confidence: {geo_data.get('confidence', 0.0):.2f}")
+        print(f"Contribution Type: {geo_data.get('contribution_type', 'Unknown')}")
         content_summary = geo_data.get("content_summary", "")
         if "route_segments" in content_summary:
-            print(f"  Analysis: Route planning with geographic segments")
+            print(f"Analysis: Route planning with geographic segments")
         if "total_distance_km" in content_summary:
-            print(f"  Distance Analysis: Comprehensive distance calculations")
+            print(f"Distance Analysis: Comprehensive distance calculations")
 
     print("\n🌍 CULTURAL ANALYSIS (FROM TRACE):")
     cultural_data = final_contributions_trace.get("culture_agent_001", {})
     if cultural_data:
-        print(f"  Agent: culture_agent_001")
-        print(f"  Confidence: {cultural_data.get('confidence', 0.0):.2f}")
+        print(f"Agent: culture_agent_001")
+        print(f"Confidence: {cultural_data.get('confidence', 0.0):.2f}")
         print(
             f"  Contribution Type: {cultural_data.get('contribution_type', 'Unknown')}"
         )
         content_summary = cultural_data.get("content_summary", "")
         if "cultural_regions" in content_summary:
-            print(f"  Analysis: Multi-regional cultural framework")
+            print(f"Analysis: Multi-regional cultural framework")
         if "meaningful_activities" in content_summary:
-            print(f"  Activities: Cultural engagement strategies")
+            print(f"Activities: Cultural engagement strategies")
 
-    print("\n📦 LOGISTICS ANALYSIS (FROM TRACE):")
+    print("\n LOGISTICS ANALYSIS (FROM TRACE):")
     logistics_data = final_contributions_trace.get("logistics_agent_001", {})
     if logistics_data:
-        print(f"  Agent: logistics_agent_001")
-        print(f"  Confidence: {logistics_data.get('confidence', 0.0):.2f}")
+        print(f"Agent: logistics_agent_001")
+        print(f"Confidence: {logistics_data.get('confidence', 0.0):.2f}")
         print(
             f"  Contribution Type: {logistics_data.get('contribution_type', 'Unknown')}"
         )
         content_summary = logistics_data.get("content_summary", "")
         if "resource_requirements" in content_summary:
-            print(f"  Analysis: Resource optimization and planning")
+            print(f"Analysis: Resource optimization and planning")
             if "timeline_optimization" in content_summary:
-                print(f"  Timeline: Duration and scheduling analysis")
+                print(f"Timeline: Duration and scheduling analysis")
 
-        print("\n🛡️ SAFETY ANALYSIS (FROM TRACE):")
+        print("\n SAFETY ANALYSIS (FROM TRACE):")
         safety_data = final_contributions_trace.get("safety_agent_001", {})
         if safety_data:
-            print(f"  Agent: safety_agent_001")
-            print(f"  Confidence: {safety_data.get('confidence', 0.0):.2f}")
+            print(f"Agent: safety_agent_001")
+            print(f"Confidence: {safety_data.get('confidence', 0.0):.2f}")
             print(
                 f"  Contribution Type: {safety_data.get('contribution_type', 'Unknown')}"
             )
             content_summary = safety_data.get("content_summary", "")
             if "risk_categories" in content_summary:
-                print(f"  Analysis: Comprehensive risk assessment")
+                print(f"Analysis: Comprehensive risk assessment")
             if "safety_protocols" in content_summary:
-                print(f"  Protocols: Multi-phase safety management")
+                print(f"Protocols: Multi-phase safety management")
 
-        print("\n⚠️ CRITICAL ANALYSIS (FROM TRACE):")
+        print("\n CRITICAL ANALYSIS (FROM TRACE):")
         critical_data = final_contributions_trace.get("devils_advocate_001", {})
         if critical_data:
-            print(f"  Agent: devils_advocate_001")
-            print(f"  Confidence: {critical_data.get('confidence', 0.0):.2f}")
+            print(f"Agent: devils_advocate_001")
+            print(f"Confidence: {critical_data.get('confidence', 0.0):.2f}")
             print(
                 f"  Contribution Type: {critical_data.get('contribution_type', 'Unknown')}"
             )
             content_summary = critical_data.get("content_summary", "")
             if "critical_challenges" in content_summary:
-                print(f"  Analysis: Systematic challenge identification")
+                print(f"Analysis: Systematic challenge identification")
             if "agent_critique" in content_summary:
-                print(f"  Critiques: Cross-agent validation analysis")
+                print(f"Critiques: Cross-agent validation analysis")
 
         alternative_recs = (
             critical_data.get("alternative_recommendations", [])
@@ -4063,11 +4063,11 @@ def demonstrate_multi_agent_consortium(
             else []
         )
         if isinstance(alternative_recs, list):
-            print(f"  Alternative Recommendations: {len(alternative_recs)}")
+            print(f"Alternative Recommendations: {len(alternative_recs)}")
             for rec in alternative_recs[:2]:  # Show first 2
-                print(f"    - {rec}")
+                print(f"- {rec}")
         else:
-            print(f"  Alternative Recommendations: {alternative_recs}")
+            print(f"Alternative Recommendations: {alternative_recs}")
         print()
 
         # Show phase breakdown (if available in final artifact)
@@ -4084,15 +4084,15 @@ def demonstrate_multi_agent_consortium(
                     "integrated_plan"
                 ]
                 for phase_name, phase_details in integrated_plan.items():
-                    print(f"  {phase_name.replace('_', ' ').title()}:")
-                    print(f"    Duration: {phase_details.get('duration', 'N/A')}")
+                    print(f"{phase_name.replace('_', ' ').title()}:")
+                    print(f"Duration: {phase_details.get('duration', 'N/A')}")
                     print(
                         f"    Cultural Significance: {phase_details.get('cultural_significance', 'N/A')}"
                     )
             else:
-                print("  Phase breakdown available in detailed artifact analysis")
+                print("Phase breakdown available in detailed artifact analysis")
         else:
-            print("  Phase breakdown available in detailed artifact analysis")
+            print("Phase breakdown available in detailed artifact analysis")
         print()
 
         # Show consortium metadata (if available)
@@ -4116,18 +4116,18 @@ def demonstrate_multi_agent_consortium(
                     f"  Cultural Sensitivity: {consortium_meta.get('cultural_sensitivity_rating', 'high')}"
                 )
             else:
-                print(f"  Synthesis Confidence: {final_artifact.confidence:.2f}")
-                print(f"  Contributing Agents: {len(final_contributions)}")
-                print(f"  Interdisciplinary Integration: True")
-                print(f"  Cultural Sensitivity: high")
+                print(f"Synthesis Confidence: {final_artifact.confidence:.2f}")
+                print(f"Contributing Agents: {len(final_contributions)}")
+                print(f"Interdisciplinary Integration: True")
+                print(f"Cultural Sensitivity: high")
         else:
-            print(f"  Synthesis Confidence: {final_artifact.confidence:.2f}")
-            print(f"  Contributing Agents: {len(final_contributions)}")
-            print(f"  Interdisciplinary Integration: True")
-            print(f"  Cultural Sensitivity: high")
+            print(f"Synthesis Confidence: {final_artifact.confidence:.2f}")
+            print(f"Contributing Agents: {len(final_contributions)}")
+            print(f"Interdisciplinary Integration: True")
+            print(f"Cultural Sensitivity: high")
 
     else:
-        print("✗ Failed to create consortium MAIF artifact")
+        print("Failed to create consortium MAIF artifact")
 
     print()
     print("=" * 80)
@@ -4144,23 +4144,23 @@ def demonstrate_multi_agent_consortium(
         validator = MAIFValidator()
         validation_report = validator.validate_file(output_path)
 
-        print(f"✓ Validation complete:")
-        print(f"  Valid: {validation_report.is_valid}")
-        print(f"  Errors found: {len(validation_report.errors)}")
-        print(f"  Warnings found: {len(validation_report.warnings)}")
+        print(f"Validation complete:")
+        print(f"Valid: {validation_report.is_valid}")
+        print(f"Errors found: {len(validation_report.errors)}")
+        print(f"Warnings found: {len(validation_report.warnings)}")
 
         if not validation_report.is_valid and validation_report.errors:
-            print("  Errors detected:")
+            print("Errors detected:")
             for error in validation_report.errors[:3]:  # Show first 3 errors
-                print(f"    - {error}")
+                print(f"- {error}")
 
         if validation_report.warnings:
-            print("  Warnings:")
+            print("Warnings:")
             for warning in validation_report.warnings[:3]:  # Show first 3 warnings
-                print(f"    - {warning}")
+                print(f"- {warning}")
 
     except Exception as e:
-        print(f"✗ Validation failed: {e}")
+        print(f"Validation failed: {e}")
 
     # Perform forensic analysis
     print("\nPerforming forensic analysis...")
@@ -4173,25 +4173,25 @@ def demonstrate_multi_agent_consortium(
 
         forensic_report = forensic_analyzer.analyze_maif_file(output_path)
 
-        print(f"✓ Forensic analysis complete:")
-        print(f"  File analyzed: {forensic_report['file_path']}")
-        print(f"  Analysis timestamp: {forensic_report['analysis_timestamp']}")
-        print(f"  Evidence items: {len(forensic_report['evidence_summary'])}")
-        print(f"  Timeline events: {len(forensic_report['timeline'])}")
-        print(f"  Risk assessment: {forensic_report['risk_assessment']}")
+        print(f"Forensic analysis complete:")
+        print(f"File analyzed: {forensic_report['file_path']}")
+        print(f"Analysis timestamp: {forensic_report['analysis_timestamp']}")
+        print(f"Evidence items: {len(forensic_report['evidence_summary'])}")
+        print(f"Timeline events: {len(forensic_report['timeline'])}")
+        print(f"Risk assessment: {forensic_report['risk_assessment']}")
 
         if forensic_report.get("evidence_summary"):
-            print("  Key evidence:")
+            print("Key evidence:")
             evidence_items = forensic_report["evidence_summary"]
             if isinstance(evidence_items, list):
                 for evidence in evidence_items[:2]:  # Show first 2 evidence items
                     if isinstance(evidence, dict):
                         severity = evidence.get("severity", "unknown").upper()
                         description = evidence.get("description", "No description")
-                        print(f"    - {severity}: {description}")
+                        print(f"- {severity}: {description}")
 
     except Exception as e:
-        print(f"✗ Forensic analysis failed: {e}")
+        print(f"Forensic analysis failed: {e}")
 
     # PHASE 5: Version History and Content Evolution Analysis
     print("\nPHASE 5: Version History and Content Evolution Analysis...")
@@ -4207,23 +4207,23 @@ def demonstrate_multi_agent_consortium(
         total_versions += agent_versions
         total_refinements += len(agent.refinement_history)
 
-        print(f"✓ {agent.agent_id}:")
-        print(f"  Total versions: {agent_versions}")
-        print(f"  Content blocks: {len(version_history)}")
-        print(f"  Refinement iterations: {len(agent.refinement_history)}")
+        print(f"{agent.agent_id}:")
+        print(f"Total versions: {agent_versions}")
+        print(f"Content blocks: {len(version_history)}")
+        print(f"Refinement iterations: {len(agent.refinement_history)}")
 
         # Show version evolution for key content
         for block_id, versions in version_history.items():
             if len(versions) > 1:
-                print(f"  Block {block_id}: {len(versions)} versions")
+                print(f"Block {block_id}: {len(versions)} versions")
                 for i, version in enumerate(versions):
                     print(
                         f"    v{version['version']}: {version['operation']} by {version['agent_id']}"
                     )
 
     print(f"\nOverall Version Statistics:")
-    print(f"  Total versions across all agents: {total_versions}")
-    print(f"  Total refinement iterations: {total_refinements}")
+    print(f"Total versions across all agents: {total_versions}")
+    print(f"Total refinement iterations: {total_refinements}")
     print(
         f"  Average versions per agent: {total_versions / len(agents + [coordinator_agent]):.1f}"
     )
@@ -4260,9 +4260,9 @@ def demonstrate_multi_agent_consortium(
     print("Collaboration Quality Metrics:")
     for metric, value in collaboration_metrics.items():
         if isinstance(value, float):
-            print(f"  {metric.replace('_', ' ').title()}: {value:.3f}")
+            print(f"{metric.replace('_', ' ').title()}: {value:.3f}")
         else:
-            print(f"  {metric.replace('_', ' ').title()}: {value}")
+            print(f"{metric.replace('_', ' ').title()}: {value}")
 
     # Consolidate all agent contributions into the single consortium MAIF file
     print("\nPHASE 7: Consolidating all agent contributions into single MAIF file...")
@@ -4293,24 +4293,24 @@ def demonstrate_multi_agent_consortium(
                 "timestamp": time.time(),
             },
         )
-        print(f"✓ Consolidated {agent.agent_id} contribution into consortium MAIF")
+        print(f"Consolidated {agent.agent_id} contribution into consortium MAIF")
 
     # Save the consolidated consortium MAIF file (use the existing output_path)
     consortium_file = output_path  # Use the existing consortium MAIF file
     if consortium_maif.save(consortium_file):
-        print(f"✓ Saved consolidated consortium MAIF: {consortium_file}")
+        print(f"Saved consolidated consortium MAIF: {consortium_file}")
 
         # Verify consolidated file integrity
         try:
             test_maif = load_maif(consortium_file)
             if test_maif.verify_integrity():
-                print(f"  ✓ Integrity verified for {consortium_file}")
+                print(f"Integrity verified for {consortium_file}")
             else:
-                print(f"  ⚠ Integrity check failed for {consortium_file}")
+                print(f"Integrity check failed for {consortium_file}")
         except Exception as e:
-            print(f"  ⚠ Could not verify {consortium_file}: {e}")
+            print(f"Could not verify {consortium_file}: {e}")
     else:
-        print(f"✗ Failed to save consolidated consortium MAIF")
+        print(f"Failed to save consolidated consortium MAIF")
 
     # Final Consortium Analysis and Reporting
     print("\nPHASE 8: Final Consortium Analysis and Reporting...")
@@ -4360,9 +4360,9 @@ def demonstrate_multi_agent_consortium(
     }
 
     print("Final Consortium Report:")
-    print(f"  Consortium ID: {consortium_report['consortium_id']}")
-    print(f"  Agents Participated: {len(consortium_report['agents_participated'])}")
-    print(f"  MAIF Files Created: {consortium_report['total_maif_files_created']}")
+    print(f"Consortium ID: {consortium_report['consortium_id']}")
+    print(f"Agents Participated: {len(consortium_report['agents_participated'])}")
+    print(f"MAIF Files Created: {consortium_report['total_maif_files_created']}")
     print(
         f"  Version History Complete: {consortium_report['version_tracking_summary']['version_history_complete']}"
     )
@@ -4379,14 +4379,14 @@ def demonstrate_multi_agent_consortium(
     print("=" * 80)
     print()
     print("Key Achievements:")
-    print("✓ Multi-agent collaboration with version tracking")
-    print("✓ Iterative refinement and feedback loops")
-    print("✓ Comprehensive content evolution history")
-    print("✓ Forensic analysis and validation")
-    print("✓ Privacy controls and security features")
-    print("✓ Semantic embeddings and cross-modal attention")
-    print("✓ Dependency management and synthesis")
-    print("✓ Cultural sensitivity and meaningful framework")
+    print("Multi-agent collaboration with version tracking")
+    print("Iterative refinement and feedback loops")
+    print("Comprehensive content evolution history")
+    print("Forensic analysis and validation")
+    print("Privacy controls and security features")
+    print("Semantic embeddings and cross-modal attention")
+    print("Dependency management and synthesis")
+    print("Cultural sensitivity and meaningful framework")
 
     # Save the single shared MAIF file
     print("\n" + "=" * 100)
@@ -4396,11 +4396,11 @@ def demonstrate_multi_agent_consortium(
     shared_maif_filename = "multi_agent_consortium.maif"
     try:
         shared_maif.save(shared_maif_filename)
-        print(f"✓ Shared MAIF file saved: {shared_maif_filename}")
-        print(f"✓ Contains contributions from {len(agents)} agents + coordinator")
+        print(f"Shared MAIF file saved: {shared_maif_filename}")
+        print(f"Contains contributions from {len(agents)} agents + coordinator")
         saved_files.append(shared_maif_filename)
     except Exception as e:
-        print(f"⚠️  Error saving shared MAIF file: {e}")
+        print(f"Error saving shared MAIF file: {e}")
 
     # Add comprehensive trace dump at the end
     print("\n" + "=" * 100)
@@ -4412,20 +4412,20 @@ def demonstrate_multi_agent_consortium(
     with open(trace_file, "w") as f:
         json.dump(trace_dump, f, indent=2, default=str)
 
-    print(f"✓ Complete agent activity trace saved to: {trace_file}")
+    print(f"Complete agent activity trace saved to: {trace_file}")
     print(
-        f"✓ Trace contains {len(trace_dump.get('agent_profiles', {}))} agent profiles"
+        f" Trace contains {len(trace_dump.get('agent_profiles', {}))} agent profiles"
     )
     print(
-        f"✓ Collaboration timeline: {len(trace_dump.get('collaboration_timeline', []))} rounds"
+        f" Collaboration timeline: {len(trace_dump.get('collaboration_timeline', []))} rounds"
     )
     print(
-        f"✓ Performance metrics: {trace_dump.get('performance_metrics', {}).get('total_contributions', 0)} total contributions"
+        f" Performance metrics: {trace_dump.get('performance_metrics', {}).get('total_contributions', 0)} total contributions"
     )
     print(
-        f"✓ Both CONSORTIUM ARTIFACT SUMMARY and COMPREHENSIVE CONTRIBUTION SUMMARY now use trace data"
+        f" Both CONSORTIUM ARTIFACT SUMMARY and COMPREHENSIVE CONTRIBUTION SUMMARY now use trace data"
     )
-    print(f"✓ Using single shared MAIF file instead of {len(agents)} individual files")
+    print(f"Using single shared MAIF file instead of {len(agents)} individual files")
     saved_files.append(trace_file)
 
     return output_path, saved_files, consortium_report
@@ -4445,13 +4445,13 @@ def analyze_consortium_artifact(maif_path: str):
 
         # Verify integrity
         if consortium_maif.verify_integrity():
-            print("✓ Artifact integrity verified")
+            print("Artifact integrity verified")
         else:
-            print("✗ Artifact integrity check failed")
+            print("Artifact integrity check failed")
 
         # Get content summary
         content_list = consortium_maif.get_content_list()
-        print(f"✓ Total content blocks: {len(content_list)}")
+        print(f"Total content blocks: {len(content_list)}")
 
         # Show content breakdown
         content_types = {}
@@ -4461,16 +4461,16 @@ def analyze_consortium_artifact(maif_path: str):
 
         print("Content breakdown:")
         for content_type, count in content_types.items():
-            print(f"  {content_type}: {count} blocks")
+            print(f"{content_type}: {count} blocks")
 
         # Get privacy report
         privacy_report = consortium_maif.get_privacy_report()
-        print(f"✓ Privacy enabled: {privacy_report.get('privacy_enabled', False)}")
+        print(f"Privacy enabled: {privacy_report.get('privacy_enabled', False)}")
 
         return True
 
     except Exception as e:
-        print(f"✗ Analysis failed: {e}")
+        print(f"Analysis failed: {e}")
         return False
 
 
@@ -4574,7 +4574,7 @@ Examples:
         )
 
     print(
-        f"🚀 Starting Multi-Agent Consortium Demo with {args.rounds} collaboration rounds"
+        f" Starting Multi-Agent Consortium Demo with {args.rounds} collaboration rounds"
     )
     print(
         f"Agent configuration: {args.geo_agents} geo, {args.culture_agents} culture, {args.logistics_agents} logistics, {args.safety_agents} safety, {args.devils_advocate_agents} devils advocate"
@@ -4607,7 +4607,7 @@ Examples:
         return 0
 
     except Exception as e:
-        print(f"\n✗ Demonstration failed with error: {e}")
+        print(f"\n Demonstration failed with error: {e}")
         import traceback
 
         traceback.print_exc()

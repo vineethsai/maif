@@ -175,16 +175,16 @@ def demonstrate_video_storage():
         # Add as binary block (videos are stored as binary data)
         block = encoder.add_binary_block(video_data, metadata=metadata)
 
-        print(f"    Format: {extracted['format']}")
-        print(f"    Duration: {extracted['duration']:.1f} seconds")
-        print(f"    Resolution: {extracted['width']}x{extracted['height']}")
-        print(f"    Size: {extracted['size_bytes'] / 1024:.1f} KB")
+        print(f"  Format: {extracted['format']}")
+        print(f"  Duration: {extracted['duration']:.1f} seconds")
+        print(f"  Resolution: {extracted['width']}x{extracted['height']}")
+        print(f"  Size: {extracted['size_bytes'] / 1024:.1f} KB")
 
     # Finalize (signs with Ed25519, no manifest needed)
     encoder.finalize()
 
-    print(f"\n✓ Created video MAIF: {maif_path}")
-    print(f"  (Self-contained with Ed25519 signatures)")
+    print(f"\n Created video MAIF: {maif_path}")
+    print(f"(Self-contained with Ed25519 signatures)")
 
     return maif_path
 
@@ -198,7 +198,7 @@ def demonstrate_video_retrieval(maif_path: str):
 
     # Verify integrity
     is_valid, errors = decoder.verify_integrity()
-    print(f"\n  Integrity check: {'✓ Valid' if is_valid else '✗ Invalid'}")
+    print(f"\n  Integrity check: {' Valid' if is_valid else ' Invalid'}")
 
     # Get all blocks
     blocks = decoder.get_blocks()
@@ -208,16 +208,16 @@ def demonstrate_video_retrieval(maif_path: str):
         if (b.metadata or {}).get("content_type", "").startswith("video/")
     ]
 
-    print(f"  Found {len(video_blocks)} video blocks")
+    print(f"Found {len(video_blocks)} video blocks")
 
     for i, block in enumerate(video_blocks):
         metadata = block.metadata or {}
         print(f"\n  Video {i + 1}: {metadata.get('title', 'Untitled')}")
-        print(f"    Format: {metadata.get('format', 'unknown')}")
-        print(f"    Duration: {metadata.get('duration', 0):.1f}s")
-        print(f"    Resolution: {metadata.get('resolution', 'unknown')}")
-        print(f"    Size: {metadata.get('size_bytes', 0) / 1024:.1f} KB")
-        print(f"    Block signed: ✓")
+        print(f"  Format: {metadata.get('format', 'unknown')}")
+        print(f"  Duration: {metadata.get('duration', 0):.1f}s")
+        print(f"  Resolution: {metadata.get('resolution', 'unknown')}")
+        print(f"  Size: {metadata.get('size_bytes', 0) / 1024:.1f} KB")
+        print(f"  Block signed: ")
 
 
 def demonstrate_video_search(maif_path: str):
@@ -239,7 +239,7 @@ def demonstrate_video_search(maif_path: str):
                 width, height = map(int, resolution.split("x"))
                 if height >= 1080:
                     print(
-                        f"    ✓ Found: {metadata.get('title', 'Untitled')} ({resolution})"
+                        f"     Found: {metadata.get('title', 'Untitled')} ({resolution})"
                     )
             except:
                 pass
@@ -252,7 +252,7 @@ def demonstrate_video_search(maif_path: str):
         duration = metadata.get("duration", 0)
 
         if duration > 10:
-            print(f"    ✓ Found: {metadata.get('title', 'Untitled')} ({duration:.1f}s)")
+            print(f"   Found: {metadata.get('title', 'Untitled')} ({duration:.1f}s)")
 
 
 def demonstrate_provenance(maif_path: str):
@@ -265,7 +265,7 @@ def demonstrate_provenance(maif_path: str):
     print(f"\n  Recorded {len(provenance)} operations:")
 
     for entry in provenance:
-        print(f"    • {entry.action} by {entry.agent_id}")
+        print(f"  • {entry.action} by {entry.agent_id}")
 
 
 def main():
@@ -298,12 +298,12 @@ def main():
         print("=" * 60)
         print("""
 Key features demonstrated:
-  ✓ Video storage as binary blocks with metadata
-  ✓ Metadata extraction from video data
-  ✓ Ed25519 signatures for each block
-  ✓ Video retrieval and search by metadata
-  ✓ Provenance tracking for all operations
-  ✓ Self-contained format (no external manifest)
+   Video storage as binary blocks with metadata
+   Metadata extraction from video data
+   Ed25519 signatures for each block
+   Video retrieval and search by metadata
+   Provenance tracking for all operations
+   Self-contained format (no external manifest)
 """)
 
     except Exception as e:

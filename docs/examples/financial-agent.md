@@ -215,7 +215,7 @@ def main():
     agent.save()
     
     # Show audit trail
-    print("\n📋 Audit Trail:")
+    print("\nAudit Trail:")
     for entry in agent.get_audit_trail():
         print(f"  {entry.get('title', 'Entry')}")
 
@@ -269,7 +269,7 @@ audit.add_text(
 # Verify data hasn't been tampered
 loaded = load_maif("financial_data.maif")
 if loaded.verify_integrity():
-    print("✅ Data is authentic")
+    print("Data is authentic")
 ```
 
 ## Next Steps

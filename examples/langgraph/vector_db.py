@@ -38,10 +38,10 @@ class VectorDB:
         )
 
         # Initialize embedding model
-        print(f"📊 Loading embedding model: {embedding_model}...")
+        print(f"Loading embedding model: {embedding_model}...")
         self.embedding_model = SentenceTransformer(embedding_model)
         self.embedding_dim = self.embedding_model.get_sentence_embedding_dimension()
-        print(f"   ✅ Model loaded (dimension: {self.embedding_dim})")
+        print(f"Model loaded (dimension: {self.embedding_dim})")
 
         # Get or create collection
         self.collection_name = "knowledge_base"
@@ -55,7 +55,7 @@ class VectorDB:
                 embedding_function=None,  # We handle embeddings ourselves
             )
             print(f"📚 Loaded existing collection: {self.collection_name}")
-            print(f"   Documents: {collection.count()}")
+            print(f"Documents: {collection.count()}")
         except Exception:
             collection = self.client.create_collection(
                 name=self.collection_name,
@@ -111,15 +111,15 @@ class VectorDB:
             document_metadata: Optional metadata for the entire document
         """
         print(f"\n📥 Adding document to vector DB: {doc_id}")
-        print(f"   Chunks: {len(chunks)}")
+        print(f"Chunks: {len(chunks)}")
 
         # Extract texts
         texts = [chunk["text"] for chunk in chunks]
 
         # Generate embeddings
-        print(f"   Generating embeddings...")
+        print(f"Generating embeddings...")
         embeddings = self.generate_embeddings(texts, show_progress=True)
-        print(f"   ✅ Generated {len(embeddings)} embeddings")
+        print(f"Generated {len(embeddings)} embeddings")
 
         # Prepare IDs
         ids = [f"{doc_id}_{i}" for i in range(len(chunks))]
@@ -149,8 +149,8 @@ class VectorDB:
             metadatas=metadatas,
         )
 
-        print(f"   ✅ Added to ChromaDB")
-        print(f"   Total documents in DB: {self.collection.count()}")
+        print(f"Added to ChromaDB")
+        print(f"Total documents in DB: {self.collection.count()}")
 
     def search(
         self, query: str, top_k: int = 5, filter_doc_ids: Optional[List[str]] = None

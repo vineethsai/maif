@@ -26,20 +26,20 @@ from examples.langgraph.demo_enhanced import (
 def print_banner():
     """Print hybrid demo banner."""
     print("\n" + "=" * 80)
-    print("🌐 HYBRID LangGraph + MAIF Research Assistant".center(80))
+    print("HYBRID LangGraph + MAIF Research Assistant".center(80))
     print("Local KB + Web Search with Cryptographic Provenance".center(80))
     print("=" * 80 + "\n")
     print("✨ FEATURES:")
-    print("   1. ✅ Searches local KB first (ChromaDB semantic search)")
-    print("   2. ✅ Falls back to web if KB doesn't have answer")
-    print("   3. ✅ Real embeddings (sentence-transformers)")
-    print("   4. ✅ LLM fact-checking (Gemini API)")
-    print("   5. ✅ Multi-turn conversations")
-    print("   6. ✅ MAIF cryptographic provenance")
+    print("1.  Searches local KB first (ChromaDB semantic search)")
+    print("2.  Falls back to web if KB doesn't have answer")
+    print("3.  Real embeddings (sentence-transformers)")
+    print("4.  LLM fact-checking (Gemini API)")
+    print("5.  Multi-turn conversations")
+    print("6.  MAIF cryptographic provenance")
     print()
-    print("💡 TIP: You can now ask questions about:")
-    print("   - Climate change (from local KB)")
-    print("   - OR anything else (from web search)")
+    print(" TIP: You can now ask questions about:")
+    print("- Climate change (from local KB)")
+    print("- OR anything else (from web search)")
     print()
 
 
@@ -50,15 +50,15 @@ def main():
     # Create app
     print("🏗️  Building HYBRID LangGraph application...")
     app = create_hybrid_app()
-    print("✅ Multi-agent system ready!\n")
+    print("Multi-agent system ready!\n")
 
     # Create session
     session_id = f"hybrid_{uuid.uuid4().hex[:8]}"
     session_path = f"examples/langgraph/data/sessions/{session_id}.maif"
 
-    print(f"📋 Session Created:")
-    print(f"   Session ID: {session_id}")
-    print(f"   MAIF Artifact: {session_path}")
+    print(f"Session Created:")
+    print(f"Session ID: {session_id}")
+    print(f"MAIF Artifact: {session_path}")
 
     # Check vector DB
     from examples.langgraph.vector_db import get_vector_db
@@ -69,9 +69,9 @@ def main():
         print(
             f"\n📚 Local Knowledge Base: {stats['num_documents']} documents, {stats['total_chunks']} chunks"
         )
-        print("🌐 Web Search: Enabled (DuckDuckGo fallback)")
+        print("Web Search: Enabled (DuckDuckGo fallback)")
     except:
-        print("\n⚠️  Local KB not loaded, will use web search only")
+        print("\n  Local KB not loaded, will use web search only")
 
     kb_paths = {
         "doc_001": "examples/langgraph/data/kb/doc_001.maif",
@@ -93,17 +93,17 @@ def main():
 
         if choice == "1":
             print("\n" + "=" * 80)
-            print("💬 ASK ANY QUESTION (Hybrid Search!)")
+            print("ASK ANY QUESTION (Hybrid Search!)")
             print("=" * 80)
-            print("\n💡 Try these questions:")
-            print("  📚 Local KB (climate change):")
-            print("     - What causes climate change?")
-            print("     - How effective is renewable energy?")
+            print("\n Try these questions:")
+            print("📚 Local KB (climate change):")
+            print("  - What causes climate change?")
+            print("  - How effective is renewable energy?")
             print()
-            print("  🌐 Web Search (anything else):")
-            print("     - What is the capital of France?")
-            print("     - Who won the 2024 Olympics?")
-            print("     - What is quantum computing?")
+            print("Web Search (anything else):")
+            print("  - What is the capital of France?")
+            print("  - Who won the 2024 Olympics?")
+            print("  - What is quantum computing?")
             print()
 
             try:
@@ -113,7 +113,7 @@ def main():
                 continue
 
             if not question:
-                print("⚠️  No question entered.")
+                print("No question entered.")
                 continue
 
             result = run_query_interactive(
@@ -137,29 +137,29 @@ def main():
             show_vector_db_stats()
 
         elif choice == "6":
-            print("\n🔄 Starting new session...")
+            print("\n Starting new session...")
             session_id = f"hybrid_{uuid.uuid4().hex[:8]}"
             session_path = f"examples/langgraph/data/sessions/{session_id}.maif"
             state_history = []
-            print(f"✅ New session: {session_id}")
+            print(f"New session: {session_id}")
 
         elif choice == "7":
-            print("\n💬 Multi-turn mode coming soon in hybrid version!")
-            print("   Use single questions for now")
+            print("\n Multi-turn mode coming soon in hybrid version!")
+            print("Use single questions for now")
 
         elif choice == "8":
             print("\n" + "=" * 80)
             print("👋 THANK YOU!")
             print("=" * 80)
-            print(f"\n💾 Session: {session_path}")
+            print(f"\n Session: {session_path}")
             if Path(session_path).exists():
-                print(f"   Questions: {len(state_history)}")
-            print("\n🌐 You asked questions using hybrid search!")
+                print(f"Questions: {len(state_history)}")
+            print("\n You asked questions using hybrid search!")
             print()
             break
 
         else:
-            print("\n⚠️  Invalid choice.")
+            print("\n  Invalid choice.")
 
 
 if __name__ == "__main__":
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n\n👋 Bye!")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n Error: {e}")
         import traceback
 
         traceback.print_exc()

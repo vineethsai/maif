@@ -61,7 +61,7 @@ def search_web(query: str, num_results: int = 3) -> List[Dict]:
     Returns:
         List of search results
     """
-    print(f"   🌐 Searching the web for: '{query}'")
+    print(f"  Searching the web for: '{query}'")
 
     # Try SerpAPI first (most reliable)
     serpapi_key = os.getenv("SERPAPI_KEY")
@@ -69,7 +69,7 @@ def search_web(query: str, num_results: int = 3) -> List[Dict]:
         try:
             return _search_with_serpapi(query, num_results, serpapi_key)
         except Exception as e:
-            print(f"   ⚠️  SerpAPI failed: {e}")
+            print(f"   SerpAPI failed: {e}")
 
     # Try ValueSERP
     valueserpapi_key = os.getenv("VALUESERPAPI_KEY")
@@ -77,10 +77,10 @@ def search_web(query: str, num_results: int = 3) -> List[Dict]:
         try:
             return _search_with_valueserp(query, num_results, valueserpapi_key)
         except Exception as e:
-            print(f"   ⚠️  ValueSERP failed: {e}")
+            print(f"   ValueSERP failed: {e}")
 
     # Fallback to DuckDuckGo HTML scraping
-    print(f"   ℹ️  Using DuckDuckGo HTML search (no API key needed)")
+    print(f"   Using DuckDuckGo HTML search (no API key needed)")
 
     try:
         # Use DuckDuckGo HTML search
@@ -125,18 +125,18 @@ def search_web(query: str, num_results: int = 3) -> List[Dict]:
                 )
 
         if results:
-            print(f"   ✅ Found {len(results)} web results")
+            print(f"  Found {len(results)} web results")
             return results
         else:
             print(
-                f"   ⚠️  No web results found (try installing duckduckgo-search: pip install duckduckgo-search)"
+                f"     No web results found (try installing duckduckgo-search: pip install duckduckgo-search)"
             )
             return []
 
     except Exception as e:
-        print(f"   ⚠️  Web search failed: {e}")
+        print(f"   Web search failed: {e}")
         print(
-            f"   💡 For better web search, set SERPAPI_KEY or VALUESERPAPI_KEY in .env"
+            f"    For better web search, set SERPAPI_KEY or VALUESERPAPI_KEY in .env"
         )
         return []
 
@@ -148,7 +148,7 @@ def _search_with_serpapi(query: str, num_results: int, api_key: str) -> List[Dic
             "serpapi library not installed. Run: pip install google-search-results"
         )
 
-    print(f"   ℹ️  Using SerpAPI (Google Search)")
+    print(f"   Using SerpAPI (Google Search)")
 
     params = {
         "api_key": api_key,
@@ -174,13 +174,13 @@ def _search_with_serpapi(query: str, num_results: int, api_key: str) -> List[Dic
         )
 
     if results:
-        print(f"   ✅ Found {len(results)} web results from SerpAPI")
+        print(f"  Found {len(results)} web results from SerpAPI")
     return results
 
 
 def _search_with_valueserp(query: str, num_results: int, api_key: str) -> List[Dict]:
     """Search using ValueSERP API."""
-    print(f"   ℹ️  Using ValueSERP API")
+    print(f"   Using ValueSERP API")
 
     url = "https://api.valueserp.com/search"
     params = {"q": query, "api_key": api_key, "num": num_results, "search_type": "web"}
@@ -201,7 +201,7 @@ def _search_with_valueserp(query: str, num_results: int, api_key: str) -> List[D
         )
 
     if results:
-        print(f"   ✅ Found {len(results)} web results from ValueSERP")
+        print(f"  Found {len(results)} web results from ValueSERP")
     return results
 
 

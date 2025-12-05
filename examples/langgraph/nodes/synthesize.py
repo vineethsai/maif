@@ -49,19 +49,19 @@ def synthesize_node(state: RAGState) -> RAGState:
     # Build prompt
     if needs_revision and verification_results:
         prompt = build_revision_prompt(question, context, verification_results)
-        print(f"   🔄 Revising previous answer based on fact-check feedback...")
+        print(f"  Revising previous answer based on fact-check feedback...")
     else:
         prompt = build_initial_prompt(question, context)
-        print(f"   📝 Generating initial answer...")
+        print(f"  Generating initial answer...")
 
     # Call Gemini API
     answer = call_gemini_api(prompt)
 
     if answer:
-        print(f"   ✅ Answer generated ({len(answer)} chars)")
-        print(f"      Preview: {answer[:100]}...")
+        print(f"  Answer generated ({len(answer)} chars)")
+        print(f"    Preview: {answer[:100]}...")
     else:
-        print(f"   ❌ Failed to generate answer")
+        print(f"  Failed to generate answer")
         state["error"] = "Failed to generate answer from Gemini API"
         return state
 
@@ -79,7 +79,7 @@ def synthesize_node(state: RAGState) -> RAGState:
         },
     )
 
-    print(f"   📝 Logged to MAIF (block: {block_id[:8]}...)")
+    print(f"  Logged to MAIF (block: {block_id[:8]}...)")
 
     # Update state
     state["draft_answer"] = answer
@@ -207,12 +207,12 @@ def call_gemini_api(prompt: str, api_key: Optional[str] = None) -> Optional[str]
                 if len(parts) > 0 and "text" in parts[0]:
                     return parts[0]["text"]
 
-        print(f"   ⚠️  Unexpected response format: {json.dumps(data)[:200]}")
+        print(f"   Unexpected response format: {json.dumps(data)[:200]}")
         return None
 
     except requests.exceptions.RequestException as e:
-        print(f"   ❌ API request failed: {e}")
+        print(f"  API request failed: {e}")
         return None
     except Exception as e:
-        print(f"   ❌ Error calling Gemini API: {e}")
+        print(f"  Error calling Gemini API: {e}")
         return None

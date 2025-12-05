@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, patch
 
-from maif.compression import (
+from maif.compression.compression import (
     MAIFCompressor,
     CompressionConfig,
     CompressionAlgorithm,

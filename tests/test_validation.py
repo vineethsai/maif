@@ -8,7 +8,7 @@ import os
 import shutil
 
 from maif import MAIFEncoder, MAIFDecoder
-from maif.validation import (
+from maif.utils.validation import (
     MAIFValidator,
     MAIFRepairTool,
     ValidationResult,

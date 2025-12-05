@@ -17,23 +17,17 @@ hero:
       link: /api/
 
 features:
-  - icon: 🧠
-    title: Persistent AI Memory
+  - title: Persistent AI Memory
     details: Store agent memories, conversations, and knowledge in a unified, verifiable file format that persists across sessions
-  - icon: 🔒
-    title: Privacy-by-Design
+  - title: Privacy-by-Design
     details: AES-GCM and ChaCha20 encryption, PII anonymization, and differential privacy built into every operation
-  - icon: 🔗
-    title: Cryptographic Provenance
+  - title: Cryptographic Provenance
     details: Immutable hash chains and digital signatures ensure complete audit trails and tamper detection
-  - icon: 🎯
-    title: Semantic Understanding
+  - title: Semantic Understanding
     details: Built-in embeddings, cross-modal attention (ACAM), and semantic search for intelligent content retrieval
-  - icon: 📦
-    title: Multi-modal Native
+  - title: Multi-modal Native
     details: Seamlessly handle text, images, video, audio, embeddings, and structured data in a single artifact
-  - icon: ⚡
-    title: High Performance
+  - title: High Performance
     details: Memory-mapped I/O, streaming support, and optimized compression for production workloads
 ---
 
@@ -187,9 +181,9 @@ artifact = load_maif("important_data.maif")
 
 # Check for tampering
 if artifact.verify_integrity():
-    print("✅ Data is authentic and unmodified")
+    print("Data is authentic and unmodified")
 else:
-    print("❌ Data has been tampered with!")
+    print("Data has been tampered with!")
 ```
 
 ### 4. Semantic Search

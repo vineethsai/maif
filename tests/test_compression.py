@@ -7,7 +7,7 @@ import tempfile
 import os
 from unittest.mock import Mock, patch, MagicMock
 
-from maif.compression import (
+from maif.compression.compression import (
     CompressionMetadata,
     CompressionAlgorithm,
     MAIFCompressor,

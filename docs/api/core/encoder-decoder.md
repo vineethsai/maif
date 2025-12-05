@@ -311,9 +311,9 @@ decoder.load()
 
 is_valid, errors = decoder.verify_integrity()
 if is_valid:
-    print("✓ File integrity verified")
+    print(" File integrity verified")
 else:
-    print("✗ Integrity check failed:")
+    print(" Integrity check failed:")
     for error in errors:
         print(f"  - {error}")
 ```
@@ -455,7 +455,7 @@ decoder.load()
 
 # Check integrity
 is_valid, errors = decoder.verify_integrity()
-print(f"Integrity: {'✓ VALID' if is_valid else '✗ INVALID'}")
+print(f"Integrity: {' VALID' if is_valid else ' INVALID'}")
 
 # Get file info
 file_info = decoder.get_file_info()

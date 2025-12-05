@@ -18,9 +18,9 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-from maif import MAIFEncoder, MAIFDecoder, SecureBlockType
+from maif import MAIFEncoder, MAIFDecoder, BlockType as SecureBlockType
 from maif.security import MAIFSigner
-from maif.forensics import ForensicAnalyzer
+from maif.compliance import ForensicAnalyzer
 
 
 def demonstrate_versioning():
@@ -44,7 +44,7 @@ def demonstrate_versioning():
             "change_description": "Initial document creation",
         },
     )
-    print(f"   Created version 1: initial content")
+    print(f"Created version 1: initial content")
 
     # Add updated content (version 2)
     updated_text = (
@@ -58,7 +58,7 @@ def demonstrate_versioning():
             "change_description": "Added new section with additional information",
         },
     )
-    print(f"   Created version 2: Bob's update")
+    print(f"Created version 2: Bob's update")
 
     # Add final content (version 3)
     final_text = "This is the original document content. UPDATED: Added new section by Bob. FINAL: Alice's final review and approval."
@@ -71,11 +71,11 @@ def demonstrate_versioning():
             "status": "approved",
         },
     )
-    print(f"   Created version 3: Alice's final approval")
+    print(f"Created version 3: Alice's final approval")
 
     # Finalize (self-contained with Ed25519 signatures)
     encoder.finalize()
-    print("   ✓ MAIF finalized (self-contained with Ed25519 signatures)")
+    print("MAIF finalized (self-contained with Ed25519 signatures)")
 
     return "versioned_doc.maif"
 
@@ -87,7 +87,7 @@ def analyze_provenance(maif_path: str):
     decoder = MAIFDecoder(maif_path)
     provenance = decoder.get_provenance()
 
-    print(f"   Found {len(provenance)} provenance entries:")
+    print(f"Found {len(provenance)} provenance entries:")
 
     for entry in provenance:
         # timestamp is in microseconds, convert to seconds
@@ -98,7 +98,7 @@ def analyze_provenance(maif_path: str):
             timestamp = datetime.fromtimestamp(ts_seconds).strftime("%H:%M:%S")
         except (ValueError, OSError):
             timestamp = "??:??:??"
-        print(f"   - [{timestamp}] {entry.action} by {entry.agent_id}")
+        print(f"- [{timestamp}] {entry.action} by {entry.agent_id}")
 
     return decoder
 
@@ -110,7 +110,7 @@ def analyze_version_history(decoder: MAIFDecoder):
     blocks = decoder.get_blocks()
     text_blocks = [b for b in blocks if b.block_type == SecureBlockType.TEXT]
 
-    print(f"   Found {len(text_blocks)} text versions:")
+    print(f"Found {len(text_blocks)} text versions:")
 
     versions = []
     for block in text_blocks:
@@ -128,7 +128,7 @@ def analyze_version_history(decoder: MAIFDecoder):
             }
         )
 
-        print(f"   - Version {version} by {author}: {description}")
+        print(f"- Version {version} by {author}: {description}")
 
     return versions
 
@@ -140,18 +140,18 @@ def verify_integrity(maif_path: str):
     decoder = MAIFDecoder(maif_path)
     is_valid, errors = decoder.verify_integrity()
 
-    print(f"   Integrity check: {'✓ Valid' if is_valid else '✗ Invalid'}")
+    print(f"Integrity check: {' Valid' if is_valid else ' Invalid'}")
 
     if errors:
         for err in errors:
-            print(f"   - Error: {err}")
+            print(f"- Error: {err}")
 
     # Check individual blocks
     blocks = decoder.get_blocks()
-    print(f"   Verified {len(blocks)} blocks:")
+    print(f"Verified {len(blocks)} blocks:")
 
     for i, block in enumerate(blocks):
-        print(f"   - Block {i}: signed ✓")
+        print(f"- Block {i}: signed ")
 
     return is_valid
 
@@ -175,11 +175,11 @@ def perform_forensic_analysis(maif_path: str):
 
     # Show version analysis
     version_analysis = report.get("version_analysis", {})
-    print(f"   Total versions tracked: {version_analysis.get('total_versions', 0)}")
+    print(f"Total versions tracked: {version_analysis.get('total_versions', 0)}")
 
     # Show behavioral analysis
     behavioral = report.get("behavioral_analysis", {})
-    print(f"   Agents analyzed: {behavioral.get('total_agents', 0)}")
+    print(f"Agents analyzed: {behavioral.get('total_agents', 0)}")
 
     # Show recommendations
     recommendations = report.get("recommendations", [])
@@ -188,13 +188,13 @@ def perform_forensic_analysis(maif_path: str):
         for rec in recommendations[:3]:
             priority = rec.get("priority", "unknown")
             desc = rec.get("description", "No description")
-            print(f"   - [{priority}] {desc}")
+            print(f"- [{priority}] {desc}")
 
     # Save forensic report
     with open("versioning_forensic_report.json", "w") as f:
         json.dump(report, f, indent=2, default=str)
 
-    print("\n   ✓ Forensic report saved: versioning_forensic_report.json")
+    print("\n    Forensic report saved: versioning_forensic_report.json")
 
     return report
 
@@ -214,21 +214,21 @@ def demonstrate_tamper_detection(maif_path: str):
         f.seek(500)  # Seek to data area
         f.write(b"TAMPERED!")
 
-    print("   Modified bytes in the file...")
+    print("Modified bytes in the file...")
 
     # Verify the tampered file
     decoder = MAIFDecoder(tampered_path)
     is_valid, errors = decoder.verify_integrity()
 
     if not is_valid:
-        print("   ✓ Tampering DETECTED!")
-        print(f"   Found {len(errors)} integrity errors")
+        print("Tampering DETECTED!")
+        print(f"Found {len(errors)} integrity errors")
     else:
-        print("   ✗ Tampering not detected (unexpected)")
+        print("Tampering not detected (unexpected)")
 
     # Cleanup
     os.remove(tampered_path)
-    print("   Cleaned up tampered file")
+    print("Cleaned up tampered file")
 
 
 def main():
@@ -261,11 +261,11 @@ Files created:
   - versioning_forensic_report.json (forensic analysis)
 
 Key features demonstrated:
-  ✓ Multiple versions stored with metadata
-  ✓ Embedded provenance chain (all operations tracked)
-  ✓ Ed25519 signatures for tamper detection
-  ✓ Forensic analysis with risk assessment
-  ✓ Self-contained format (no external manifest)
+   Multiple versions stored with metadata
+   Embedded provenance chain (all operations tracked)
+   Ed25519 signatures for tamper detection
+   Forensic analysis with risk assessment
+   Self-contained format (no external manifest)
 """)
 
         # Cleanup

@@ -16,7 +16,7 @@ maif.add_text("Hello, MAIF world!", title="Greeting")
 # Save with cryptographic signing
 maif.save("hello.maif", sign=True)
 
-print("✅ Your first AI agent memory is ready!")
+print("Your first AI agent memory is ready!")
 ```
 
 ## Running the Example
@@ -36,7 +36,7 @@ maif = create_maif('hello-agent')
 maif.add_text('Hello, MAIF world!', title='Greeting')
 maif.save('hello.maif', sign=True)
 
-print('✅ Your first AI agent memory is ready!')
+print('Your first AI agent memory is ready!')
 "
 ```
 
@@ -71,7 +71,7 @@ loaded = load_maif("hello.maif")
 
 # Verify integrity (tamper detection)
 if loaded.verify_integrity():
-    print("✅ Artifact is authentic and unmodified")
+    print("Artifact is authentic and unmodified")
 
 # Get content
 content = loaded.get_content_list()

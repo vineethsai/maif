@@ -176,16 +176,16 @@ def create_sample_documents():
 def main():
     """Create KB artifacts with REAL embeddings and ChromaDB indexing."""
     print("\n" + "=" * 80)
-    print("🚀 ENHANCED Knowledge Base Creation")
-    print("   - Real embeddings (sentence-transformers)")
-    print("   - ChromaDB vector database")
-    print("   - MAIF artifact storage")
+    print("ENHANCED Knowledge Base Creation")
+    print("- Real embeddings (sentence-transformers)")
+    print("- ChromaDB vector database")
+    print("- MAIF artifact storage")
     print("=" * 80 + "\n")
 
     # Initialize managers
     kb_manager = KBManager(kb_dir="examples/langgraph/data/kb")
 
-    print("🧠 Initializing Vector Database...")
+    print("Initializing Vector Database...")
     vector_db = get_vector_db()
 
     # Clear existing data (optional - comment out to preserve)
@@ -200,8 +200,8 @@ def main():
     for doc_id, doc_data in documents.items():
         print("\n" + "-" * 80)
         print(f"📄 Processing: {doc_id}")
-        print(f"   Title: {doc_data['metadata']['title']}")
-        print(f"   Chunks: {len(doc_data['chunks'])}")
+        print(f"Title: {doc_data['metadata']['title']}")
+        print(f"Chunks: {len(doc_data['chunks'])}")
         print("-" * 80)
 
         try:
@@ -213,7 +213,7 @@ def main():
             )
 
             # Get embeddings from vector DB for MAIF storage
-            print(f"   📦 Retrieving embeddings for MAIF storage...")
+            print(f"Retrieving embeddings for MAIF storage...")
             embeddings = vector_db.generate_embeddings(
                 [chunk["text"] for chunk in doc_data["chunks"]], show_progress=False
             )
@@ -226,7 +226,7 @@ def main():
                 chunks_with_embeddings.append(chunk_copy)
 
             # Create MAIF artifact with embeddings
-            print(f"   💾 Creating MAIF artifact with embeddings...")
+            print(f"Creating MAIF artifact with embeddings...")
             kb_path = kb_manager.create_kb_artifact(
                 doc_id=doc_id,
                 chunks=chunks_with_embeddings,
@@ -234,38 +234,38 @@ def main():
             )
 
             created_paths[doc_id] = kb_path
-            print(f"   ✅ MAIF artifact created: {kb_path}")
+            print(f"MAIF artifact created: {kb_path}")
 
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"Error: {e}")
             import traceback
 
             traceback.print_exc()
 
     print("\n" + "=" * 80)
-    print("✅ ENHANCED Knowledge Base Creation Complete!")
+    print("ENHANCED Knowledge Base Creation Complete!")
     print("=" * 80 + "\n")
 
-    print("📊 Vector Database Stats:")
+    print("Vector Database Stats:")
     stats = vector_db.get_stats()
     for key, value in stats.items():
-        print(f"   {key}: {value}")
+        print(f"{key}: {value}")
 
-    print("\n📋 Created KB Artifacts (with embeddings):")
+    print("\n Created KB Artifacts (with embeddings):")
     for doc_id, path in created_paths.items():
-        print(f"   {doc_id}: {path}")
+        print(f"{doc_id}: {path}")
         # Show file size
         if Path(path).exists():
             size = Path(path).stat().st_size
-            print(f"      Size: {size:,} bytes")
+            print(f"Size: {size:,} bytes")
 
-    print(f"\n🎉 Success! Your KB now has:")
-    print(f"   ✅ Real semantic embeddings")
-    print(f"   ✅ ChromaDB vector database")
-    print(f"   ✅ MAIF provenance artifacts")
+    print(f"\n Success! Your KB now has:")
+    print(f"Real semantic embeddings")
+    print(f"ChromaDB vector database")
+    print(f"MAIF provenance artifacts")
 
-    print(f"\n💡 Next step:")
-    print(f"   Run: python3 demo_enhanced.py")
+    print(f"\n Next step:")
+    print(f"Run: python3 demo_enhanced.py")
 
 
 if __name__ == "__main__":

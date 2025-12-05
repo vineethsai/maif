@@ -19,13 +19,13 @@ class TestEncryptionModeChanges:
         """Verify Fernet is no longer in EncryptionMode enum."""
         available_modes = [mode.value for mode in EncryptionMode]
         assert "fernet" not in available_modes
-        print("✓ Fernet successfully removed from EncryptionMode enum")
+        print("Fernet successfully removed from EncryptionMode enum")
 
     def test_aes_gcm_available(self):
         """Verify AES-GCM is available."""
         available_modes = [mode.value for mode in EncryptionMode]
         assert "aes_gcm" in available_modes
-        print("✓ AES-GCM is available in EncryptionMode enum")
+        print("AES-GCM is available in EncryptionMode enum")
 
     def test_aes_gcm_encryption_decryption(self):
         """Verify AES-GCM encryption and decryption works."""
@@ -49,7 +49,7 @@ class TestEncryptionModeChanges:
 
         # Verify decryption worked
         assert decrypted_data == test_data
-        print("✓ AES-GCM encryption and decryption working correctly")
+        print("AES-GCM encryption and decryption working correctly")
 
     def test_fernet_encryption_raises_error(self):
         """Verify attempting to use Fernet raises an error."""
@@ -59,7 +59,7 @@ class TestEncryptionModeChanges:
             assert False, "FERNET should not exist"
         except AttributeError:
             # Expected
-            print("✓ Fernet enum access correctly raises AttributeError")
+            print("Fernet enum access correctly raises AttributeError")
 
     def test_maif_encoder_with_aes_gcm(self):
         """Verify MAIFEncoder works with encrypted content."""
@@ -81,7 +81,7 @@ class TestEncryptionModeChanges:
             decoder.load()
             assert len(decoder.blocks) == 1
 
-            print("✓ MAIFEncoder works with encrypted content")
+            print("MAIFEncoder works with encrypted content")
 
     def test_default_encryption_is_aes_gcm(self):
         """Verify default encryption mode is AES-GCM."""
@@ -94,7 +94,7 @@ class TestEncryptionModeChanges:
 
         # Verify AES-GCM is default
         assert metadata["algorithm"] == "AES-GCM"
-        print("✓ Default encryption mode is AES-GCM")
+        print("Default encryption mode is AES-GCM")
 
 
 class TestEncryptionIntegration:

@@ -15,8 +15,8 @@ from maif import MAIFEncoder, MAIFDecoder, BlockType
 from maif.privacy import PrivacyEngine
 from maif.compression import MAIFCompressor, CompressionAlgorithm
 from maif.security import MAIFSigner
-from maif.metadata import MAIFMetadataManager
-from maif.validation import MAIFValidator
+from maif.utils.metadata import MAIFMetadataManager
+from maif.utils.validation import MAIFValidator
 
 
 class TestWorkingMAIFCore:

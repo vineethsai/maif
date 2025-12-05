@@ -100,7 +100,7 @@ encoder.finalize()
 decoder = MAIFDecoder("advanced.maif")
 decoder.load()
 is_valid, errors = decoder.verify_integrity()
-print(f"Integrity: {'✓ Valid' if is_valid else '✗ Invalid'}")
+print(f"Integrity: {'Valid' if is_valid else 'Invalid'}")
 ```
 
 ## Command Line Interface
@@ -143,11 +143,11 @@ maif-extract --file artifact.maif --output-dir extracted/
 
 ### Core Features (Always Available)
 
-- ✅ Basic MAIF creation and reading
-- ✅ Text content handling
-- ✅ Binary data storage
-- ✅ Basic integrity verification
-- ✅ Simple API access
+- Basic MAIF creation and reading
+- Text content handling
+- Binary data storage
+- Basic integrity verification
+- Simple API access
 
 ### ML Features
 
@@ -156,11 +156,11 @@ Install ML dependencies separately if needed:
 pip install sentence-transformers faiss-cpu
 ```
 
-- 🧠 Semantic embeddings with sentence-transformers
-- 🔍 Fast similarity search with FAISS
-- 🎯 Cross-modal attention mechanisms (ACAM)
-- 📊 Hierarchical semantic compression (HSC)
-- 🔐 Cryptographic semantic binding (CSB)
+- Semantic embeddings with sentence-transformers
+- Fast similarity search with FAISS
+- Cross-modal attention mechanisms (ACAM)
+- Hierarchical semantic compression (HSC)
+- Cryptographic semantic binding (CSB)
 
 ### Vision Features
 
@@ -169,10 +169,10 @@ Install vision dependencies separately if needed:
 pip install opencv-python pillow
 ```
 
-- 🖼️ Image processing with OpenCV
-- 📷 Automatic metadata extraction
-- 🎬 Video content handling
-- 🖼️ Image format support (JPEG, PNG, etc.)
+- Image processing with OpenCV
+- Automatic metadata extraction
+- Video content handling
+- Image format support (JPEG, PNG, etc.)
 
 ### Compression Features
 
@@ -181,10 +181,10 @@ Install compression dependencies separately if needed:
 pip install brotli zstandard
 ```
 
-- 🗜️ Advanced compression algorithms (Brotli, Zstandard)
-- 📈 Optimal compression selection
-- 💾 Space-efficient storage
-- ⚡ Fast decompression
+- Advanced compression algorithms (Brotli, Zstandard)
+- Optimal compression selection
+- Space-efficient storage
+- Fast decompression
 
 ### Performance Features
 
@@ -193,10 +193,10 @@ Install performance dependencies separately if needed:
 pip install xxhash msgpack psutil
 ```
 
-- ⚡ Fast hashing with xxHash
-- 📦 Efficient serialization with MessagePack
-- 📊 System monitoring with psutil
-- 🚀 Optimized data structures
+- Fast hashing with xxHash
+- Efficient serialization with MessagePack
+- System monitoring with psutil
+- Optimized data structures
 
 ## Usage Examples
 
@@ -332,19 +332,19 @@ print(f"Simple API: {maif.SIMPLE_API_AVAILABLE}")
 test_maif = maif.create_maif("test")
 test_maif.add_text("Installation test")
 success = test_maif.save("test.maif")
-print(f"Installation test: {'✅ PASSED' if success else '❌ FAILED'}")
+print(f"Installation test: {'PASSED' if success else 'FAILED'}")
 ```
 
 ## Next Steps
 
-- 📖 Read the [Simple API Guide](SIMPLE_API_GUIDE.md)
-- 🔬 Explore [Novel Algorithms](NOVEL_ALGORITHMS_IMPLEMENTATION.md)
-- 🛡️ Learn about [Security Features](MAIF_Security_Verifications_Table.md)
-- 📊 Check [Performance Benchmarks](BENCHMARK_SUMMARY.md)
-- 🎯 Try the [Examples](../examples/)
+- Read the [Simple API Guide](SIMPLE_API_GUIDE.md)
+- Explore [Novel Algorithms](NOVEL_ALGORITHMS_IMPLEMENTATION.md)
+- Learn about [Security Features](MAIF_Security_Verifications_Table.md)
+- Check [Performance Benchmarks](BENCHMARK_SUMMARY.md)
+- Try the [Examples](../examples/)
 
 ## Support
 
-- 🐛 Report bugs: [GitHub Issues](https://github.com/maif-ai/maif/issues)
-- 📚 Documentation: [ReadTheDocs](https://maif.readthedocs.io/)
-- 💬 Discussions: [GitHub Discussions](https://github.com/maif-ai/maif/discussions)
+- Report bugs: [GitHub Issues](https://github.com/maif-ai/maif/issues)
+- Documentation: [ReadTheDocs](https://maif.readthedocs.io/)
+- Discussions: [GitHub Discussions](https://github.com/maif-ai/maif/discussions)

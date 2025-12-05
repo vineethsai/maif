@@ -35,38 +35,38 @@ def demo_simple_api():
     # Create a MAIF instance with the simple API
     maif = MAIF("demo_agent")
 
-    print(f"📝 Created MAIF instance for agent: demo_agent")
+    print(f"Created MAIF instance for agent: demo_agent")
 
     # Add content
-    print(f"📝 Adding text content...")
+    print(f"Adding text content...")
     start_time = time.time()
 
     for i in range(10):
         maif.add_text(f"High-performance content block {i}")
 
     write_time = time.time() - start_time
-    print(f"✅ Added 10 text blocks in {write_time:.3f}s")
+    print(f"Added 10 text blocks in {write_time:.3f}s")
 
     # Save to file (self-contained, no manifest needed)
     test_file = Path("demo_simple.maif")
-    print(f"💾 Saving to {test_file}...")
+    print(f"Saving to {test_file}...")
     maif.save(str(test_file))
 
     # Load and verify
-    print(f"📖 Loading back from file...")
+    print(f"Loading back from file...")
     loaded = MAIF.load(str(test_file))
 
     # Access texts directly
     text_count = len(loaded.texts)
-    print(f"✅ Loaded {text_count} text blocks")
+    print(f"Loaded {text_count} text blocks")
 
     # Verify integrity
     is_valid = loaded.verify()
-    print(f"🔒 Integrity check: {'VALID' if is_valid else 'INVALID'}")
+    print(f"Integrity check: {'VALID' if is_valid else 'INVALID'}")
 
     # Show first few texts
     for i, text in enumerate(loaded.texts[:3]):
-        print(f"   [{i}] {text[:50]}...")
+        print(f"[{i}] {text[:50]}...")
 
     # Note: file is NOT cleaned up - stays in demo_output
 
@@ -81,10 +81,10 @@ def demo_native_encoder():
     test_file = Path("demo_native.maif")
     encoder = MAIFEncoder(str(test_file), agent_id="native_agent")
 
-    print(f"📝 Created MAIFEncoder for native access...")
+    print(f"Created MAIFEncoder for native access...")
 
     # Add various block types
-    print(f"📝 Adding content blocks...")
+    print(f"Adding content blocks...")
     start_time = time.time()
 
     # Add text blocks
@@ -99,28 +99,28 @@ def demo_native_encoder():
     encoder.add_binary_block(binary_data, metadata={"type": "test_data"})
 
     write_time = time.time() - start_time
-    print(f"✅ Added blocks in {write_time:.3f}s")
+    print(f"Added blocks in {write_time:.3f}s")
 
     # Finalize (self-contained, Ed25519 signed)
-    print(f"💾 Finalizing MAIF file...")
+    print(f"Finalizing MAIF file...")
     encoder.finalize()
 
     # Read back with decoder
-    print(f"📖 Reading with MAIFDecoder...")
+    print(f"Reading with MAIFDecoder...")
     decoder = MAIFDecoder(str(test_file))
 
     # Verify integrity
     is_valid, errors = decoder.verify_integrity()
-    print(f"🔒 Integrity: {'VALID' if is_valid else 'INVALID'}")
+    print(f"Integrity: {'VALID' if is_valid else 'INVALID'}")
 
     # List blocks
     blocks = decoder.get_blocks()
-    print(f"✅ Read {len(blocks)} blocks:")
+    print(f"Read {len(blocks)} blocks:")
 
     for i, block in enumerate(blocks):
         block_id = block.header.block_id.hex()[:8]
         size = len(block.data) if block.data else 0
-        print(f"   Block {block_id}: {size} bytes, signed ✓")
+        print(f"Block {block_id}: {size} bytes, signed ")
 
     # Note: file stays for demo_output collection
 
@@ -132,19 +132,19 @@ def demo_quick_operations():
     print("=" * 60)
 
     # Quick text MAIF creation
-    print(f"⚡ Creating quick text MAIF...")
+    print(f"Creating quick text MAIF...")
 
     result = quick_text_maif(
         "This is a quick one-liner to create a MAIF file with text content.",
         "quick_demo.maif",
     )
 
-    print(f"✅ Created: {result}")
+    print(f"Created: {result}")
 
     # Load and verify
     loaded = load_maif("quick_demo.maif")
-    print(f"📖 Loaded {len(loaded.texts)} text blocks")
-    print(f"🔒 Integrity: {'VALID' if loaded.verify() else 'INVALID'}")
+    print(f"Loaded {len(loaded.texts)} text blocks")
+    print(f"Integrity: {'VALID' if loaded.verify() else 'INVALID'}")
 
     # Note: file stays for demo_output collection
 
@@ -156,7 +156,7 @@ def demo_create_helper():
     print("=" * 60)
 
     # Create MAIF with multiple texts in one call
-    print(f"📝 Creating MAIF with multiple texts...")
+    print(f"Creating MAIF with multiple texts...")
 
     result = create_maif(
         output_path="helper_demo.maif",
@@ -169,12 +169,12 @@ def demo_create_helper():
         agent_id="helper_agent",
     )
 
-    print(f"✅ Created: {result}")
+    print(f"Created: {result}")
 
     # Load and verify
     loaded = load_maif(result)
-    print(f"📖 Loaded {len(loaded.texts)} text blocks")
-    print(f"🔒 Integrity: {'VALID' if loaded.verify() else 'INVALID'}")
+    print(f"Loaded {len(loaded.texts)} text blocks")
+    print(f"Integrity: {'VALID' if loaded.verify() else 'INVALID'}")
 
 
 def demo_use_case_recommendations():
@@ -193,8 +193,8 @@ def demo_use_case_recommendations():
     }
 
     for use_case, recommendation in use_cases.items():
-        print(f"🎯 {use_case}:")
-        print(f"   {recommendation}")
+        print(f"{use_case}:")
+        print(f"{recommendation}")
 
 
 def main():
@@ -211,7 +211,7 @@ def main():
         demo_use_case_recommendations()
 
         print("\n" + "=" * 60)
-        print("✅ DEMO COMPLETE")
+        print("DEMO COMPLETE")
         print("=" * 60)
         print("""
 Key takeaways:
@@ -224,10 +224,10 @@ Key takeaways:
 """)
 
     except KeyboardInterrupt:
-        print("\n\n⚠️  Demo interrupted by user")
+        print("\n\n  Demo interrupted by user")
         return 1
     except Exception as e:
-        print(f"\n\n❌ Demo error: {e}")
+        print(f"\n\n Demo error: {e}")
         import traceback
 
         traceback.print_exc()

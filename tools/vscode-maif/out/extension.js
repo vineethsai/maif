@@ -133,7 +133,7 @@ async function openMAIFFile(uri) {
             await vscode.commands.executeCommand('vscode.openWith', uri, 'maif.binaryViewer');
             // Show format info
             const formatMsg = parser?.format === 'secure'
-                ? '🔒 Secure MAIF format (self-contained with embedded security)'
+                ? ' Secure MAIF format (self-contained with embedded security)'
                 : '📁 Legacy MAIF format';
             vscode.window.setStatusBarMessage(formatMsg, 5000);
         }
@@ -200,7 +200,7 @@ function getProvenanceHtml(provenance) {
         </style>
     </head>
     <body>
-        <h1>🔗 Provenance Chain (${provenance.length} entries)</h1>
+        <h1> Provenance Chain (${provenance.length} entries)</h1>
         <div class="timeline">${entries}</div>
     </body>
     </html>`;
@@ -238,11 +238,11 @@ function getHexViewHtml(data) {
 function getBlockDetailHtml(block) {
     const statusBadges = [];
     if (block.isSigned)
-        statusBadges.push('<span class="status-badge signed">🔐 Signed</span>');
+        statusBadges.push('<span class="status-badge signed"> Signed</span>');
     if (block.isImmutable)
-        statusBadges.push('<span class="status-badge immutable">🔒 Immutable</span>');
+        statusBadges.push('<span class="status-badge immutable"> Immutable</span>');
     if (block.isTampered)
-        statusBadges.push('<span class="status-badge tampered">⚠️ TAMPERED</span>');
+        statusBadges.push('<span class="status-badge tampered"> TAMPERED</span>');
     return `<!DOCTYPE html>
     <html>
     <head>
@@ -310,15 +310,15 @@ function getBlockDetailHtml(block) {
 function formatAction(action) {
     const map = {
         'genesis': '🌟 Genesis',
-        'add_text_block': '📝 Add Text Block',
-        'add_embeddings_block': '🧠 Add Embeddings',
-        'add_knowledge_graph': '🕸️ Add Knowledge Graph',
-        'add_image_block': '🖼️ Add Image',
-        'add_audio_block': '🎵 Add Audio',
-        'add_video_block': '🎬 Add Video',
-        'finalize': '🔒 Finalize',
+        'add_text_block': ' Add Text Block',
+        'add_embeddings_block': ' Add Embeddings',
+        'add_knowledge_graph': ' Add Knowledge Graph',
+        'add_image_block': ' Add Image',
+        'add_audio_block': ' Add Audio',
+        'add_video_block': ' Add Video',
+        'finalize': ' Finalize',
         'sign': '✍️ Sign',
-        'verify': '✅ Verify'
+        'verify': ' Verify'
     };
     return map[action] || action;
 }

@@ -54,7 +54,7 @@ export class MAIFOverviewProvider implements vscode.TreeDataProvider<OverviewIte
         
         // Format indicator
         const isSecure = this.format === 'secure';
-        items.push(new OverviewItem('Format', isSecure ? '🔒 Secure (Self-Contained)' : '📁 Legacy (+ Manifest)'));
+        items.push(new OverviewItem('Format', isSecure ? ' Secure (Self-Contained)' : '📁 Legacy (+ Manifest)'));
 
         // Version
         items.push(new OverviewItem('Version', this.manifest.maif_version || this.manifest.header?.version || 'Unknown'));
@@ -80,11 +80,11 @@ export class MAIFOverviewProvider implements vscode.TreeDataProvider<OverviewIte
         items.push(new OverviewItem('Blocks', String(this.manifest.blocks?.length || 0)));
         
         // Signed
-        items.push(new OverviewItem('Signed', this.manifest.signature ? '✓ Yes' : '✗ No'));
+        items.push(new OverviewItem('Signed', this.manifest.signature ? ' Yes' : ' No'));
         
         // Finalized (secure format)
         if (isSecure && this.fileInfo) {
-            items.push(new OverviewItem('Finalized', this.fileInfo.isFinalized ? '✓ Yes' : '✗ No'));
+            items.push(new OverviewItem('Finalized', this.fileInfo.isFinalized ? ' Yes' : ' No'));
         }
         
         // Provenance
@@ -108,8 +108,8 @@ class BlockItem extends vscode.TreeItem {
         public readonly index: number
     ) {
         const statusIcons: string[] = [];
-        if (block.isSigned) statusIcons.push('🔐');
-        if (block.isTampered) statusIcons.push('⚠️');
+        if (block.isSigned) statusIcons.push('');
+        if (block.isTampered) statusIcons.push('');
         
         super(`${block.type} Block${statusIcons.length ? ' ' + statusIcons.join('') : ''}`, vscode.TreeItemCollapsibleState.None);
         
@@ -124,9 +124,9 @@ class BlockItem extends vscode.TreeItem {
         
         if (block.isSigned || block.isTampered) {
             tooltipLines.push('### Status');
-            if (block.isSigned) tooltipLines.push('- 🔐 **Signed**');
-            if (block.isImmutable) tooltipLines.push('- 🔒 **Immutable**');
-            if (block.isTampered) tooltipLines.push('- ⚠️ **TAMPERED**');
+            if (block.isSigned) tooltipLines.push('-  **Signed**');
+            if (block.isImmutable) tooltipLines.push('-  **Immutable**');
+            if (block.isTampered) tooltipLines.push('-  **TAMPERED**');
             tooltipLines.push('');
         }
         
@@ -222,7 +222,7 @@ class ProvenanceItem extends vscode.TreeItem {
             `- **Time:** ${MAIFParser.formatTimestamp(entry.timestamp)}`,
             `- **Entry Hash:** \`${(entry.entry_hash || 'N/A').slice(0, 20)}...\``,
             `- **Block Hash:** \`${(entry.block_hash || 'N/A').slice(0, 20)}...\``,
-            entry.signature ? `- **Signed:** ✓` : ''
+            entry.signature ? `- **Signed:** ` : ''
         ].join('\n'));
         
         this.iconPath = new vscode.ThemeIcon(isGenesis ? 'star' : 'git-commit');
@@ -267,17 +267,17 @@ export class MAIFProvenanceProvider implements vscode.TreeDataProvider<Provenanc
 function formatAction(action: string): string {
     const map: Record<string, string> = {
         'genesis': '🌟 Genesis',
-        'add_text_block': '📝 Add Text',
-        'add_embeddings_block': '🧠 Add Embeddings',
-        'add_knowledge_graph': '🕸️ Knowledge Graph',
-        'add_image_block': '🖼️ Add Image',
-        'add_audio_block': '🎵 Add Audio',
-        'add_video_block': '🎬 Add Video',
+        'add_text_block': ' Add Text',
+        'add_embeddings_block': ' Add Embeddings',
+        'add_knowledge_graph': ' Knowledge Graph',
+        'add_image_block': ' Add Image',
+        'add_audio_block': ' Add Audio',
+        'add_video_block': ' Add Video',
         'update': '✏️ Update',
         'delete': '🗑️ Delete',
-        'finalize': '🔒 Finalize',
+        'finalize': ' Finalize',
         'sign': '✍️ Sign',
-        'verify': '✅ Verify'
+        'verify': ' Verify'
     };
     return map[action] || action;
 }

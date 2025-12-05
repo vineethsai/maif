@@ -9,7 +9,7 @@ import json
 import hashlib
 import shutil
 
-from maif.validation import MAIFValidator, MAIFRepairTool, ValidationResult
+from maif.utils.validation import MAIFValidator, MAIFRepairTool, ValidationResult
 from maif import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner, MAIFVerifier
 

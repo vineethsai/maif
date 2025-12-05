@@ -76,14 +76,14 @@ def run_demo(name: str, script_path: str) -> bool:
         )
 
         success = result.returncode == 0
-        print(f"\n{'✅ PASSED' if success else '❌ FAILED'}: {name}")
+        print(f"\n{'PASSED' if success else 'FAILED'}: {name}")
         return success
 
     except subprocess.TimeoutExpired:
-        print(f"\n⏱️ TIMEOUT: {name}")
+        print(f"\nTIMEOUT: {name}")
         return False
     except Exception as e:
-        print(f"\n❌ ERROR: {name} - {e}")
+        print(f"\nERROR: {name} - {e}")
         return False
 
 
@@ -120,7 +120,7 @@ def collect_maif_files():
                     i += 1
 
             shutil.move(str(maif_file), str(dest))
-            print(f"  Moved: {maif_file.name} -> {dest.name}")
+            print(f"Moved: {maif_file.name} -> {dest.name}")
             collected += 1
 
         # Note: We no longer need manifest files - the new format is self-contained!
@@ -149,8 +149,8 @@ def main():
     total = len(results)
 
     for name, success in results:
-        status = "✅ PASSED" if success else "❌ FAILED"
-        print(f"  {status}: {name}")
+        status = "PASSED" if success else "FAILED"
+        print(f"{status}: {name}")
 
     print(f"\n{passed}/{total} demos passed")
 
@@ -158,7 +158,7 @@ def main():
     print(f"\nOutput files in {OUTPUT_DIR}:")
     for f in sorted(OUTPUT_DIR.iterdir()):
         size = f.stat().st_size
-        print(f"  {f.name} ({size:,} bytes)")
+        print(f"{f.name} ({size:,} bytes)")
 
     print(f"\nTo clean up: rm -rf {OUTPUT_DIR}")
 

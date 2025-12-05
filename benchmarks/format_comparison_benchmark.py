@@ -179,7 +179,7 @@ class FormatComparisonBenchmark:
         }
 
         print(
-            f"  ✓ Average: Legacy {avg_legacy:.2f}ms, Secure (Ed25519) {avg_secure:.2f}ms"
+            f"   Average: Legacy {avg_legacy:.2f}ms, Secure (Ed25519) {avg_secure:.2f}ms"
         )
 
     def _benchmark_file_size(self):
@@ -257,7 +257,7 @@ class FormatComparisonBenchmark:
         }
 
         print(
-            f"  ✓ Average overhead: Legacy {avg_legacy_overhead:.1f}%, Secure {avg_secure_overhead:.1f}%"
+            f"   Average overhead: Legacy {avg_legacy_overhead:.1f}%, Secure {avg_secure_overhead:.1f}%"
         )
 
     def _benchmark_read_performance(self):
@@ -326,7 +326,7 @@ class FormatComparisonBenchmark:
             "secure_avg_ms": avg_secure,
         }
 
-        print(f"  ✓ Average: Legacy {avg_legacy:.2f}ms, Secure {avg_secure:.2f}ms")
+        print(f"Average: Legacy {avg_legacy:.2f}ms, Secure {avg_secure:.2f}ms")
 
     def _benchmark_integrity_verification(self):
         """Benchmark integrity verification speed."""
@@ -392,7 +392,7 @@ class FormatComparisonBenchmark:
             "secure_avg_ms": avg_secure,
         }
 
-        print(f"  ✓ Average: Legacy {avg_legacy:.2f}ms, Secure {avg_secure:.2f}ms")
+        print(f"Average: Legacy {avg_legacy:.2f}ms, Secure {avg_secure:.2f}ms")
 
     def _benchmark_tamper_detection(self):
         """Benchmark tamper detection capabilities."""
@@ -498,10 +498,10 @@ class FormatComparisonBenchmark:
         }
 
         print(
-            f"  ✓ Detection rate: Legacy {legacy_rate:.1f}%, Secure {secure_rate:.1f}%"
+            f"   Detection rate: Legacy {legacy_rate:.1f}%, Secure {secure_rate:.1f}%"
         )
         print(
-            f"  ✓ Detection time: Legacy {avg_legacy_time:.2f}ms, Secure {avg_secure_time:.2f}ms"
+            f"   Detection time: Legacy {avg_legacy_time:.2f}ms, Secure {avg_secure_time:.2f}ms"
         )
 
     def _benchmark_scalability(self):
@@ -568,8 +568,8 @@ class FormatComparisonBenchmark:
         secure_score = 0
 
         for feature, (legacy_has, secure_has) in features.items():
-            legacy_str = "✓" if legacy_has else "✗"
-            secure_str = "✓" if secure_has else "✗"
+            legacy_str = "" if legacy_has else ""
+            secure_str = "" if secure_has else ""
 
             # Score: having the feature is good, except "External manifest required"
             if feature == "External manifest required":
@@ -583,7 +583,7 @@ class FormatComparisonBenchmark:
                 if secure_has:
                     secure_score += 1
 
-            print(f"  {feature}: Legacy {legacy_str}, Secure {secure_str}")
+            print(f"{feature}: Legacy {legacy_str}, Secure {secure_str}")
 
         max_score = len(features)
 
@@ -605,7 +605,7 @@ class FormatComparisonBenchmark:
         }
 
         print(
-            f"  ✓ Score: Legacy {legacy_score}/{max_score}, Secure {secure_score}/{max_score}"
+            f"   Score: Legacy {legacy_score}/{max_score}, Secure {secure_score}/{max_score}"
         )
 
     def _generate_report(self) -> Dict[str, Any]:
@@ -687,7 +687,7 @@ class FormatComparisonBenchmark:
         with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
 
-        print(f"\n✓ Detailed report saved to: {report_path}")
+        print(f"\n Detailed report saved to: {report_path}")
 
         return report
 
@@ -698,11 +698,11 @@ class FormatComparisonBenchmark:
 The SECURE format is recommended for most use cases:
 
 Advantages:
-  ✓ Self-contained - no external manifest files needed
-  ✓ Block-level cryptographic signatures for immutability  
-  ✓ Built-in tamper detection with detailed error reporting
-  ✓ Embedded provenance chain for full audit trail
-  ✓ Merkle root for fast integrity verification
+   Self-contained - no external manifest files needed
+   Block-level cryptographic signatures for immutability  
+   Built-in tamper detection with detailed error reporting
+   Embedded provenance chain for full audit trail
+   Merkle root for fast integrity verification
 
 Trade-offs:
   • Higher file size overhead due to signatures (~256 bytes/block)
@@ -753,7 +753,7 @@ def main():
         _report = benchmark.run_all_benchmarks()  # noqa: F841
         return 0
     except Exception as e:
-        print(f"\n❌ Benchmark failed: {e}")
+        print(f"\n Benchmark failed: {e}")
         import traceback
 
         traceback.print_exc()

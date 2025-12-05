@@ -36,7 +36,7 @@ def fact_check_node_enhanced(state: RAGState) -> RAGState:
     Returns:
         Updated state with verification_results and verification_status
     """
-    print(f"🔬 [fact_check_enhanced] Verifying with LLM (semantic understanding)...")
+    print(f"[fact_check_enhanced] Verifying with LLM (semantic understanding)...")
 
     draft_answer = state.get("draft_answer", "")
     chunks = state.get("retrieved_chunks", [])
@@ -44,17 +44,17 @@ def fact_check_node_enhanced(state: RAGState) -> RAGState:
     max_iterations = state.get("max_iterations", 3)
 
     if not draft_answer:
-        print(f"   ⚠️  No draft answer to verify")
+        print(f"   No draft answer to verify")
         state["verification_status"] = "failed"
         state["error"] = "No draft answer to verify"
         return state
 
     # Extract claims from answer
     claims = extract_claims(draft_answer)
-    print(f"   📋 Extracted {len(claims)} claims to verify")
+    print(f"  Extracted {len(claims)} claims to verify")
 
     # Verify claims using LLM
-    print(f"   🤖 Using Gemini API for semantic verification...")
+    print(f" 🤖 Using Gemini API for semantic verification...")
 
     try:
         # Verify claims in parallel (with rate limiting)
@@ -72,15 +72,15 @@ def fact_check_node_enhanced(state: RAGState) -> RAGState:
 
         # Show results
         for i, result in enumerate(verification_results, 1):
-            status = "✅ VERIFIED" if result["verified"] else "❌ NOT VERIFIED"
+            status = " VERIFIED" if result["verified"] else " NOT VERIFIED"
             confidence = result["confidence"]
-            print(f"      {i}. {status} (confidence: {confidence:.1%})")
+            print(f"    {i}. {status} (confidence: {confidence:.1%})")
             if not result["verified"]:
-                print(f"         Reason: {result['reason'][:80]}...")
+                print(f"       Reason: {result['reason'][:80]}...")
 
     except Exception as e:
-        print(f"   ⚠️  LLM verification error: {e}")
-        print(f"   ℹ️  Falling back to keyword matching...")
+        print(f"   LLM verification error: {e}")
+        print(f"   Falling back to keyword matching...")
 
         # Fallback to simple verification
         from examples.langgraph.nodes.fact_check import verify_claim
@@ -100,24 +100,24 @@ def fact_check_node_enhanced(state: RAGState) -> RAGState:
     # Calculate overall confidence
     confidence = verified_count / len(claims) if claims else 0.0
     print(
-        f"   📊 Verification confidence: {confidence:.1%} ({verified_count}/{len(claims)})"
+        f"    Verification confidence: {confidence:.1%} ({verified_count}/{len(claims)})"
     )
 
     # Determine status
     if confidence >= 0.75:  # Slightly lower threshold with LLM
         verification_status = "verified"
         needs_revision = False
-        print(f"   ✅ Answer VERIFIED (confidence {confidence:.1%})")
+        print(f"  Answer VERIFIED (confidence {confidence:.1%})")
     elif iteration >= max_iterations:
         verification_status = "verified"  # Accept after max iterations
         needs_revision = False
         print(
-            f"   ⚠️  Max iterations reached, accepting answer with {confidence:.1%} confidence"
+            f"     Max iterations reached, accepting answer with {confidence:.1%} confidence"
         )
     else:
         verification_status = "needs_revision"
         needs_revision = True
-        print(f"   🔄 Answer needs REVISION (confidence {confidence:.1%})")
+        print(f"  Answer needs REVISION (confidence {confidence:.1%})")
 
     # Compile results
     results = {
@@ -144,7 +144,7 @@ def fact_check_node_enhanced(state: RAGState) -> RAGState:
         },
     )
 
-    print(f"   📝 Logged to MAIF (block: {block_id[:8]}...)")
+    print(f"  Logged to MAIF (block: {block_id[:8]}...)")
 
     # Update state
     state["verification_results"] = results

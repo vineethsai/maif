@@ -16,8 +16,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Add parent to path
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 # Import MAIF agent framework
-from maif.agentic_framework import (
+from maif.agents.agentic_framework import (
     AutonomousMAIFAgent,
     MAIFAgentConsortium,
     MAIFAgent,
@@ -359,18 +364,18 @@ async def demonstrate_memory_system():
     print("\nRecent memories:")
     recent = agent.memory.recall_recent(3)
     for mem in recent:
-        print(f"  - {mem['summary']}")
+        print(f"- {mem['summary']}")
 
     print("\nWorking memory:")
     for i in range(3):
         artifact = agent.memory.recall_working(f"key_{i}")
         if artifact:
-            print(f"  - key_{i}: {artifact.name}")
+            print(f"- key_{i}: {artifact.name}")
 
     print("\nEpisodic recall:")
     episodes = agent.memory.recall_episodes("Episode")
     for ep in episodes:
-        print(f"  - Episode {ep['episode_id'][:8]}: {len(ep['artifacts'])} events")
+        print(f"- Episode {ep['episode_id'][:8]}: {len(ep['artifacts'])} events")
 
     # Flush memory to MAIF
     agent.memory.flush()

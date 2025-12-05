@@ -2,13 +2,13 @@
 Comprehensive Test Script - Validates ALL Features
 
 Tests:
-1. ✅ Real ChromaDB vector search
-2. ✅ Real embeddings (sentence-transformers)
-3. ✅ Gemini API integration (your key)
-4. ✅ LLM fact-checking
-5. ✅ MAIF provenance logging
-6. ✅ Multi-turn conversations
-7. ✅ Cryptographic hash chains
+1.  Real ChromaDB vector search
+2.  Real embeddings (sentence-transformers)
+3.  Gemini API integration (your key)
+4.  LLM fact-checking
+5.  MAIF provenance logging
+6.  Multi-turn conversations
+7.  Cryptographic hash chains
 """
 
 import sys
@@ -32,21 +32,21 @@ def test_vector_db():
         vdb = get_vector_db()
         stats = vdb.get_stats()
 
-        print(f"✅ Vector DB loaded")
-        print(f"   Total chunks: {stats['total_chunks']}")
-        print(f"   Documents: {stats['num_documents']}")
-        print(f"   Embedding dim: {stats['embedding_dimension']}")
+        print(f"Vector DB loaded")
+        print(f"Total chunks: {stats['total_chunks']}")
+        print(f"Documents: {stats['num_documents']}")
+        print(f"Embedding dim: {stats['embedding_dimension']}")
 
         # Test search
         results = vdb.search("greenhouse gas emissions", top_k=3)
-        print(f"✅ Semantic search works")
-        print(f"   Query: 'greenhouse gas emissions'")
+        print(f"Semantic search works")
+        print(f"Query: 'greenhouse gas emissions'")
         for i, r in enumerate(results, 1):
-            print(f"   {i}. {r['doc_id']} (score: {r['score']:.3f})")
+            print(f"{i}. {r['doc_id']} (score: {r['score']:.3f})")
 
         return True
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         return False
 
 
@@ -63,15 +63,15 @@ def test_gemini_api():
         response = call_gemini_api(test_prompt)
 
         if response:
-            print(f"✅ Gemini API works")
-            print(f"   Response: {response[:100]}...")
+            print(f"Gemini API works")
+            print(f"Response: {response[:100]}...")
             return True
         else:
-            print(f"❌ FAILED: No response from Gemini")
+            print(f"FAILED: No response from Gemini")
             return False
 
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         return False
 
 
@@ -91,19 +91,19 @@ def test_llm_fact_checking():
             }
         ]
 
-        print(f"   Claim: '{test_claim}'")
-        print(f"   Verifying with Gemini...")
+        print(f"Claim: '{test_claim}'")
+        print(f"Verifying with Gemini...")
 
         result = verify_claim_with_llm(test_claim, test_chunks)
 
-        print(f"✅ LLM verification works")
-        print(f"   Verified: {result['verified']}")
-        print(f"   Confidence: {result['confidence']:.1%}")
-        print(f"   Reason: {result['reason'][:80]}...")
+        print(f"LLM verification works")
+        print(f"Verified: {result['verified']}")
+        print(f"Confidence: {result['confidence']:.1%}")
+        print(f"Reason: {result['reason'][:80]}...")
 
         return True
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         return False
 
 
@@ -122,25 +122,25 @@ def test_maif_logging():
 
         # Create session
         session_path = session_manager.create_session(test_session_id)
-        print(f"✅ Session artifact created: {Path(session_path).name}")
+        print(f"Session artifact created: {Path(session_path).name}")
 
         # Log test message
         block_id = session_manager.log_user_message(session_path, "Test message")
-        print(f"✅ Message logged (block: {block_id[:8]}...)")
+        print(f"Message logged (block: {block_id[:8]}...)")
 
         # Verify integrity
         with BlockStorage(session_path) as storage:
             is_valid = storage.validate_integrity()
 
-        print(f"✅ Hash chain integrity: {'VALID' if is_valid else 'INVALID'}")
+        print(f"Hash chain integrity: {'VALID' if is_valid else 'INVALID'}")
 
         # Read back
         history = session_manager.get_session_history(session_path)
-        print(f"✅ Session history readable: {len(history)} blocks")
+        print(f"Session history readable: {len(history)} blocks")
 
         return True
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         import traceback
 
         traceback.print_exc()
@@ -157,7 +157,7 @@ def test_multi_agent_pipeline():
         import uuid
 
         app = create_enhanced_app()
-        print(f"✅ LangGraph app built")
+        print(f"LangGraph app built")
 
         session_id = f"e2e_test_{uuid.uuid4().hex[:8]}"
 
@@ -178,20 +178,20 @@ def test_multi_agent_pipeline():
 
         config = {"configurable": {"thread_id": session_id}}
 
-        print(f"   Running pipeline...")
+        print(f"Running pipeline...")
         result = app.invoke(initial_state, config)
 
-        print(f"✅ Pipeline completed")
-        print(f"   Answer generated: {len(result.get('answer', '')) > 0}")
-        print(f"   Iterations: {result.get('iteration_count', 0)}")
+        print(f"Pipeline completed")
+        print(f"Answer generated: {len(result.get('answer', '')) > 0}")
+        print(f"Iterations: {result.get('iteration_count', 0)}")
         print(
             f"   Confidence: {result.get('verification_results', {}).get('confidence', 0):.1%}"
         )
-        print(f"   MAIF blocks: {len(result.get('current_turn_block_ids', []))}")
+        print(f"MAIF blocks: {len(result.get('current_turn_block_ids', []))}")
 
         return True
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         import traceback
 
         traceback.print_exc()
@@ -212,7 +212,7 @@ def test_multi_turn_conversation():
         config = {"configurable": {"thread_id": session_id}}
 
         # Turn 1
-        print(f"   Turn 1...")
+        print(f"Turn 1...")
         state1 = {
             "question": "What causes climate change?",
             "answer": None,
@@ -230,10 +230,10 @@ def test_multi_turn_conversation():
         result1 = app.invoke(state1, config)
         session_path = result1.get("session_artifact_path", "")
 
-        print(f"   ✅ Turn 1 complete")
+        print(f"Turn 1 complete")
 
         # Turn 2 (same session!)
-        print(f"   Turn 2 (same session)...")
+        print(f"Turn 2 (same session)...")
         state2 = {
             "question": "How can we mitigate it?",
             "answer": None,
@@ -250,7 +250,7 @@ def test_multi_turn_conversation():
         }
         result2 = app.invoke(state2, config)
 
-        print(f"   ✅ Turn 2 complete")
+        print(f"Turn 2 complete")
 
         # Verify both turns in same artifact
         if session_path and Path(session_path).exists():
@@ -264,15 +264,15 @@ def test_multi_turn_conversation():
             ]
 
             print(
-                f"✅ Multi-turn works: {len(user_messages)} questions in same artifact"
+                f" Multi-turn works: {len(user_messages)} questions in same artifact"
             )
             return True
         else:
-            print(f"❌ FAILED: Session artifact not found")
+            print(f"FAILED: Session artifact not found")
             return False
 
     except Exception as e:
-        print(f"❌ FAILED: {e}")
+        print(f"FAILED: {e}")
         import traceback
 
         traceback.print_exc()
@@ -283,7 +283,7 @@ def main():
     """Run all tests."""
     print("\n" + "=" * 80)
     print("🧪 COMPREHENSIVE FEATURE TEST SUITE")
-    print("   Testing ALL enhancements and integrations")
+    print("Testing ALL enhancements and integrations")
     print("=" * 80)
 
     tests = [
@@ -302,19 +302,19 @@ def main():
             result = test_func()
             results.append((test_name, result))
         except Exception as e:
-            print(f"\n❌ Test '{test_name}' crashed: {e}")
+            print(f"\n Test '{test_name}' crashed: {e}")
             results.append((test_name, False))
 
     # Summary
     print("\n" + "=" * 80)
-    print("📊 TEST SUMMARY")
+    print("TEST SUMMARY")
     print("=" * 80 + "\n")
 
     passed = sum(1 for _, r in results if r)
     total = len(results)
 
     for test_name, result in results:
-        status = "✅ PASS" if result else "❌ FAIL"
+        status = " PASS" if result else " FAIL"
         print(f"{status} - {test_name}")
 
     print(f"\n{'=' * 80}")
@@ -322,20 +322,20 @@ def main():
     print(f"{'=' * 80}")
 
     if passed == total:
-        print("\n🎉 ALL TESTS PASSED!")
+        print("\n ALL TESTS PASSED!")
         print("\n✨ Your system has:")
-        print("   ✅ Real vector database (ChromaDB)")
-        print("   ✅ Real embeddings (sentence-transformers)")
-        print("   ✅ Gemini API integration (your key)")
-        print("   ✅ LLM fact-checking")
-        print("   ✅ MAIF cryptographic provenance")
-        print("   ✅ Multi-agent collaboration")
-        print("   ✅ Multi-turn conversations")
-        print("\n🚀 Ready for production use!")
+        print("Real vector database (ChromaDB)")
+        print("Real embeddings (sentence-transformers)")
+        print("Gemini API integration (your key)")
+        print("LLM fact-checking")
+        print("MAIF cryptographic provenance")
+        print("Multi-agent collaboration")
+        print("Multi-turn conversations")
+        print("\n Ready for production use!")
     else:
-        print("\n⚠️  Some tests failed. Check output above.")
-        print("   Most likely issues:")
-        print("   - Vector DB empty? Run: create_kb_enhanced.py")
+        print("\n  Some tests failed. Check output above.")
+        print("Most likely issues:")
+        print("- Vector DB empty? Run: create_kb_enhanced.py")
         print(
             "   - Missing dependencies? Run: pip install -r requirements_enhanced.txt"
         )

@@ -245,7 +245,7 @@ class MAIFBinaryViewerProvider {
         return lines.join('\n');
     }
     parseAudioInfo(metadata, dataSize) {
-        const lines = ['🎵 Audio Content'];
+        const lines = [' Audio Content'];
         lines.push('─'.repeat(40));
         if (metadata) {
             if (metadata.format || metadata.codec) {
@@ -278,7 +278,7 @@ class MAIFBinaryViewerProvider {
         return lines.join('\n');
     }
     parseVideoInfo(metadata, dataSize) {
-        const lines = ['🎬 Video Content'];
+        const lines = [' Video Content'];
         lines.push('─'.repeat(40));
         if (metadata) {
             if (metadata.format || metadata.codec) {
@@ -319,7 +319,7 @@ class MAIFBinaryViewerProvider {
         return lines.join('\n');
     }
     parseImageInfo(metadata, dataSize) {
-        const lines = ['🖼️ Image Content'];
+        const lines = [' Image Content'];
         lines.push('─'.repeat(40));
         if (metadata) {
             if (metadata.format || metadata.mime_type) {
@@ -352,19 +352,19 @@ class MAIFBinaryViewerProvider {
     }
     getBlockIcon(type) {
         const icons = {
-            'TEXT': '📝',
-            'EMBD': '🧠',
-            'KNOW': '🔗',
-            'KGRF': '🔗',
-            'AUDI': '🎵',
-            'VIDE': '🎬',
-            'IMAG': '🖼️',
-            'META': '📋',
-            'BINA': '📦',
-            'SECU': '🔒',
+            'TEXT': '',
+            'EMBD': '',
+            'KNOW': '',
+            'KGRF': '',
+            'AUDI': '',
+            'VIDE': '',
+            'IMAG': '',
+            'META': '',
+            'BINA': '',
+            'SECU': '',
             'LIFE': '♻️',
-            'COMP': '🗜️',
-            'ENCR': '🔐'
+            'COMP': '',
+            'ENCR': ''
         };
         return icons[type] || '📄';
     }
@@ -479,7 +479,7 @@ class MAIFBinaryViewerProvider {
                 <div class="block-left">
                     <span class="block-type-icon">${this.getBlockIcon(b.type)}</span>
                     <span class="block-type">${b.type}</span>
-                    ${b.isSigned ? '<span class="signed-badge">🔐</span>' : ''}
+                    ${b.isSigned ? '<span class="signed-badge"></span>' : ''}
                     <span class="expand-icon">▶</span>
                 </div>
                 <div class="block-right">
@@ -494,7 +494,7 @@ class MAIFBinaryViewerProvider {
                     <div class="detail-grid">
                         <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${this.getBlockTypeName(b.type)}</span></div>
                         <div class="detail-row"><span class="detail-label">Index</span><span class="detail-value">#${i}</span></div>
-                        <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${b.isSigned ? '🔐 Signed & Immutable' : 'Unsigned'}</span></div>
+                        <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">${b.isSigned ? ' Signed & Immutable' : 'Unsigned'}</span></div>
                         <div class="detail-row"><span class="detail-label">Offset</span><span class="detail-value">${b.offset} (0x${b.offset.toString(16)})</span></div>
                         <div class="detail-row"><span class="detail-label">Total Size</span><span class="detail-value">${this.formatSize(b.size)} (${b.size} bytes)</span></div>
                         ${b.dataSize !== undefined ? `<div class="detail-row"><span class="detail-label">Data Size</span><span class="detail-value">${this.formatSize(b.dataSize)} (${b.dataSize} bytes)</span></div>` : ''}
@@ -543,14 +543,14 @@ class MAIFBinaryViewerProvider {
             </div>
         `).join('');
         const formatBadge = isSecure
-            ? '<span class="format-badge secure">🔒 Secure Format</span>'
+            ? '<span class="format-badge secure"> Secure Format</span>'
             : '<span class="format-badge legacy">📁 Legacy Format</span>';
         const fileInfoHtml = isSecure ? `
             <div class="file-info">
                 <div class="info-row"><span class="label">Version:</span> ${fileInfo.version}</div>
                 <div class="info-row"><span class="label">Agent DID:</span> ${fileInfo.agentDid || 'N/A'}</div>
-                <div class="info-row"><span class="label">Signed:</span> ${fileInfo.isSigned ? '✓ Yes' : '✗ No'}</div>
-                <div class="info-row"><span class="label">Finalized:</span> ${fileInfo.isFinalized ? '✓ Yes' : '✗ No'}</div>
+                <div class="info-row"><span class="label">Signed:</span> ${fileInfo.isSigned ? ' Yes' : ' No'}</div>
+                <div class="info-row"><span class="label">Finalized:</span> ${fileInfo.isFinalized ? ' Yes' : ' No'}</div>
                 ${fileInfo.merkleRoot ? `<div class="info-row"><span class="label">Merkle Root:</span> <code>${this.truncateHash(fileInfo.merkleRoot, 20)}</code></div>` : ''}
             </div>
         ` : '';
