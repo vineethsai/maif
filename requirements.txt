@@ -19,7 +19,7 @@ aiofiles==24.1.0
 brotli==1.1.0
 zstandard==0.25.0
 xxhash==3.6.0
-msgpack==1.1.0
+msgpack==1.1.2
 jsonschema==4.25.1
 click==8.1.8
 tqdm==4.67.1
