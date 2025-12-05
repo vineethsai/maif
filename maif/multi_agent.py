@@ -67,6 +67,16 @@ class Block:
         self.metadata = metadata or {}
 
 
+class ExchangeSession:
+    """Placeholder ExchangeSession class for multi-agent exchange."""
+    
+    def __init__(self, session_id: str, target_agent_id: str):
+        self.session_id = session_id
+        self.target_agent_id = target_agent_id
+        self.state: str = "initiated"
+        self.exchanged_blocks: List[str] = []
+
+
 class ExchangeProtocolVersion(Enum):
     """MAIF Exchange Protocol versions"""
 
