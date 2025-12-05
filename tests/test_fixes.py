@@ -20,7 +20,7 @@ def test_cli_privacy_levels():
             print(f"✓ Privacy level '{level}' is valid")
         except ValueError:
             print(f"✗ Privacy level '{level}' is invalid")
-            return False
+            assert False, f"Privacy level '{level}' is invalid"
     
     assert True  # Test passed
 
@@ -30,24 +30,22 @@ def test_basic_maif_creation():
     
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
-            encoder = MAIFEncoder(agent_id="test_agent", enable_privacy=False)
-            encoder.add_text_block("Test content")
-            
             maif_path = os.path.join(temp_dir, "test.maif")
             manifest_path = os.path.join(temp_dir, "test_manifest.json")
-            
-            encoder.build_maif(maif_path, manifest_path)
+            encoder = MAIFEncoder(maif_path, agent_id="test_agent")
+            encoder.add_text_block("Test content")
+            encoder.finalize()
             
             # Check files were created
-            if os.path.exists(maif_path) and os.path.exists(manifest_path):
+            if os.path.exists(maif_path):
                 print("✓ Basic MAIF creation works")
                 assert True  # Test passed
             else:
-                print("✗ MAIF files not created")
-                return False
+                print("✗ MAIF file not created")
+                assert False, "MAIF file not created"
     except Exception as e:
         print(f"✗ Basic MAIF creation failed: {e}")
-        return False
+        assert False, f"Basic MAIF creation failed: {e}"
 
 def test_validation():
     """Test validation of a simple MAIF file."""

@@ -457,7 +457,7 @@ class MAIFSplitter:
         
         # Cluster
         from sklearn.cluster import KMeans
-        kmeans = KMeans(n_clusters=min(num_clusters, len(text_blocks)))
+        kmeans = KMeans(n_clusters=min(num_clusters, len(text_blocks)), n_init=10)
         labels = kmeans.fit_predict(vectors)
         
         # Create encoders for each cluster

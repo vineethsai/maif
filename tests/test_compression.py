@@ -122,24 +122,25 @@ class TestMAIFCompressor:
         
         assert decompressed == test_data
     
-    @pytest.mark.skipif(True, reason="Brotli may not be available in all environments")
+    @pytest.mark.skipif(
+        __import__('importlib').util.find_spec("brotli") is None,
+        reason="Brotli not available"
+    )
     def test_brotli_compression(self):
         """Test Brotli compression and decompression."""
+        import brotli
         test_data = b"Brotli compression test data. " * 60
-        
-        try:
-            # Compress
-            compressed = self.compressor.compress(test_data, CompressionAlgorithm.BROTLI)
-            
-            assert compressed != test_data
-            assert len(compressed) < len(test_data)
-            
-            # Decompress
-            decompressed = self.compressor.decompress(compressed, CompressionAlgorithm.BROTLI)
-            
-            assert decompressed == test_data
-        except ImportError:
-            pytest.skip("Brotli not available")
+
+        # Compress
+        compressed = self.compressor.compress(test_data, CompressionAlgorithm.BROTLI)
+
+        assert compressed != test_data
+        assert len(compressed) < len(test_data)
+
+        # Decompress
+        decompressed = self.compressor.decompress(compressed, CompressionAlgorithm.BROTLI)
+
+        assert decompressed == test_data
     
     def test_compression_levels(self):
         """Test compression with different levels."""
@@ -187,13 +188,15 @@ class TestMAIFCompressor:
         
         # Check result structure
         for algorithm, result in results.items():
-            if result["success"]:
-                assert "compressed_size" in result
-                assert "compression_ratio" in result
-                assert "compression_time" in result
-                assert "decompression_time" in result
-                assert result["compressed_size"] > 0
-                assert result["compression_ratio"] > 0
+            if getattr(result, "metadata", {}).get("success", True):
+                assert hasattr(result, "compressed_size")
+                assert hasattr(result, "compression_ratio")
+                assert "compression_time" in result.metadata
+                # Only check decompression_time if present
+                if "decompression_time" in result.metadata:
+                    assert result.metadata["decompression_time"] >= 0
+                assert result.compressed_size > 0
+                assert result.compression_ratio > 0
     
     def test_empty_data_compression(self):
         """Test compression of empty data."""

@@ -290,9 +290,9 @@ class EnhancedStreamAccessController(StreamAccessController):
         if not hasattr(session, 'mfa_challenge_time'):
             session.mfa_challenge_time = None
         
-        # Generate MFA challenge (simplified - in production use proper TOTP/SMS)
-        challenge = secrets.token_hex(16)
-        session.mfa_challenge_time = time.time()
+        # Generate MFA challenge using a real MFA provider (TOTP/SMS/hardware token)
+        # This is a placeholder: integrate with your MFA provider here
+        raise NotImplementedError("MFA challenge generation must be implemented with a real provider.")
         
         self._log_audit("mfa_challenge_initiated", {
             "session_id": session_id,
@@ -314,28 +314,9 @@ class EnhancedStreamAccessController(StreamAccessController):
             session.mfa_verified = False
             session.mfa_challenge_time = None
         
-        # Verify response (simplified - in production use proper verification)
-        if hmac.compare_digest(response, expected_response):
-            session.mfa_verified = True
-            session.mfa_challenge_time = time.time()
-            
-            self._log_audit("mfa_verification_success", {
-                "session_id": session_id,
-                "user_id": session.user_id
-            })
-            
-            return True
-        else:
-            if not hasattr(session, 'suspicious_activity_score'):
-                session.suspicious_activity_score = 0.0
-            session.suspicious_activity_score = min(session.suspicious_activity_score + 0.2, 1.0)
-            
-            self._log_audit("mfa_verification_failed", {
-                "session_id": session_id,
-                "user_id": session.user_id
-            })
-            
-            return False
+        # Verify response using a real MFA provider
+        # This is a placeholder: integrate with your MFA provider here
+        raise NotImplementedError("MFA response verification must be implemented with a real provider.")
 
 
 class SecureStreamReaderEnhanced:
@@ -388,12 +369,8 @@ class SecureStreamReaderEnhanced:
                 if challenge:
                     # In a real implementation, this would prompt the user
                     print(f"MFA Challenge required: {challenge}")
-                    # For demo, auto-verify (in production, wait for user input)
-                    if self.access_controller.verify_mfa_response(self.session_id, challenge, challenge):
-                        # Retry access check
-                        decision, reason = self.access_controller.check_stream_access_secure(
-                            self.session_id, "read", block_type, block_data, nonce, timestamp
-                        )
+                    # In production, prompt the user for MFA response and verify it
+                    raise NotImplementedError("MFA user prompt and verification must be implemented in production.")
             
             if decision != AccessDecision.ALLOW:
                 raise PermissionError(f"Enhanced stream access denied: {reason}")

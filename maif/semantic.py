@@ -210,53 +210,34 @@ class SemanticEmbedder:
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model_name = model_name
         self.embeddings: List[SemanticEmbedding] = []
-        
-        # Always try to initialize the model for test compatibility
-        # This will be mocked in tests, so we should always call it
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            try:
-                # Try to load the model with better error handling
-                import torch
-                # Clear any cached models that might be corrupted
-                torch.hub.set_dir(torch.hub.get_dir())
-                self.model = SentenceTransformer(model_name)
-            except Exception as e:
-                # Silently fall back to lightweight embedding generator
-                # Only show warning in debug mode
-                if hasattr(self, '_debug') and self._debug:
-                    print(f"Warning: Could not load model {model_name}: {e}")
-                    print("Using lightweight fallback embedding generator...")
-                self.model = None
-        else:
-            self.model = None
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            raise ImportError("sentence-transformers is required for production embedding. Please install it.")
+        try:
+            import torch
+            torch.hub.set_dir(torch.hub.get_dir())
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load embedding model '{model_name}': {e}")
     
     def embed_text(self, text: str, metadata: Optional[Dict] = None) -> SemanticEmbedding:
         """Generate embedding for text content."""
-        if self.model and hasattr(self.model, 'encode'):
-            # Use the actual model (or mock)
-            try:
-                vector = self.model.encode(text)
-                if hasattr(vector, 'tolist'):
-                    vector = vector.tolist()
-                elif hasattr(vector, '__iter__') and not isinstance(vector, str):
-                    vector = list(vector)
-                else:
-                    # Handle mock return values that might be single values
-                    vector = [float(vector)] if not isinstance(vector, list) else vector
-            except Exception as e:
-                # Only fallback for real exceptions, not test mocks
-                # Silently fall back without printing warnings
-                vector = self._generate_fallback_embedding(text)
-        else:
-            # Fallback: simple hash-based pseudo-embedding
-            vector = self._generate_fallback_embedding(text)
+        if not self.model or not hasattr(self.model, 'encode'):
+            raise RuntimeError("SemanticEmbedder requires a valid embedding model for production use.")
+        try:
+            vector = self.model.encode(text)
+            if hasattr(vector, 'tolist'):
+                vector = vector.tolist()
+            elif hasattr(vector, '__iter__') and not isinstance(vector, str):
+                vector = list(vector)
+            else:
+                vector = [float(vector)] if not isinstance(vector, list) else vector
+        except Exception as e:
+            raise RuntimeError(f"Failed to generate embedding for text: {e}")
         
         source_hash = hashlib.sha256(text.encode()).hexdigest()
         
-        # Add text to metadata as expected by tests
         final_metadata = metadata.copy() if metadata else {}
-        final_metadata["text"] = text
-        
+
         embedding = SemanticEmbedding(
             vector=vector,
             source_hash=source_hash,
@@ -264,32 +245,11 @@ class SemanticEmbedder:
             timestamp=time.time(),
             metadata=final_metadata
         )
-        
+
         self.embeddings.append(embedding)
         return embedding
     
-    def _generate_fallback_embedding(self, text: str) -> List[float]:
-        """Generate fallback embedding when model is not available."""
-        import hashlib
-        import struct
-        
-        # Generate a deterministic but realistic embedding based on text content
-        text_hash = hashlib.sha256(text.encode()).hexdigest()
-        
-        # Generate 384-dimensional vector (same as all-MiniLM-L6-v2) for compatibility
-        vector = []
-        for i in range(0, 384):
-            # Use different parts of the hash to generate diverse values
-            hash_segment = text_hash[(i * 2) % len(text_hash):(i * 2 + 8) % len(text_hash)]
-            if len(hash_segment) < 8:
-                hash_segment = (text_hash + text_hash)[i * 2:i * 2 + 8]
-            
-            # Convert hex to float in range [-1, 1] for realistic embeddings
-            hex_val = int(hash_segment[:8], 16) if len(hash_segment) >= 8 else int(hash_segment.ljust(8, '0'), 16)
-            normalized_val = (hex_val / (2**32 - 1)) * 2 - 1  # Map to [-1, 1]
-            vector.append(normalized_val)
-        
-        return vector
+    # _generate_fallback_embedding removed: not allowed in production code
     
     def embed_texts(self, texts: List[str], metadata_list: Optional[List[Dict]] = None) -> List[SemanticEmbedding]:
         """Generate embeddings for multiple texts."""
@@ -857,7 +817,7 @@ class HierarchicalSemanticCompression:
                     }
                 }
             
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
             cluster_labels = kmeans.fit_predict(embeddings)
             centroids = kmeans.cluster_centers_
             
@@ -957,7 +917,7 @@ class HierarchicalSemanticCompression:
         try:
             from sklearn.cluster import KMeans
             n_clusters = num_clusters or kwargs.get('num_clusters') or max(1, len(embeddings) // 2)
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
             return kmeans.fit_predict(embeddings)
         except ImportError:
             # Fallback clustering
@@ -973,7 +933,7 @@ class HierarchicalSemanticCompression:
         
         try:
             from sklearn.cluster import KMeans
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
             cluster_labels = kmeans.fit_predict(embeddings)
             centroids = kmeans.cluster_centers_
             

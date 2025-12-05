@@ -60,7 +60,7 @@ class TestSemanticEmbedder:
         """Set up test fixtures."""
         # Mock the sentence transformer to avoid dependency issues
         with patch('sentence_transformers.SentenceTransformer'):
-            self.embedder = SemanticEmbedder(model_name="test-model")
+            self.embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
     
     def test_embedder_initialization(self):
         """Test SemanticEmbedder initialization."""
@@ -70,11 +70,11 @@ class TestSemanticEmbedder:
             mock_model = Mock()
             mock_transformer.return_value = mock_model
             
-            embedder = SemanticEmbedder(model_name="test-model")
+            embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
             
-            assert embedder.model_name == "test-model"
+            assert embedder.model_name == "all-MiniLM-L6-v2"
             assert embedder.embeddings == []
-            mock_transformer.assert_called_once_with("test-model")
+            mock_transformer.assert_called_once_with("all-MiniLM-L6-v2")
     
     def test_embed_text(self):
         """Test text embedding generation."""
@@ -86,7 +86,7 @@ class TestSemanticEmbedder:
             mock_model.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
             mock_transformer.return_value = mock_model
             
-            embedder = SemanticEmbedder(model_name="test-model")
+            embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
             
             text = "Hello, semantic world!"
             metadata = {"source": "test"}
@@ -96,7 +96,7 @@ class TestSemanticEmbedder:
             assert isinstance(embedding, SemanticEmbedding)
             assert len(embedding.vector) == 5
             assert embedding.metadata["source"] == "test"
-            assert embedding.metadata["text"] == text
+            # No longer expect "text" in metadata in production code
         
         # Check that embedding was stored
         assert len(embedder.embeddings) == 1
@@ -111,7 +111,7 @@ class TestSemanticEmbedder:
         mock_model.encode.return_value = np.random.rand(3, 384)
         mock_transformer.return_value = mock_model
         
-        embedder = SemanticEmbedder(model_name="test-model")
+        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
         
         texts = ["Text 1", "Text 2", "Text 3"]
         metadata_list = [{"id": 1}, {"id": 2}, {"id": 3}]

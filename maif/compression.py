@@ -82,37 +82,7 @@ class CompressionResult:
             return self.compressed_data == other
         return NotImplemented
     
-    def __getitem__(self, key):
-        """Support dictionary-style access for test compatibility."""
-        if key == "success":
-            return self.metadata.get("success", True)
-        elif key == "compressed_size":
-            return self.compressed_size
-        elif key == "compression_ratio":
-            return self.compression_ratio
-        elif key == "algorithm":
-            return self.algorithm
-        elif key == "metadata":
-            return self.metadata
-        elif key == "error":
-            return self.metadata.get("error", None)
-        elif key == "compression_time":
-            return self.metadata.get("compression_time", 0.0)
-        elif key == "decompression_time":
-            return self.metadata.get("decompression_time", 0.0)
-        else:
-            raise KeyError(key)
-    
-    def __contains__(self, key):
-        """Support 'in' operator for test compatibility."""
-        return key in ["success", "compressed_size", "compression_ratio", "algorithm", "metadata", "error", "compression_time", "decompression_time"]
-    
-    def get(self, key, default=None):
-        """Support dictionary-style get method for test compatibility."""
-        try:
-            return self[key]
-        except KeyError:
-            return default
+    # Dictionary-style access methods removed for production code.
 
 @dataclass
 class CompressionConfig:

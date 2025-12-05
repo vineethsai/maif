@@ -2439,3 +2439,17 @@ def main():
 
 if __name__ == "__main__":
     exit(main())
+import pytest
+
+def test_benchmarks_run_all():
+    suite = MAIFBenchmarkSuite(output_dir="benchmark_results")
+    results = suite.run_all_benchmarks()
+    assert isinstance(results, dict)
+    for name, result in results.items():
+        assert "error" not in result or not result["error"], f"Benchmark {name} failed: {result.get('error')}"
+import pytest
+
+def test_benchmark_compression_ratios_only():
+    suite = MAIFBenchmarkSuite(output_dir="benchmark_results")
+    suite._benchmark_compression_ratios()
+    assert suite.results and suite.results[0].success
