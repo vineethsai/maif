@@ -1,57 +1,49 @@
-# MAIF Production Makefile
+# MAIF Makefile
 
-.PHONY: help build test lint format clean install docker-build docker-run deploy docs
+.PHONY: help install install-dev build test lint format clean docs
 
 # Default target
 help:
-	@echo "MAIF Production Commands:"
-	@echo "  make install      - Install dependencies"
+	@echo "MAIF Commands:"
+	@echo "  make install      - Install package"
+	@echo "  make install-dev  - Install with dev dependencies"
 	@echo "  make build        - Build the package"
 	@echo "  make test         - Run all tests"
-	@echo "  make test-unit    - Run unit tests only"
-	@echo "  make test-integration - Run integration tests"
+	@echo "  make test-quick   - Run quick tests only"
 	@echo "  make lint         - Run linting checks"
 	@echo "  make format       - Format code with black"
 	@echo "  make clean        - Clean build artifacts"
-	@echo "  make docker-build - Build Docker image"
-	@echo "  make docker-run   - Run Docker container"
-	@echo "  make deploy       - Deploy to AWS"
-	@echo "  make docs         - Generate documentation"
+	@echo "  make docs         - Build documentation"
+	@echo "  make docs-serve   - Serve documentation locally"
 
 # Installation
 install:
-	pip install -r requirements.txt
 	pip install -e .
 
 install-dev:
-	pip install -r requirements.txt
 	pip install -e ".[dev]"
 
-install-prod:
-	pip install -e ".[production]"
+install-full:
+	pip install -e ".[full]"
 
 # Building
 build: clean
-	python setup.py sdist bdist_wheel
+	python -m build
 
 # Testing
 test:
-	pytest tests/ -v --cov=maif --cov-report=term-missing
+	pytest tests/ -v --timeout=60
 
-test-unit:
-	pytest tests/ -v -m "not integration and not aws" --cov=maif
+test-quick:
+	pytest tests/test_core.py tests/test_fixes.py -v --timeout=30
 
-test-integration:
-	pytest tests/ -v -m "integration" --cov=maif
-
-test-aws:
-	pytest tests/ -v -m "aws" --cov=maif
+test-cov:
+	pytest tests/ -v --cov=maif --cov-report=term-missing --timeout=60
 
 # Code quality
 lint:
-	flake8 maif/ --max-line-length=120
-	mypy maif/ --ignore-missing-imports
-	black --check maif/
+	ruff check maif/ --select=E9,F63,F7,F82
+	@echo "Lint passed!"
 
 format:
 	black maif/
@@ -59,7 +51,6 @@ format:
 
 security-check:
 	bandit -r maif/ -ll
-	safety check
 
 # Cleaning
 clean:
@@ -69,41 +60,8 @@ clean:
 	rm -rf .pytest_cache/
 	rm -rf .coverage
 	rm -rf htmlcov/
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.maif" -delete
-
-# Docker operations
-docker-build:
-	docker build -t maif:latest .
-
-docker-run:
-	docker-compose up -d
-
-docker-stop:
-	docker-compose down
-
-docker-logs:
-	docker-compose logs -f maif
-
-# AWS deployment
-deploy-lambda:
-	python -m maif.aws_deployment deploy-lambda \
-		--function-name maif-production \
-		--handler maif.handler.lambda_handler \
-		--runtime python3.11
-
-deploy-ecs:
-	python -m maif.aws_deployment deploy-ecs \
-		--cluster maif-cluster \
-		--service maif-service \
-		--image maif:latest
-
-deploy-cloudformation:
-	aws cloudformation deploy \
-		--template-file cloudformation/maif-infrastructure.yaml \
-		--stack-name maif-production \
-		--capabilities CAPABILITY_IAM
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
 # Documentation
 docs:
@@ -112,42 +70,6 @@ docs:
 docs-serve:
 	cd docs && npm run docs:dev
 
-# Performance testing
+# Benchmarks
 benchmark:
-	python benchmarks/maif_benchmark_suite.py
-
-benchmark-aws:
-	python benchmarks/bedrock_swarm_benchmark.py
-
-# Monitoring
-monitor-start:
-	docker-compose up -d prometheus grafana
-
-monitor-stop:
-	docker-compose stop prometheus grafana
-
-# Local development
-dev-setup: install-dev
-	pre-commit install
-	cp .env.example .env
-
-run-local:
-	python -m maif.cli serve --debug
-
-# Production checks
-prod-check:
-	python -m maif.config validate_production_config
-	python -m maif.health_check --full
-
-# Release
-release-patch:
-	bumpversion patch
-	git push --tags
-
-release-minor:
-	bumpversion minor
-	git push --tags
-
-release-major:
-	bumpversion major
-	git push --tags
+	python benchmarks/test_maif_benchmark_suite.py

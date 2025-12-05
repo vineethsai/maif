@@ -113,7 +113,6 @@ maif-create = "maif.cli:create_maif"
 maif-verify = "maif.cli:verify_maif"
 maif-analyze = "maif.cli:analyze_maif"
 maif-extract = "maif.cli:extract_content"
-maif-deploy = "maif.aws_deployment:deploy_cli"
 
 [project.urls]
 Homepage = "https://github.com/vineethsai/maif"

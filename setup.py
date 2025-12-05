@@ -34,7 +34,7 @@ setup(
     description="Multimodal Artifact File Format - Production-ready AI-native container with trustworthy AI capabilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/maif-ai/maif",
+    url="https://github.com/vineethsai/maif",
     packages=find_packages(include=["maif", "maif.*"]),
     py_modules=["maif_api"],  # Include the simple API module
     classifiers=[
@@ -124,9 +124,9 @@ setup(
     },
     keywords="ai, multimodal, security, provenance, forensics, trustworthy-ai, file-format, compression, streaming, aws, cloud, production",
     project_urls={
-        "Bug Reports": "https://github.com/maif-ai/maif/issues",
-        "Source": "https://github.com/maif-ai/maif",
-        "Documentation": "https://maif.readthedocs.io/",
-        "Changelog": "https://github.com/maif-ai/maif/blob/main/CHANGELOG.md",
+        "Bug Reports": "https://github.com/vineethsai/maif/issues",
+        "Source": "https://github.com/vineethsai/maif",
+        "Documentation": "https://vineethsai.github.io/maif/",
+        "Changelog": "https://github.com/vineethsai/maif/blob/main/CHANGELOG.md",
     },
 )

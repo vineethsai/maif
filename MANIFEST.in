@@ -2,42 +2,17 @@
 include README.md
 include LICENSE
 include pyproject.toml
-
-# Include documentation
-recursive-include docs *.md
-recursive-include docs *.rst
-recursive-include docs *.txt
-
-# Include examples
-recursive-include examples *.py
-recursive-include examples *.json
-recursive-include examples *.maif
-
-# Include tests
-recursive-include tests *.py
+include CHANGELOG.md
 
 # Include requirements files
-include requirements*.txt
+include requirements.txt
 
 # Include the simple API
 include maif_api.py
 
-# Include validation script
-include validate_alignment.py
-
-# Include academic paper
-include README.tex
-
-# Include benchmark files
-include run_benchmark.py
-include large_data_crypto_benchmark.py
-recursive-include benchmarks *.py
-recursive-include benchmarks *.md
-
 # Include package data
 recursive-include maif *.json
 recursive-include maif *.yaml
-recursive-include maif/schemas *.json
 
 # Exclude unnecessary files
 global-exclude *.pyc
@@ -51,14 +26,15 @@ global-exclude *.dylib
 global-exclude *.dll
 
 # Exclude test artifacts
-exclude *.maif
+global-exclude *.maif
 exclude *_manifest.json
-exclude test_results/*
-exclude benchmark_results/*
+prune test_results
+prune benchmark_results
+prune demo_output
+prune demo_workspace
+prune agent_workspace
 
 # Exclude development files
-exclude .gitignore
-exclude .pre-commit-config.yaml
-exclude tox.ini
 exclude .coverage
-exclude .pytest_cache
+prune .pytest_cache
+prune htmlcov
