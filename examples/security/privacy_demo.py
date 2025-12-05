@@ -44,20 +44,20 @@ def demo_privacy_engine():
         "The meeting with Michael Brown (michael.brown@corp.com) is at 2 PM",
     ]
 
-    print("\n📋 Original data:")
+    print("\n Original data:")
     for i, data in enumerate(test_data, 1):
-        print(f"  {i}. {data}")
+        print(f"{i}. {data}")
 
-    print("\n🔒 Anonymized data:")
+    print("\n Anonymized data:")
     for i, data in enumerate(test_data, 1):
         anonymized = privacy_engine.anonymize_data(data, "demo_context")
-        print(f"  {i}. {anonymized}")
+        print(f"{i}. {anonymized}")
 
     # Show anonymization mapping
-    print(f"\n📊 Anonymization mapping:")
+    print(f"\n Anonymization mapping:")
     mapping = privacy_engine.anonymization_maps.get("demo_context", {})
     for original, anonymized in list(mapping.items())[:5]:  # Show first 5
-        print(f"  '{original}' -> '{anonymized}'")
+        print(f"'{original}' -> '{anonymized}'")
 
     return privacy_engine
 
@@ -70,32 +70,32 @@ def demo_secure_maif_with_privacy():
     encoder = MAIFEncoder("privacy_secure.maif", agent_id="privacy_agent")
 
     # Add blocks with different sensitivity levels
-    print("\n📝 Adding blocks with different sensitivity levels...")
+    print("\n Adding blocks with different sensitivity levels...")
 
     # Public data
     public_text = "This is public information that everyone can see."
     encoder.add_text_block(public_text, {"sensitivity": "public"})
-    print("  ✓ Added public text block")
+    print("Added public text block")
 
     # Confidential data - would normally be encrypted
     confidential_text = "Employee performance data: meeting all targets."
     encoder.add_text_block(confidential_text, {"sensitivity": "confidential"})
-    print("  ✓ Added confidential text block")
+    print("Added confidential text block")
 
     # Add some embeddings
     embeddings = [[0.1, 0.2, 0.3, 0.4] * 32 for _ in range(3)]  # 128-dim
     encoder.add_embeddings_block(embeddings, {"model": "privacy-aware-bert"})
-    print("  ✓ Added embeddings block")
+    print("Added embeddings block")
 
     # Finalize (signs with Ed25519)
     encoder.finalize()
-    print(f"\n✓ Created secure MAIF: privacy_secure.maif")
-    print("  (Self-contained with Ed25519 signatures)")
+    print(f"\n Created secure MAIF: privacy_secure.maif")
+    print("(Self-contained with Ed25519 signatures)")
 
     # Verify the file
     decoder = MAIFDecoder("privacy_secure.maif")
     is_valid, errors = decoder.verify_integrity()
-    print(f"  Integrity: {'✓ Valid' if is_valid else '✗ Invalid'}")
+    print(f"Integrity: {' Valid' if is_valid else ' Invalid'}")
 
     return "privacy_secure.maif"
 
@@ -111,7 +111,7 @@ def demo_differential_privacy():
 
     original_value = 100.0
 
-    print(f"\n📊 Original value: {original_value}")
+    print(f"\n Original value: {original_value}")
     print("\nNoisy values with different epsilon (privacy levels):")
 
     for name, dp in [
@@ -120,14 +120,14 @@ def demo_differential_privacy():
         ("ε=10.0 (low privacy)", dp_high),
     ]:
         noisy = dp.add_noise(original_value)
-        print(f"  {name}: {noisy:.2f}")
+        print(f"{name}: {noisy:.2f}")
 
     # Vector noise demonstration
-    print("\n📈 Vector noise (ε=1.0):")
+    print("\n Vector noise (ε=1.0):")
     original_vector = [1.0, 2.0, 3.0, 4.0, 5.0]
     noisy_vector = dp_med.add_noise_to_vector(original_vector)
-    print(f"  Original: {original_vector}")
-    print(f"  Noisy:    {[f'{v:.2f}' for v in noisy_vector]}")
+    print(f"Original: {original_vector}")
+    print(f"Noisy:    {[f'{v:.2f}' for v in noisy_vector]}")
 
 
 def demo_secure_multiparty():
@@ -140,15 +140,15 @@ def demo_secure_multiparty():
     secret_value = 42
     shares = smc.secret_share(secret_value, num_parties=3)
 
-    print(f"\n🔐 Secret value: {secret_value}")
+    print(f"\n Secret value: {secret_value}")
     print(f"📤 Secret shares distributed to 3 parties:")
     for i, share in enumerate(shares, 1):
-        print(f"  Party {i}: {share}")
+        print(f"Party {i}: {share}")
 
     # Reconstruction
     reconstructed = smc.reconstruct_secret(shares)
     print(f"\n📥 Reconstructed value: {reconstructed}")
-    print(f"  Match: {'✓' if reconstructed == secret_value else '✗'}")
+    print(f"Match: {'' if reconstructed == secret_value else ''}")
 
 
 def demo_zero_knowledge():
@@ -161,19 +161,19 @@ def demo_zero_knowledge():
     secret_data = b"This is my secret password"
     commitment = zkp.commit(secret_data)
 
-    print(f"\n🔒 Secret: {secret_data.decode()}")
-    print(f"📝 Commitment: {commitment.hex()[:32]}...")
+    print(f"\n Secret: {secret_data.decode()}")
+    print(f"Commitment: {commitment.hex()[:32]}...")
 
     # Verify commitment (prover proves knowledge without revealing)
     nonce = zkp.commitments[list(zkp.commitments.keys())[0]]
     is_valid = zkp.verify_commitment(commitment, secret_data, nonce)
-    print(f"\n✓ Commitment verification: {'Valid' if is_valid else 'Invalid'}")
+    print(f"\n Commitment verification: {'Valid' if is_valid else 'Invalid'}")
 
     # Try with wrong secret
     wrong_secret = b"Wrong password"
     is_invalid = zkp.verify_commitment(commitment, wrong_secret, nonce)
     print(
-        f"✗ Wrong secret verification: {'Valid (BAD!)' if is_invalid else 'Invalid (correct)'}"
+        f" Wrong secret verification: {'Valid (BAD!)' if is_invalid else 'Invalid (correct)'}"
     )
 
 
@@ -209,15 +209,15 @@ def demo_privacy_policies():
         ),
     }
 
-    print("\n📋 Privacy Policy Configurations:")
+    print("\n Privacy Policy Configurations:")
     for name, policy in policies.items():
         print(f"\n  {name}:")
-        print(f"    Level: {policy.privacy_level.name}")
-        print(f"    Encryption: {policy.encryption_mode.name}")
-        print(f"    Anonymize: {policy.anonymization_required}")
-        print(f"    Audit: {policy.audit_required}")
+        print(f"Level: {policy.privacy_level.name}")
+        print(f"Encryption: {policy.encryption_mode.name}")
+        print(f"Anonymize: {policy.anonymization_required}")
+        print(f"Audit: {policy.audit_required}")
         if hasattr(policy, "retention_period") and policy.retention_period:
-            print(f"    Retention: {policy.retention_period} days")
+            print(f"Retention: {policy.retention_period} days")
 
 
 def main():
@@ -240,15 +240,15 @@ def main():
         print("=" * 60)
 
         print("\nKey Features Demonstrated:")
-        print("  ✓ Ed25519 signatures for secure MAIF files")
-        print("  ✓ Automatic data anonymization (PII detection)")
-        print("  ✓ Differential privacy for statistical queries")
-        print("  ✓ Secure multiparty computation (secret sharing)")
-        print("  ✓ Zero-knowledge proof commitments")
-        print("  ✓ Privacy policy configurations")
+        print("Ed25519 signatures for secure MAIF files")
+        print("Automatic data anonymization (PII detection)")
+        print("Differential privacy for statistical queries")
+        print("Secure multiparty computation (secret sharing)")
+        print("Zero-knowledge proof commitments")
+        print("Privacy policy configurations")
 
         print("\nFiles created:")
-        print("  - privacy_secure.maif")
+        print("- privacy_secure.maif")
 
     except Exception as e:
         print(f"\nDemo error: {e}")

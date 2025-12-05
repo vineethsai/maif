@@ -4,23 +4,23 @@ A Visual Studio Code extension for viewing and exploring MAIF (Multimodal Artifa
 
 ## Features
 
-### 🔍 Binary File Viewer
+### Binary File Viewer
 - Custom editor for `.maif` files with hex view
 - Block structure detection and visualization
 - File size and structure information
 
-### 📋 Sidebar Views
+### Sidebar Views
 - **Overview**: File metadata, version, agent info
 - **Blocks**: List all content blocks with type, size, and Ed25519 signatures
 - **Provenance**: Complete embedded provenance chain visualization
 
-### 🔐 Security Features
+### Security Features
 - View Ed25519 signatures (64 bytes per block)
 - Embedded public key display
 - Merkle root verification
 - Provenance chain verification
 
-### 📝 Self-Contained Format
+### Self-Contained Format
 - MAIF v3 files are self-contained with embedded metadata
 - No separate manifest files needed
 - All provenance and security info embedded in `.maif` file
@@ -80,14 +80,14 @@ Click the MAIF icon in the Activity Bar to access:
 
 | Type | Description | Icon |
 |------|-------------|------|
-| TEXT | Text content | 📝 |
-| EMBD | Embeddings | 🧠 |
-| KGRF | Knowledge Graph | 🕸️ |
-| IMAG | Image data | 🖼️ |
-| AUDI | Audio data | 🎵 |
-| VIDE | Video data | 🎬 |
-| SECU | Security metadata | 🔐 |
-| LIFE | Lifecycle data | 📊 |
+| TEXT | Text content | Text |
+| EMBD | Embeddings | Embedding |
+| KGRF | Knowledge Graph | Graph |
+| IMAG | Image data | Image |
+| AUDI | Audio data | Audio |
+| VIDE | Video data | Video |
+| SECU | Security metadata | Security |
+| LIFE | Lifecycle data | Lifecycle |
 
 ## Requirements
 

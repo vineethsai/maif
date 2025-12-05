@@ -24,6 +24,23 @@ Quick Start:
     is_valid, errors = decoder.verify_integrity()
     if is_valid:
         blocks = decoder.get_blocks()
+
+Package Structure:
+    maif/
+    ├── core/          # Core encoding/decoding
+    ├── security/      # Signing and verification
+    ├── privacy/       # Encryption and anonymization
+    ├── semantic/      # Embeddings and ML features
+    ├── streaming/     # Streaming I/O
+    ├── agents/        # Multi-agent framework
+    ├── compliance/    # Logging and forensics
+    ├── compression/   # Compression algorithms
+    ├── storage/       # Storage backends
+    ├── transactions/  # ACID transactions
+    ├── integration/   # Framework integrations
+    ├── performance/   # Performance optimization
+    ├── media/         # Media processing
+    └── utils/         # Utilities
 """
 
 # =============================================================================
@@ -71,10 +88,11 @@ SecureBlockType = BlockType
 # =============================================================================
 
 try:
-    from .security import MAIFSigner, MAIFVerifier
+    from .security import MAIFSigner, MAIFVerifier, SecurityManager
 except ImportError:
     MAIFSigner = None
     MAIFVerifier = None
+    SecurityManager = None
 
 # =============================================================================
 # Privacy - Privacy controls and encryption
@@ -93,6 +111,13 @@ try:
     )
 except ImportError:
     PrivacyEngine = None
+    PrivacyPolicy = None
+    PrivacyLevel = None
+    EncryptionMode = None
+    AccessRule = None
+    DifferentialPrivacy = None
+    SecureMultipartyComputation = None
+    ZeroKnowledgeProof = None
 
 # =============================================================================
 # Semantics - Embeddings and knowledge graphs
@@ -111,18 +136,28 @@ try:
     )
 except ImportError:
     SemanticEmbedder = None
+    SemanticEmbedding = None
+    KnowledgeTriple = None
+    CrossModalAttention = None
+    HierarchicalSemanticCompression = None
+    CryptographicSemanticBinding = None
+    DeepSemanticUnderstanding = None
+    KnowledgeGraphBuilder = None
 
 # Enhanced algorithms
 try:
-    from .semantic_optimized import (
+    from .semantic import (
         AdaptiveCrossModalAttention,
-        HierarchicalSemanticCompression as EnhancedHierarchicalSemanticCompression,
-        CryptographicSemanticBinding as EnhancedCryptographicSemanticBinding,
+        EnhancedHSC as EnhancedHierarchicalSemanticCompression,
+        EnhancedCSB as EnhancedCryptographicSemanticBinding,
         AttentionWeights,
+        ENHANCED_ALGORITHMS_AVAILABLE,
     )
-
-    ENHANCED_ALGORITHMS_AVAILABLE = True
 except ImportError:
+    AdaptiveCrossModalAttention = None
+    EnhancedHierarchicalSemanticCompression = None
+    EnhancedCryptographicSemanticBinding = None
+    AttentionWeights = None
     ENHANCED_ALGORITHMS_AVAILABLE = False
 
 # =============================================================================
@@ -130,24 +165,26 @@ except ImportError:
 # =============================================================================
 
 try:
-    from .forensics import ForensicAnalyzer, ForensicEvidence
+    from .compliance import ForensicAnalyzer, ForensicEvidence
 except ImportError:
     ForensicAnalyzer = None
+    ForensicEvidence = None
 
 try:
-    from .validation import MAIFValidator, MAIFRepairTool
+    from .utils import MAIFValidator, MAIFRepairTool
 except ImportError:
     MAIFValidator = None
+    MAIFRepairTool = None
 
 # =============================================================================
 # Compression
 # =============================================================================
 
 try:
-    from .compression_manager import CompressionManager
-    from .compression import CompressionMetadata
+    from .compression import CompressionManager, CompressionMetadata
 except ImportError:
     CompressionManager = None
+    CompressionMetadata = None
 
 # =============================================================================
 # Streaming
@@ -164,7 +201,7 @@ except ImportError:
 # =============================================================================
 
 try:
-    from .metadata import MAIFMetadataManager
+    from .utils import MAIFMetadataManager
 except ImportError:
     MAIFMetadataManager = None
 
@@ -173,7 +210,7 @@ except ImportError:
 # =============================================================================
 
 try:
-    from .agentic_framework import (
+    from .agents import (
         MAIFAgent,
         PerceptionSystem,
         ReasoningSystem,
@@ -181,18 +218,22 @@ try:
     )
 except ImportError:
     MAIFAgent = None
+    PerceptionSystem = None
+    ReasoningSystem = None
+    ExecutionSystem = None
 
 # =============================================================================
 # Production Features
 # =============================================================================
 
 try:
-    from .health_check import HealthChecker, HealthStatus
+    from .utils import HealthChecker, HealthStatus
 except ImportError:
     HealthChecker = None
+    HealthStatus = None
 
 try:
-    from .rate_limiter import (
+    from .utils import (
         RateLimiter,
         RateLimitConfig,
         CostBasedRateLimiter,
@@ -200,9 +241,12 @@ try:
     )
 except ImportError:
     RateLimiter = None
+    RateLimitConfig = None
+    CostBasedRateLimiter = None
+    rate_limit = None
 
 try:
-    from .metrics_aggregator import (
+    from .utils import (
         MetricsAggregator,
         MAIFMetrics,
         initialize_metrics,
@@ -210,9 +254,12 @@ try:
     )
 except ImportError:
     MetricsAggregator = None
+    MAIFMetrics = None
+    initialize_metrics = None
+    get_metrics = None
 
 try:
-    from .cost_tracker import (
+    from .utils import (
         CostTracker,
         Budget,
         BudgetExceededException,
@@ -222,9 +269,14 @@ try:
     )
 except ImportError:
     CostTracker = None
+    Budget = None
+    BudgetExceededException = None
+    initialize_cost_tracking = None
+    get_cost_tracker = None
+    with_cost_tracking = None
 
 try:
-    from .batch_processor import (
+    from .utils import (
         BatchProcessor,
         StreamBatchProcessor,
         DistributedBatchProcessor,
@@ -232,15 +284,20 @@ try:
     )
 except ImportError:
     BatchProcessor = None
+    StreamBatchProcessor = None
+    DistributedBatchProcessor = None
+    batch_process = None
 
 # =============================================================================
 # Integration
 # =============================================================================
 
 try:
-    from .integration_enhanced import EnhancedMAIFProcessor, ConversionResult
+    from .integration import EnhancedMAIFProcessor, ConversionResult, EnhancedMAIF
 except ImportError:
     EnhancedMAIFProcessor = None
+    ConversionResult = None
+    EnhancedMAIF = None
 
 # =============================================================================
 # AWS Integrations (optional)
@@ -267,24 +324,30 @@ except ImportError:
 # =============================================================================
 
 try:
-    from .convenience_api import SimpleMAIFAgent, create_agent
+    from .utils import SimpleMAIFAgent, create_agent
 
     CONVENIENCE_API_AVAILABLE = True
 except ImportError:
+    SimpleMAIFAgent = None
+    create_agent = None
     CONVENIENCE_API_AVAILABLE = False
 
 try:
-    from .migration_tools import VectorDBMigrator, migrate_to_maif
+    from .utils import VectorDBMigrator, migrate_to_maif
 
     MIGRATION_TOOLS_AVAILABLE = True
 except ImportError:
+    VectorDBMigrator = None
+    migrate_to_maif = None
     MIGRATION_TOOLS_AVAILABLE = False
 
 try:
-    from .debug_tools import MAIFDebugger, debug_maif
+    from .utils import MAIFDebugger, debug_maif
 
     DEBUG_TOOLS_AVAILABLE = True
 except ImportError:
+    MAIFDebugger = None
+    debug_maif = None
     DEBUG_TOOLS_AVAILABLE = False
 
 # =============================================================================
@@ -325,6 +388,7 @@ __all__ = [
     # Security
     "MAIFSigner",
     "MAIFVerifier",
+    "SecurityManager",
     # Privacy
     "PrivacyEngine",
     "PrivacyPolicy",
@@ -344,6 +408,9 @@ __all__ = [
     "MAIFStreamWriter",
     # Agent
     "MAIFAgent",
+    # Integration
+    "EnhancedMAIF",
+    "EnhancedMAIFProcessor",
     # Production
     "HealthChecker",
     "RateLimiter",
@@ -359,4 +426,6 @@ __all__ = [
     "ENHANCED_ALGORITHMS_AVAILABLE",
     "AWS_IMPORTS_AVAILABLE",
     "CONVENIENCE_API_AVAILABLE",
+    "MIGRATION_TOOLS_AVAILABLE",
+    "DEBUG_TOOLS_AVAILABLE",
 ]

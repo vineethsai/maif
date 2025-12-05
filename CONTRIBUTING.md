@@ -207,5 +207,5 @@ Contributors are recognized in:
 - GitHub contributors page
 - Documentation credits
 
-Thank you for contributing to MAIF! 🎉
+Thank you for contributing to MAIF.
 

@@ -260,7 +260,7 @@ class MAIFExplorer {
                     <span class="info-label">Format</span>
                     <span class="info-value">
                         <span class="status-badge ${isSecure ? 'valid' : 'warning'}" style="font-size: 11px; padding: 2px 8px;">
-                            ${isSecure ? '🔒 Secure' : '📁 Legacy'}
+                            ${isSecure ? ' Secure' : '📁 Legacy'}
                         </span>
                     </span>
                 </div>
@@ -315,14 +315,14 @@ class MAIFExplorer {
                     ${isSecure ? `
                         <div style="margin-top: 8px;">
                             <span class="status-badge ${isFinalized ? 'valid' : 'warning'}" style="font-size: 11px; padding: 4px 8px;">
-                                ${isFinalized ? '✓ Finalized' : '⏳ Not Finalized'}
+                                ${isFinalized ? ' Finalized' : '⏳ Not Finalized'}
                             </span>
                         </div>
                     ` : ''}
                     ${tamperedCount > 0 ? `
                         <div style="margin-top: 8px;">
                             <span class="status-badge invalid" style="font-size: 11px; padding: 4px 8px;">
-                                ⚠️ ${tamperedCount} Tampered Block${tamperedCount > 1 ? 's' : ''}
+                                 ${tamperedCount} Tampered Block${tamperedCount > 1 ? 's' : ''}
                             </span>
                         </div>
                     ` : ''}
@@ -393,8 +393,8 @@ class MAIFExplorer {
                         <div style="flex: 1;">
                             <div style="font-weight: 600; display: flex; align-items: center; gap: 8px;">
                                 ${typeInfo.name} Block
-                                ${isSecureFormat && block.isSigned ? '<span style="font-size: 10px;">🔐</span>' : ''}
-                                ${block.isTampered ? '<span style="font-size: 10px;">⚠️</span>' : ''}
+                                ${isSecureFormat && block.isSigned ? '<span style="font-size: 10px;"></span>' : ''}
+                                ${block.isTampered ? '<span style="font-size: 10px;"></span>' : ''}
                             </div>
                             <div style="font-size: 12px; color: var(--text-muted);">
                                 ${block.block_id ? this.truncateHash(block.block_id) : `Block #${index}`}
@@ -462,9 +462,9 @@ class MAIFExplorer {
                     <div class="info-row" style="margin-bottom: 12px;">
                         <span class="info-label">Status</span>
                         <span class="info-value">
-                            ${block.isSigned ? '<span class="status-badge valid" style="font-size: 10px; padding: 2px 6px;">🔐 Signed</span>' : ''}
-                            ${block.isImmutable ? '<span class="status-badge valid" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;">🔒 Immutable</span>' : ''}
-                            ${block.isTampered ? '<span class="status-badge invalid" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;">⚠️ TAMPERED</span>' : ''}
+                            ${block.isSigned ? '<span class="status-badge valid" style="font-size: 10px; padding: 2px 6px;"> Signed</span>' : ''}
+                            ${block.isImmutable ? '<span class="status-badge valid" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;"> Immutable</span>' : ''}
+                            ${block.isTampered ? '<span class="status-badge invalid" style="font-size: 10px; padding: 2px 6px; margin-left: 4px;"> TAMPERED</span>' : ''}
                         </span>
                     </div>
                 ` : ''}
@@ -625,7 +625,7 @@ class MAIFExplorer {
                     </span>
                     ${isSecureFormat ? `
                         <span class="status-badge valid" style="margin-left: 8px;">
-                            🔒 Self-Contained
+                             Self-Contained
                         </span>
                     ` : `
                         <span class="status-badge warning" style="margin-left: 8px;">
@@ -759,7 +759,7 @@ class MAIFExplorer {
             const content = this.parser.getTextContent(index);
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">📝 Text Content</div>
+                    <div class="detail-section-title"> Text Content</div>
                     <div class="content-preview text-content">
                         <pre>${this.escapeHtml(content || 'Unable to read content')}</pre>
                     </div>
@@ -770,10 +770,10 @@ class MAIFExplorer {
         if (type === 'AUDI') {
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">🎵 Audio Content</div>
+                    <div class="detail-section-title"> Audio Content</div>
                     <div class="content-preview audio-content">
                         <div class="media-info">
-                            <div class="media-icon">🎵</div>
+                            <div class="media-icon"></div>
                             <div class="media-details">
                                 <div class="media-row"><span class="media-label">Format:</span> ${metadata.format || metadata.codec || 'Unknown'}</div>
                                 ${metadata.duration ? `<div class="media-row"><span class="media-label">Duration:</span> ${this.formatDuration(metadata.duration)}</div>` : ''}
@@ -795,7 +795,7 @@ class MAIFExplorer {
         if (type === 'VIDE') {
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">🎬 Video Content</div>
+                    <div class="detail-section-title"> Video Content</div>
                     <div class="content-preview video-content">
                         <div class="media-info">
                             <div class="video-thumbnail">
@@ -821,11 +821,11 @@ class MAIFExplorer {
         if (type === 'IMAG') {
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">🖼️ Image Content</div>
+                    <div class="detail-section-title"> Image Content</div>
                     <div class="content-preview image-content">
                         <div class="media-info">
                             <div class="image-thumbnail">
-                                <div class="image-placeholder">🖼️</div>
+                                <div class="image-placeholder"></div>
                                 <div class="image-label">Image Data</div>
                             </div>
                             <div class="media-details">
@@ -846,10 +846,10 @@ class MAIFExplorer {
             const floatCount = Math.floor(dataSize / 4);
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">🧠 Embedding Data</div>
+                    <div class="detail-section-title"> Embedding Data</div>
                     <div class="content-preview embeddings-content">
                         <div class="media-info">
-                            <div class="media-icon">🧠</div>
+                            <div class="media-icon"></div>
                             <div class="media-details">
                                 <div class="media-row"><span class="media-label">Dimensions:</span> ${metadata.dimensions || floatCount}</div>
                                 <div class="media-row"><span class="media-label">Data Type:</span> ${metadata.dtype || 'float32'}</div>
@@ -881,11 +881,11 @@ class MAIFExplorer {
             
             return `
                 <div class="detail-section">
-                    <div class="detail-section-title">🔗 Knowledge Graph</div>
+                    <div class="detail-section-title"> Knowledge Graph</div>
                     <div class="content-preview knowledge-content">
                         ${graphData ? `
                             <div class="media-info">
-                                <div class="media-icon">🔗</div>
+                                <div class="media-icon"></div>
                                 <div class="media-details">
                                     <div class="media-row"><span class="media-label">Nodes:</span> ${graphData.nodes?.length || 0}</div>
                                     <div class="media-row"><span class="media-label">Edges:</span> ${graphData.edges?.length || 0}</div>
@@ -911,7 +911,7 @@ class MAIFExplorer {
             if (jsonData) {
                 return `
                     <div class="detail-section">
-                        <div class="detail-section-title">${type === 'META' ? '📋 Metadata Content' : '📦 Binary Content'}</div>
+                        <div class="detail-section-title">${type === 'META' ? ' Metadata Content' : ' Binary Content'}</div>
                         <div class="content-preview json-content">
                             <pre class="key-display">${JSON.stringify(jsonData, null, 2)}</pre>
                         </div>
@@ -964,7 +964,7 @@ class MAIFExplorer {
         
         return `
             <div class="detail-section">
-                <div class="detail-section-title">📦 Binary Content Preview</div>
+                <div class="detail-section-title"> Binary Content Preview</div>
                 <div class="content-preview hex-content">
                     <pre>${hexLines.join('\n')}</pre>
                 </div>
@@ -997,17 +997,17 @@ class MAIFExplorer {
     formatAction(action) {
         const actionMap = {
             'genesis': '🌟 Genesis',
-            'add_text_block': '📝 Add Text',
-            'add_embeddings_block': '🧠 Add Embeddings',
-            'add_knowledge_graph': '🕸️ Add Knowledge Graph',
-            'add_image_block': '🖼️ Add Image',
-            'add_audio_block': '🎵 Add Audio',
-            'add_video_block': '🎬 Add Video',
+            'add_text_block': ' Add Text',
+            'add_embeddings_block': ' Add Embeddings',
+            'add_knowledge_graph': ' Add Knowledge Graph',
+            'add_image_block': ' Add Image',
+            'add_audio_block': ' Add Audio',
+            'add_video_block': ' Add Video',
             'update': '✏️ Update',
             'delete': '🗑️ Delete',
-            'finalize': '🔒 Finalize',
+            'finalize': ' Finalize',
             'sign': '✍️ Sign',
-            'verify': '✅ Verify'
+            'verify': ' Verify'
         };
         return actionMap[action] || action;
     }

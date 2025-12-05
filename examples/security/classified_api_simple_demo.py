@@ -23,26 +23,26 @@ def simple_example():
         classification="SECRET",
     )
 
-    print(f"✓ Stored classified document: {doc_id}")
+    print(f"Stored classified document: {doc_id}")
 
     # 4. Check access
     if maif.can_access("analyst.001", doc_id):
-        print("✓ User has access to document")
+        print("User has access to document")
 
         # 5. Retrieve data
         data = maif.retrieve_classified_data(doc_id, "analyst.001")
-        print("✓ Retrieved classified data")
+        print("Retrieved classified data")
 
         # 6. Log the access
         maif.log_access("analyst.001", doc_id, "read")
-        print("✓ Access logged to audit trail")
+        print("Access logged to audit trail")
 
     # 7. Check status
     status = maif.get_status()
     print(f"\nSystem Status:")
-    print(f"  FIPS Mode: {status['fips_mode']}")
-    print(f"  Documents: {status['documents_stored']}")
-    print(f"  Audit Events: {status['audit_events']}")
+    print(f"FIPS Mode: {status['fips_mode']}")
+    print(f"Documents: {status['documents_stored']}")
+    print(f"Audit Events: {status['audit_events']}")
 
 
 def quick_start_example():
@@ -54,10 +54,10 @@ def quick_start_example():
         data={"mission": "OPERATION_PHOENIX"}, classification="SECRET"
     )
 
-    print(f"✓ Created secure storage")
-    print(f"  User: {user}")
-    print(f"  Document: {doc}")
-    print(f"  Can access: {maif.can_access(user, doc)}")
+    print(f"Created secure storage")
+    print(f"User: {user}")
+    print(f"Document: {doc}")
+    print(f"Can access: {maif.can_access(user, doc)}")
 
 
 def mfa_example():
@@ -71,13 +71,13 @@ def mfa_example():
         user_id="admin.001", token_serial="YubiKey-12345"
     )
 
-    print(f"✓ MFA Challenge: {challenge_id}")
-    print("  (In production, user enters code from hardware token)")
+    print(f"MFA Challenge: {challenge_id}")
+    print("(In production, user enters code from hardware token)")
 
     # 2. Verify MFA (simulated)
     # In real usage, this code comes from the hardware token
     if maif.verify_mfa(challenge_id, "123456"):
-        print("✓ MFA Verified")
+        print("MFA Verified")
 
 
 def access_control_example():
@@ -95,7 +95,7 @@ def access_control_example():
 
     for user_id, level, compartments in users:
         maif.grant_clearance(user_id, level, compartments=compartments)
-        print(f"✓ {user_id}: {level} clearance")
+        print(f"{user_id}: {level} clearance")
 
     # Create documents at different levels
     docs = [
@@ -112,7 +112,7 @@ def access_control_example():
             compartments=compartments,
         )
         doc_ids.append((doc_id, classification))
-        print(f"✓ Created {classification} document: {title}")
+        print(f"Created {classification} document: {title}")
 
     # Check access
     print("\nAccess Matrix:")
@@ -123,7 +123,7 @@ def access_control_example():
         access = []
         for doc_id, _ in doc_ids:
             can_read = maif.can_access(user_id, doc_id)
-            access.append("✓" if can_read else "✗")
+            access.append("" if can_read else "")
 
         print(f"{user_id:<13} | {access[0]:<7} | {access[1]:<7} | {access[2]}")
 
@@ -154,7 +154,7 @@ def audit_trail_example():
 
     print("Recent Audit Events:")
     for event in audit_events:
-        status = "✓" if event.get("success", False) else "✗"
+        status = "" if event.get("success", False) else ""
         print(f"{status} {event['user_id']}: {event['action']} on {event['resource']}")
 
 

@@ -15,14 +15,14 @@ warnings.filterwarnings("ignore", message=".*threadpoolctl.*", category=RuntimeW
 import tempfile
 import json
 from maif import MAIFEncoder, MAIFDecoder
-from maif.validation import MAIFValidator
-from maif.metadata import MAIFMetadataManager
+from maif.utils.validation import MAIFValidator
+from maif.utils.metadata import MAIFMetadataManager
 from maif.streaming import PerformanceProfiler
 
 
 def test_cli_format_fix():
     """Test CLI format parameter fix."""
-    print("✓ CLI format parameter fix: txt format should be accepted")
+    print("CLI format parameter fix: txt format should be accepted")
     assert True
 
 
@@ -47,12 +47,12 @@ def test_validation_hash_mismatch():
         is_valid, errors = decoder.verify_integrity()
 
         assert is_valid is False or len(errors) > 0, "Should detect corruption"
-        print("✓ Validation properly detects hash mismatches as errors")
+        print("Validation properly detects hash mismatches as errors")
 
 
 def test_integration_convert_to_maif():
     """Test integration convert_to_maif method exists."""
-    from maif.integration_enhanced import EnhancedMAIF
+    from maif.integration.integration_enhanced import EnhancedMAIF
 
     with tempfile.TemporaryDirectory() as temp_dir:
         maif_path = os.path.join(temp_dir, "test.maif")
@@ -62,7 +62,7 @@ def test_integration_convert_to_maif():
         enhanced.save()
 
         assert os.path.exists(maif_path)
-        print("✓ Integration convert_to_maif works")
+        print("Integration convert_to_maif works")
 
 
 def test_streaming_profiler():
@@ -80,7 +80,7 @@ def test_streaming_profiler():
     elapsed = profiler.end_timer("test_op")
 
     assert elapsed >= 0.01
-    print("✓ Streaming profiler has required methods")
+    print("Streaming profiler has required methods")
 
 
 def test_metadata_add_block_metadata():
@@ -90,7 +90,7 @@ def test_metadata_add_block_metadata():
     assert hasattr(manager, "add_block_metadata")
 
     manager.add_block_metadata("block_1", {"key": "value"})
-    print("✓ Metadata manager has add_block_metadata")
+    print("Metadata manager has add_block_metadata")
 
 
 def test_validation_file_method():
@@ -113,7 +113,7 @@ def test_validation_file_method():
         result2 = validator.validate_file(maif_path)
         assert result2.is_valid
 
-    print("✓ Validation has both validate and validate_file methods")
+    print("Validation has both validate and validate_file methods")
 
 
 def test_encoder_add_methods():
@@ -130,7 +130,7 @@ def test_encoder_add_methods():
         encoder.add_text_block("Test text")
         encoder.finalize()
 
-    print("✓ Encoder has all required methods")
+    print("Encoder has all required methods")
 
 
 def test_decoder_methods():
@@ -154,7 +154,7 @@ def test_decoder_methods():
         is_valid, _ = decoder.verify_integrity()
         assert is_valid
 
-    print("✓ Decoder has all required methods")
+    print("Decoder has all required methods")
 
 
 def test_provenance_chain():
@@ -177,7 +177,7 @@ def test_provenance_chain():
         for i in range(1, len(provenance)):
             assert provenance[i].previous_entry_hash == provenance[i - 1].entry_hash
 
-    print("✓ Provenance chain is properly maintained")
+    print("Provenance chain is properly maintained")
 
 
 if __name__ == "__main__":
@@ -198,5 +198,5 @@ if __name__ == "__main__":
 
     print()
     print("=" * 60)
-    print("🎉 All verification tests passed!")
+    print("All verification tests passed!")
     print("=" * 60)

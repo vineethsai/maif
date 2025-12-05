@@ -5,7 +5,7 @@ All examples use the **secure MAIF format** with:
 - Self-contained files (no external manifest)
 - Embedded provenance chain
 
-## 🚀 Featured: LangGraph Multi-Agent RAG
+## Featured: LangGraph Multi-Agent RAG
 
 **Location:** `langgraph/`
 
@@ -24,7 +24,7 @@ See `langgraph/README.md` for details.
 
 ---
 
-## 📁 Example Categories
+## Example Categories
 
 ### `basic/` - Getting Started
 - `basic_usage.py` - Simple MAIF operations

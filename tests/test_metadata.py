@@ -7,7 +7,7 @@ import tempfile
 import os
 from unittest.mock import Mock, patch
 
-from maif.metadata import (
+from maif.utils.metadata import (
     MAIFVersion,
     ContentType,
     CompressionType,

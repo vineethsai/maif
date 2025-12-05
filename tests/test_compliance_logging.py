@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock, call
 import logging
 
-from maif.compliance_logging import (
+from maif.compliance.compliance_logging import (
     ComplianceLogger,
     EnhancedComplianceLogger,
     SIEMIntegration,

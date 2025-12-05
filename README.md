@@ -89,11 +89,11 @@ for i, block in enumerate(decoder.blocks):
 ```
 
 **Secure MAIF Format:**
-- 🔐 **Self-contained** — No separate manifest files, everything in one `.maif` file
-- ⚡ **Ed25519 signatures** — Fast, compact 64-byte signatures on every block
-- 🔗 **Immutable blocks** — Each block is signed immediately on write
-- 🛡️ **Tamper detection** — Cryptographic verification catches any modification
-- 📜 **Embedded provenance** — Full audit trail built into the file
+- **Self-contained** - No separate manifest files, everything in one `.maif` file
+- **Ed25519 signatures** - Fast, compact 64-byte signatures on every block
+- **Immutable blocks** - Each block is signed immediately on write
+- **Tamper detection** - Cryptographic verification catches any modification
+- **Embedded provenance** - Full audit trail built into the file
 
 ---
 
@@ -233,7 +233,7 @@ maif/
 │   └── semantic*.py      # Embeddings, compression
 ├── maif_api.py           # High-level API
 ├── examples/
-│   ├── langgraph/        # Multi-agent RAG system ⭐
+│   ├── langgraph/        # Multi-agent RAG system
 │   ├── basic/            # Getting started
 │   ├── security/         # Privacy & encryption
 │   └── advanced/         # Agent framework, lifecycle
@@ -307,12 +307,12 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## Community & Support
 
-- 💬 **[GitHub Discussions](https://github.com/vineethsai/maif/discussions)** - Ask questions, share ideas
-- 🐛 **[Issue Tracker](https://github.com/vineethsai/maif/issues)** - Report bugs or request features  
-- 📖 **[Documentation](https://vineethsai.github.io/maif/)** - Complete guides and API reference
-- 🔒 **[Security](SECURITY.md)** - Report security vulnerabilities
-- 📋 **[Changelog](CHANGELOG.md)** - See what's new
-- 📜 **[Specification](SPECIFICATION.md)** - MAIF file format specification
+- **[GitHub Discussions](https://github.com/vineethsai/maif/discussions)** - Ask questions, share ideas
+- **[Issue Tracker](https://github.com/vineethsai/maif/issues)** - Report bugs or request features  
+- **[Documentation](https://vineethsai.github.io/maif/)** - Complete guides and API reference
+- **[Security](SECURITY.md)** - Report security vulnerabilities
+- **[Changelog](CHANGELOG.md)** - See what's new
+- **[Specification](SPECIFICATION.md)** - MAIF file format specification
 
 ---
 

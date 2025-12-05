@@ -118,14 +118,14 @@ JSON Response:"""
 
                     except json.JSONDecodeError:
                         # Fallback: Simple keyword matching
-                        print(f"      ⚠️  Could not parse JSON response, using fallback")
+                        print(f"      Could not parse JSON response, using fallback")
                         return _fallback_verification(claim, source_chunks)
 
         # Fallback if response format unexpected
         return _fallback_verification(claim, source_chunks)
 
     except Exception as e:
-        print(f"      ⚠️  API error: {e}, using fallback")
+        print(f"      API error: {e}, using fallback")
         return _fallback_verification(claim, source_chunks)
 
 
@@ -195,7 +195,7 @@ def batch_verify_claims(
                 results.append(result)
             except Exception as e:
                 claim = future_to_claim[future]
-                print(f"      ⚠️  Error verifying claim: {e}")
+                print(f"      Error verifying claim: {e}")
                 # Add failed result
                 results.append(
                     VerificationResult(

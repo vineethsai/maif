@@ -142,7 +142,7 @@ memory.add_text("Hello, MAIF world!", title="Greeting")
 # Save with cryptographic signing
 memory.save("hello.maif", sign=True)
 
-print("✅ Your first AI agent memory is ready!")
+print("Your first AI agent memory is ready!")
 ```
 
 ### Privacy-Enabled Chat Agent (2 minutes)
@@ -254,12 +254,12 @@ python3 demo_enhanced.py
 ## Example Structure
 
 Each example includes:
-- ✅ **Complete, runnable code**
-- ✅ **Comprehensive error handling**
-- ✅ **Performance optimizations**
-- ✅ **Security best practices**
-- ✅ **Testing and validation**
-- ✅ **Detailed documentation**
+- **Complete, runnable code**
+- **Comprehensive error handling**
+- **Performance optimizations**
+- **Security best practices**
+- **Testing and validation**
+- **Detailed documentation**
 
 ## Contributing Examples
 

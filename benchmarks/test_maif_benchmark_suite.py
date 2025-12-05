@@ -198,7 +198,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Compression Ratios: Avg {result.metrics.get('average_ratio', 0):.2f}×"
+            f" Compression Ratios: Avg {result.metrics.get('average_ratio', 0):.2f}×"
         )
 
     def _benchmark_semantic_search_performance(self):
@@ -212,12 +212,12 @@ class MAIFBenchmarkSuite:
                 from maif.semantic_optimized import OptimizedSemanticEmbedder
 
                 embedder = OptimizedSemanticEmbedder(use_gpu=True)
-                print("  Using optimized semantic embedder with GPU acceleration")
+                print("Using optimized semantic embedder with GPU acceleration")
             except ImportError:
                 from maif.semantic import SemanticEmbedder
 
                 embedder = SemanticEmbedder()
-                print("  Using standard semantic embedder")
+                print("Using standard semantic embedder")
             search_times = []
 
             # Create test corpus
@@ -227,7 +227,7 @@ class MAIFBenchmarkSuite:
             ]
 
             # Generate embeddings
-            print("  Generating embeddings for search benchmark...")
+            print("Generating embeddings for search benchmark...")
             embeddings = embedder.embed_texts(test_texts)
 
             # Perform search tests
@@ -281,7 +281,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Semantic Search: Avg {result.metrics.get('average_search_time_ms', 0):.1f}ms"
+            f" Semantic Search: Avg {result.metrics.get('average_search_time_ms', 0):.1f}ms"
         )
 
     def _benchmark_large_scale_semantic_search(self):
@@ -295,7 +295,7 @@ class MAIFBenchmarkSuite:
                 from maif.semantic_optimized import OptimizedSemanticEmbedder
 
                 embedder = OptimizedSemanticEmbedder(use_gpu=True)
-                print("  Using optimized semantic embedder with GPU acceleration")
+                print("Using optimized semantic embedder with GPU acceleration")
             except ImportError:
                 from maif.semantic import SemanticEmbedder
 
@@ -309,7 +309,7 @@ class MAIFBenchmarkSuite:
             corpus_sizes = [100000]  # 100k embeddings for stress testing
 
             for corpus_size in corpus_sizes:
-                print(f"  Testing semantic search with {corpus_size:,} documents...")
+                print(f"Testing semantic search with {corpus_size:,} documents...")
 
                 # Generate diverse test corpus
                 test_texts = []
@@ -337,7 +337,7 @@ class MAIFBenchmarkSuite:
                     )
 
                 # Generate embeddings with optimized batch processing
-                print(f"    Generating {corpus_size:,} embeddings...")
+                print(f"  Generating {corpus_size:,} embeddings...")
                 embedding_start = time.time()
 
                 if hasattr(embedder, "embed_texts_batch"):
@@ -354,11 +354,11 @@ class MAIFBenchmarkSuite:
 
                 # Build search index for fast retrieval
                 if hasattr(embedder, "build_search_index"):
-                    print(f"    Building search index...")
+                    print(f"  Building search index...")
                     index_start = time.time()
                     embedder.build_search_index(embeddings)
                     index_time = time.time() - index_start
-                    print(f"    Index building: {index_time:.2f}s")
+                    print(f"  Index building: {index_time:.2f}s")
 
                 # Complex search queries
                 complex_queries = [
@@ -477,7 +477,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Large-Scale Semantic Search: Avg {result.metrics.get('overall_average_search_time_ms', 0):.1f}ms across {result.metrics.get('total_documents_tested', 0):,} documents"
+            f" Large-Scale Semantic Search: Avg {result.metrics.get('overall_average_search_time_ms', 0):.1f}ms across {result.metrics.get('total_documents_tested', 0):,} documents"
         )
 
     def _benchmark_streaming_throughput(self):
@@ -561,10 +561,10 @@ class MAIFBenchmarkSuite:
                             best_throughput = throughput_mbps
                             best_method = method_name
 
-                        print(f"  {method_name}: {throughput_mbps:.1f} MB/s")
+                        print(f"{method_name}: {throughput_mbps:.1f} MB/s")
 
                     except Exception as e:
-                        print(f"  {method_name} failed: {e}")
+                        print(f"{method_name} failed: {e}")
                         continue
 
                 result.add_metric("total_bytes_read", bytes_read)
@@ -586,7 +586,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Streaming Throughput: {result.metrics.get('throughput_mbps', 0):.1f} MB/s"
+            f" Streaming Throughput: {result.metrics.get('throughput_mbps', 0):.1f} MB/s"
         )
 
     def _benchmark_cryptographic_overhead(self):
@@ -600,7 +600,7 @@ class MAIFBenchmarkSuite:
 
             # Pre-create test files (file creation time doesn't count toward crypto overhead)
             with tempfile.TemporaryDirectory() as tmpdir:
-                print("  Creating test files...")
+                print("Creating test files...")
 
                 # Create non-encrypted MAIF file
                 encoder_no_crypto = MAIFEncoder(enable_privacy=False)
@@ -638,7 +638,7 @@ class MAIFBenchmarkSuite:
                 crypto_manifest = os.path.join(tmpdir, "crypto_test_manifest.json")
                 encoder_crypto.build_maif(crypto_path, crypto_manifest)
 
-                print("  Files created. Now measuring streaming performance...")
+                print("Files created. Now measuring streaming performance...")
 
                 # NOW measure pure streaming performance (files already exist)
                 # This isolates streaming overhead from file creation overhead
@@ -730,8 +730,8 @@ class MAIFBenchmarkSuite:
                 print(
                     f"  With crypto: {crypto_throughput:.1f} MB/s ({crypto_size / (1024 * 1024):.1f}MB)"
                 )
-                print(f"  Size overhead: {size_overhead_percent:.1f}%")
-                print(f"  Streaming overhead: {time_overhead_percent:.1f}%")
+                print(f"Size overhead: {size_overhead_percent:.1f}%")
+                print(f"Streaming overhead: {time_overhead_percent:.1f}%")
 
         except Exception as e:
             result.set_error(f"Cryptographic overhead benchmark failed: {str(e)}")
@@ -739,7 +739,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Cryptographic Overhead: {result.metrics.get('overhead_percent', 0):.1f}%"
+            f" Cryptographic Overhead: {result.metrics.get('overhead_percent', 0):.1f}%"
         )
 
     def _benchmark_tamper_detection(self):
@@ -815,7 +815,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Tamper Detection: {result.metrics.get('detection_rate_percent', 0):.1f}% in {result.metrics.get('average_detection_time_ms', 0):.2f}ms"
+            f" Tamper Detection: {result.metrics.get('detection_rate_percent', 0):.1f}% in {result.metrics.get('average_detection_time_ms', 0):.2f}ms"
         )
 
     def _benchmark_integrity_verification(self):
@@ -872,7 +872,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Integrity Verification: {result.metrics.get('average_throughput_mbps', 0):.1f} MB/s"
+            f" Integrity Verification: {result.metrics.get('average_throughput_mbps', 0):.1f} MB/s"
         )
 
     def _benchmark_multimodal_integration(self):
@@ -919,7 +919,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Multimodal Integration: {result.metrics.get('total_blocks', 0)} blocks"
+            f" Multimodal Integration: {result.metrics.get('total_blocks', 0)} blocks"
         )
 
     def _benchmark_provenance_chains(self):
@@ -960,7 +960,7 @@ class MAIFBenchmarkSuite:
 
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Provenance Chains: {result.metrics.get('chain_length', 0)} entries")
+        print(f"Provenance Chains: {result.metrics.get('chain_length', 0)} entries")
 
     def _benchmark_privacy_features(self):
         """Benchmark privacy-by-design features."""
@@ -993,7 +993,7 @@ class MAIFBenchmarkSuite:
 
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Privacy Features: Encryption & Anonymization")
+        print(f"Privacy Features: Encryption & Anonymization")
 
     def _benchmark_repair_capabilities(self):
         """Benchmark automated repair - Paper claims 95%+ success rate."""
@@ -1058,7 +1058,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Repair Capabilities: {result.metrics.get('repair_success_rate', 0):.1f}% success"
+            f" Repair Capabilities: {result.metrics.get('repair_success_rate', 0):.1f}% success"
         )
 
     def _benchmark_scalability(self):
@@ -1117,7 +1117,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Scalability: Up to {result.metrics.get('max_blocks_tested', 0)} blocks"
+            f" Scalability: Up to {result.metrics.get('max_blocks_tested', 0)} blocks"
         )
 
     def _benchmark_concurrent_read_write(self):
@@ -1254,7 +1254,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         print(
-            f"✓ Concurrent Read/Write: {result.metrics.get('error_count', 'N/A')} errors"
+            f" Concurrent Read/Write: {result.metrics.get('error_count', 'N/A')} errors"
         )
 
     def _benchmark_read_during_write(self):
@@ -1384,7 +1384,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         impact = result.metrics.get("performance_impact_percent", 0)
-        print(f"✓ Read During Write: {impact:.1f}% impact")
+        print(f"Read During Write: {impact:.1f}% impact")
 
     def _benchmark_write_during_read(self):
         """Benchmark write performance during concurrent read operations."""
@@ -1520,7 +1520,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         impact = result.metrics.get("performance_impact_percent", 0)
-        print(f"✓ Write During Read: {impact:.1f}% impact")
+        print(f"Write During Read: {impact:.1f}% impact")
 
     def _benchmark_lock_contention(self):
         """Benchmark lock contention under high concurrent access."""
@@ -1614,7 +1614,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         impact = result.metrics.get("contention_impact_percent", 0)
-        print(f"✓ Lock Contention: {impact:.1f}% impact at max concurrency")
+        print(f"Lock Contention: {impact:.1f}% impact at max concurrency")
 
     def _benchmark_concurrent_block_access(self):
         """Benchmark concurrent access to different blocks within the same file."""
@@ -1729,7 +1729,7 @@ class MAIFBenchmarkSuite:
                 min_access_time = min(access_times) * 1000
             else:
                 avg_access_time = max_access_time = min_access_time = 0
-                print(f"  Warning: No successful block accesses recorded")
+                print(f"Warning: No successful block accesses recorded")
 
             total_accesses = len(access_times)
             unique_blocks_accessed = len(block_access_counts)
@@ -1774,7 +1774,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         blocks_per_sec = result.metrics.get("blocks_per_second", 0)
-        print(f"✓ Concurrent Block Access: {blocks_per_sec:.1f} blocks/sec")
+        print(f"Concurrent Block Access: {blocks_per_sec:.1f} blocks/sec")
 
     def _benchmark_novel_algorithms(self):
         """Benchmark all novel algorithms: ACAM, HSC, CSB, and optimized variants."""
@@ -1801,7 +1801,7 @@ class MAIFBenchmarkSuite:
             from maif.semantic_optimized import AdaptiveCrossModalAttention
             import numpy as np
 
-            print("  Testing ACAM with multimodal data...")
+            print("Testing ACAM with multimodal data...")
 
             # Initialize ACAM
             acam = AdaptiveCrossModalAttention()
@@ -1837,7 +1837,7 @@ class MAIFBenchmarkSuite:
                 acam_time = (end_time - start_time) * 1000
                 acam_times.append(acam_time)
 
-                print(f"    Size {size}: {acam_time:.2f}ms")
+                print(f"  Size {size}: {acam_time:.2f}ms")
 
             avg_time = statistics.mean(acam_times)
             result.add_metric("test_sizes", test_sizes)
@@ -1851,7 +1851,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         avg_time = result.metrics.get("average_time_ms", 0)
-        print(f"✓ ACAM: {avg_time:.1f}ms avg")
+        print(f"ACAM: {avg_time:.1f}ms avg")
 
     def _benchmark_hsc(self):
         """Benchmark Hierarchical Semantic Compression algorithm."""
@@ -1862,7 +1862,7 @@ class MAIFBenchmarkSuite:
             from maif.semantic_optimized import HierarchicalSemanticCompression
             import numpy as np
 
-            print("  Testing HSC with embedding compression...")
+            print("Testing HSC with embedding compression...")
 
             # Initialize HSC from semantic.py (has decompress_embeddings method)
             from maif.semantic import HierarchicalSemanticCompression
@@ -1931,7 +1931,7 @@ class MAIFBenchmarkSuite:
         self.results.append(result)
         avg_time = result.metrics.get("average_compression_time_ms", 0)
         avg_ratio = result.metrics.get("average_compression_ratio", 0)
-        print(f"✓ HSC: {avg_time:.1f}ms avg, {avg_ratio:.1f}x ratio")
+        print(f"HSC: {avg_time:.1f}ms avg, {avg_ratio:.1f}x ratio")
 
     def _benchmark_csb(self):
         """Benchmark Cryptographic Semantic Binding algorithm."""
@@ -1942,7 +1942,7 @@ class MAIFBenchmarkSuite:
             from maif.semantic import CryptographicSemanticBinding
             import numpy as np
 
-            print("  Testing CSB with semantic commitments...")
+            print("Testing CSB with semantic commitments...")
 
             # Initialize CSB
             csb = CryptographicSemanticBinding()
@@ -2006,7 +2006,7 @@ class MAIFBenchmarkSuite:
         self.results.append(result)
         commit_time = result.metrics.get("average_commitment_time_ms", 0)
         verify_time = result.metrics.get("average_verification_time_ms", 0)
-        print(f"✓ CSB: {commit_time:.1f}ms commit, {verify_time:.1f}ms verify")
+        print(f"CSB: {commit_time:.1f}ms commit, {verify_time:.1f}ms verify")
 
     def _benchmark_enhanced_algorithms(self):
         """Benchmark enhanced/optimized variants of novel algorithms."""
@@ -2014,7 +2014,7 @@ class MAIFBenchmarkSuite:
         result.start_time = time.time()
 
         try:
-            print("  Testing enhanced algorithm variants...")
+            print("Testing enhanced algorithm variants...")
 
             # Test OptimizedSemanticEmbedder
             from maif.semantic_optimized import OptimizedSemanticEmbedder
@@ -2055,9 +2055,9 @@ class MAIFBenchmarkSuite:
                 f"    Batch embedding: {batch_time * 1000:.2f}ms for {len(embeddings)} texts"
             )
             if faiss_time > 0:
-                print(f"    FAISS indexing: {faiss_time * 1000:.2f}ms")
+                print(f"  FAISS indexing: {faiss_time * 1000:.2f}ms")
             if search_time > 0:
-                print(f"    Fast search: {search_time * 1000:.2f}ms")
+                print(f"  Fast search: {search_time * 1000:.2f}ms")
 
         except Exception as e:
             result.set_error(f"Enhanced algorithms benchmark failed: {str(e)}")
@@ -2065,7 +2065,7 @@ class MAIFBenchmarkSuite:
         result.end_time = time.time()
         self.results.append(result)
         batch_time = result.metrics.get("batch_embedding_time_ms", 0)
-        print(f"✓ Enhanced Algorithms: {batch_time:.1f}ms batch processing")
+        print(f"Enhanced Algorithms: {batch_time:.1f}ms batch processing")
 
     def _generate_report(self) -> Dict[str, Any]:
         """Generate comprehensive benchmark report."""
@@ -2104,10 +2104,10 @@ class MAIFBenchmarkSuite:
                     claims_met += 1
 
             # Print result summary
-            status = "✓ PASS" if result.success else "✗ FAIL"
+            status = " PASS" if result.success else " FAIL"
             print(f"{status} {result.name}: {result.duration():.2f}s")
             if not result.success:
-                print(f"    Error: {result.error_message}")
+                print(f"  Error: {result.error_message}")
 
         # Overall assessment
         claims_percentage = (claims_met / total_claims * 100) if total_claims > 0 else 0
@@ -2283,10 +2283,10 @@ class ExampleClass:
             extraction_times = []
 
             # Test both original and optimized methods
-            print("  🔧 Testing OPTIMIZED video storage...")
+            print("🔧 Testing OPTIMIZED video storage...")
 
             for size_mb in video_sizes:
-                print(f"  Testing {size_mb}MB video storage...")
+                print(f"Testing {size_mb}MB video storage...")
 
                 # Create mock video data
                 video_data = self._create_mock_video_data("mp4", size_mb)
@@ -2317,7 +2317,7 @@ class ExampleClass:
                 extraction_times.append(extraction_time)
 
                 print(
-                    f"    ⚡ Optimized Storage: {storage_time:.2f}ms, Metadata: {extraction_time:.2f}ms"
+                    f"     Optimized Storage: {storage_time:.2f}ms, Metadata: {extraction_time:.2f}ms"
                 )
 
             # Calculate statistics
@@ -2353,18 +2353,18 @@ class ExampleClass:
                 },
             )
 
-            print(f"✓ Video Storage: {throughput_mbs:.1f} MB/s throughput (OPTIMIZED)")
+            print(f"Video Storage: {throughput_mbs:.1f} MB/s throughput (OPTIMIZED)")
 
         except Exception as e:
             result.set_error(f"Video storage benchmark failed: {str(e)}")
             import traceback
 
-            print(f"❌ Video benchmark error: {e}")
+            print(f"Video benchmark error: {e}")
             traceback.print_exc()
 
         self.results.append(result)
         print(
-            f"✓ Video Storage: {result.metrics.get('storage_throughput_mbs', 0):.1f} MB/s throughput"
+            f" Video Storage: {result.metrics.get('storage_throughput_mbs', 0):.1f} MB/s throughput"
         )
 
     def _benchmark_video_metadata_extraction(self):
@@ -2454,7 +2454,7 @@ class ExampleClass:
 
         self.results.append(result)
         print(
-            f"✓ Video Metadata: {result.metrics.get('average_accuracy', 0):.1%} accuracy, {result.metrics.get('average_extraction_time_ms', 0):.1f}ms avg"
+            f" Video Metadata: {result.metrics.get('average_accuracy', 0):.1%} accuracy, {result.metrics.get('average_extraction_time_ms', 0):.1f}ms avg"
         )
 
     def _benchmark_video_querying_performance(self):
@@ -2468,7 +2468,7 @@ class ExampleClass:
             encoder = MAIFEncoder(enable_privacy=False)
             video_count = 5000  # 5k videos for reasonable testing
 
-            print(f"  Creating {video_count:,} test videos...")
+            print(f"Creating {video_count:,} test videos...")
 
             # Add videos with different properties
             for i in range(video_count):
@@ -2515,7 +2515,7 @@ class ExampleClass:
             result_counts = []
 
             for query_test in query_tests:
-                print(f"  Testing {query_test['name']} query...")
+                print(f"Testing {query_test['name']} query...")
 
                 query_start = time.time()
                 results = decoder.query_videos(**query_test["params"])
@@ -2525,7 +2525,7 @@ class ExampleClass:
                 query_times.append(query_time)
                 result_counts.append(len(results))
 
-                print(f"    Query time: {query_time:.2f}ms, Results: {len(results)}")
+                print(f"  Query time: {query_time:.2f}ms, Results: {len(results)}")
 
             # Test semantic search if available
             semantic_search_time = 0
@@ -2540,7 +2540,7 @@ class ExampleClass:
                     f"  Semantic search: {semantic_search_time:.2f}ms, Results: {len(semantic_results)}"
                 )
             except Exception as e:
-                print(f"  Semantic search: Failed - {str(e)}")
+                print(f"Semantic search: Failed - {str(e)}")
                 semantic_search_time = -1  # Indicate failure
 
             avg_query_time = statistics.mean(query_times)
@@ -2575,7 +2575,7 @@ class ExampleClass:
 
         self.results.append(result)
         print(
-            f"✓ Video Querying: {result.metrics.get('average_query_time_ms', 0):.1f}ms avg query time"
+            f" Video Querying: {result.metrics.get('average_query_time_ms', 0):.1f}ms avg query time"
         )
 
     def _create_realistic_mock_video_data(self, video_props: Dict) -> bytes:
@@ -2694,14 +2694,14 @@ def main():
         # Recommendations
         print("\nRECOMMENDATIONS:")
         if assessment["claims_percentage"] >= 80:
-            print("✓ Implementation successfully validates most paper claims")
-            print("✓ Ready for production use in appropriate domains")
+            print("Implementation successfully validates most paper claims")
+            print("Ready for production use in appropriate domains")
         elif assessment["claims_percentage"] >= 60:
-            print("⚠ Implementation validates majority of claims but needs improvement")
-            print("⚠ Suitable for beta testing and development")
+            print("Implementation validates majority of claims but needs improvement")
+            print("Suitable for beta testing and development")
         else:
-            print("✗ Implementation does not validate key paper claims")
-            print("✗ Requires significant development before production use")
+            print("Implementation does not validate key paper claims")
+            print("Requires significant development before production use")
 
         return 0 if assessment["claims_percentage"] >= 60 else 1
 

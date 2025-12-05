@@ -31,10 +31,10 @@ def test_enhanced_block_types():
         for bt in BlockType:
             assert isinstance(bt.value, int)
 
-        print("✓ Enhanced Block Types: PASSED")
+        print("Enhanced Block Types: PASSED")
 
     except Exception as e:
-        print(f"✗ Enhanced Block Types: FAILED - {e}")
+        print(f"Enhanced Block Types: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -76,13 +76,13 @@ def test_enhanced_semantic_algorithms():
         commitment = csb.create_semantic_commitment(test_embedding, test_source)
         assert "commitment_hash" in commitment
 
-        print("✓ Enhanced Semantic Algorithms: PASSED")
+        print("Enhanced Semantic Algorithms: PASSED")
 
     except ImportError:
-        print("⚠ Semantic algorithms not available - skipping")
+        print("Semantic algorithms not available - skipping")
         pytest.skip("Semantic algorithms not available")
     except Exception as e:
-        print(f"✗ Enhanced Semantic Algorithms: FAILED - {e}")
+        print(f"Enhanced Semantic Algorithms: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -105,10 +105,10 @@ def test_semantic_aware_compression():
         decompressed = compressor.decompress(compressed, CompressionAlgorithm.ZLIB)
         assert decompressed == text_data
 
-        print("✓ Compression: PASSED")
+        print("Compression: PASSED")
 
     except Exception as e:
-        print(f"✗ Compression: FAILED - {e}")
+        print(f"Compression: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -117,7 +117,7 @@ def test_advanced_forensics():
     print("Testing Advanced Forensics...")
 
     try:
-        from maif.forensics import ForensicAnalyzer
+        from maif.compliance.forensics import ForensicAnalyzer
 
         with tempfile.TemporaryDirectory() as temp_dir:
             maif_path = os.path.join(temp_dir, "test_forensics.maif")
@@ -135,10 +135,10 @@ def test_advanced_forensics():
             assert "integrity_analysis" in result
             assert "temporal_analysis" in result
 
-            print("✓ Advanced Forensics: PASSED")
+            print("Advanced Forensics: PASSED")
 
     except Exception as e:
-        print(f"✗ Advanced Forensics: FAILED - {e}")
+        print(f"Advanced Forensics: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -147,7 +147,7 @@ def test_enhanced_integration():
     print("Testing Enhanced Integration...")
 
     try:
-        from maif.integration_enhanced import EnhancedMAIF
+        from maif.integration.integration_enhanced import EnhancedMAIF
 
         with tempfile.TemporaryDirectory() as temp_dir:
             maif_path = os.path.join(temp_dir, "enhanced.maif")
@@ -158,10 +158,10 @@ def test_enhanced_integration():
 
             assert os.path.exists(maif_path)
 
-            print("✓ Enhanced Integration: PASSED")
+            print("Enhanced Integration: PASSED")
 
     except Exception as e:
-        print(f"✗ Enhanced Integration: FAILED - {e}")
+        print(f"Enhanced Integration: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -194,10 +194,10 @@ def test_performance_benchmarks():
             assert read_time < 5.0  # Should read within 5 seconds
             assert len(decoder.blocks) == 100
 
-            print("✓ Performance Benchmarks: PASSED")
+            print("Performance Benchmarks: PASSED")
 
     except Exception as e:
-        print(f"✗ Performance Benchmarks: FAILED - {e}")
+        print(f"Performance Benchmarks: FAILED - {e}")
         pytest.fail(str(e))
 
 
@@ -227,10 +227,10 @@ def test_privacy_enhancements():
         anonymized = engine.anonymize_data(sensitive_text, "test_context")
         assert "john.doe@company.com" not in anonymized
 
-        print("✓ Privacy Enhancements: PASSED")
+        print("Privacy Enhancements: PASSED")
 
     except Exception as e:
-        print(f"✗ Privacy Enhancements: FAILED - {e}")
+        print(f"Privacy Enhancements: FAILED - {e}")
         pytest.fail(str(e))
 
 

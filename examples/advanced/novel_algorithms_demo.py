@@ -65,9 +65,9 @@ def demo_acam():
             for j, mod2 in enumerate(modalities):
                 if i != j:
                     weight = attention_weights.coherence_matrix[i, j]
-                    print(f"  {mod1} -> {mod2}: {weight:.4f}")
+                    print(f"{mod1} -> {mod2}: {weight:.4f}")
     else:
-        print("  AttentionWeights structure not as expected")
+        print("AttentionWeights structure not as expected")
 
     # Get attended representation for text modality
     attended_text = acam.get_attended_representation(embeddings, "text")
@@ -223,14 +223,14 @@ def demo_cross_modal_ai():
     }
 
     print("Analyzing multimodal content:")
-    print(f"  Text: {multimodal_content['text']}")
+    print(f"Text: {multimodal_content['text']}")
 
     # Analyze semantic content
     print("\nApplying deep semantic understanding...")
     result = dsu.analyze_semantic_content(multimodal_content)
 
     print(f"\nAnalysis results:")
-    print(f"  Embeddings generated: {len(result['embeddings'])}")
+    print(f"Embeddings generated: {len(result['embeddings'])}")
 
     if result["embeddings"].get("text") is not None:
         text_embedding = result["embeddings"]["text"]
@@ -239,12 +239,12 @@ def demo_cross_modal_ai():
         )
 
     if result["knowledge_graph"].get("entities"):
-        print(f"  Entities extracted: {len(result['knowledge_graph']['entities'])}")
+        print(f"Entities extracted: {len(result['knowledge_graph']['entities'])}")
         for entity in result["knowledge_graph"]["entities"][:3]:  # Show first 3
-            print(f"    - {entity}")
+            print(f"  - {entity}")
 
-    print(f"  Semantic coherence score: {result['semantic_coherence']:.4f}")
-    print(f"  Understanding score: {result['understanding_score']:.4f}")
+    print(f"Semantic coherence score: {result['semantic_coherence']:.4f}")
+    print(f"Understanding score: {result['understanding_score']:.4f}")
 
     return result
 
@@ -304,7 +304,7 @@ def demo_maif_integration():
     # Finalize MAIF file (self-contained with Ed25519 signatures)
     print(f"\nFinalizing MAIF file: {output_file}")
     encoder.finalize()
-    print("  (Self-contained with Ed25519 signatures, no manifest needed)")
+    print("(Self-contained with Ed25519 signatures, no manifest needed)")
 
     # Parse and verify the MAIF file
     print(f"Parsing MAIF file...")
@@ -313,14 +313,14 @@ def demo_maif_integration():
 
     # Verify integrity
     is_valid, errors = decoder.verify_integrity()
-    print(f"File integrity: {'VALID ✅' if is_valid else 'INVALID ❌'}")
+    print(f"File integrity: {'VALID ' if is_valid else 'INVALID '}")
 
     # Get file info
     file_info = decoder.get_file_info()
     print(f"\nFile Information:")
-    print(f"  Blocks: {file_info['block_count']}")
-    print(f"  Signed: {'Yes' if file_info['is_signed'] else 'No'}")
-    print(f"  Merkle Root: {file_info['merkle_root'][:32]}...")
+    print(f"Blocks: {file_info['block_count']}")
+    print(f"Signed: {'Yes' if file_info['is_signed'] else 'No'}")
+    print(f"Merkle Root: {file_info['merkle_root'][:32]}...")
 
     # Show block types
     blocks = decoder.get_blocks()
@@ -328,7 +328,7 @@ def demo_maif_integration():
     for i, block in enumerate(blocks):
         metadata = block.metadata or {}
         algo = metadata.get("algorithm", "standard")
-        print(f"  Block {i}: {algo}")
+        print(f"Block {i}: {algo}")
 
     return output_file
 
@@ -357,16 +357,16 @@ def main():
         print("\n" + "=" * 60)
         print("Demo Summary")
         print("=" * 60)
-        print("✓ ACAM: Successfully computed cross-modal attention weights")
-        print("✓ HSC: Successfully compressed embeddings with semantic preservation")
-        print("✓ CSB: Successfully created cryptographic semantic bindings")
-        print("✓ Cross-Modal AI: Successfully processed multimodal input")
+        print("ACAM: Successfully computed cross-modal attention weights")
+        print("HSC: Successfully compressed embeddings with semantic preservation")
+        print("CSB: Successfully created cryptographic semantic bindings")
+        print("Cross-Modal AI: Successfully processed multimodal input")
         print(
-            "✓ MAIF Integration: Successfully created MAIF file with novel algorithms"
+            " MAIF Integration: Successfully created MAIF file with novel algorithms"
         )
 
         print(f"\nGenerated files:")
-        print(f"  - {maif_file} (self-contained, Ed25519 signed)")
+        print(f"- {maif_file} (self-contained, Ed25519 signed)")
 
         print("\nNovel algorithms are now integrated and operational in MAIF!")
         print("Using secure format with Ed25519 signatures and embedded provenance.")

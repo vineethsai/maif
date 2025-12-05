@@ -44,7 +44,7 @@ maif = load_maif("hello.maif")
 
 # Verify integrity
 if maif.verify_integrity():
-    print("✓ Integrity verified!")
+    print(" Integrity verified!")
 
 # List contents
 for block in maif.get_content_list():
@@ -204,7 +204,7 @@ decoder.load()
 
 # Verify integrity
 is_valid, errors = decoder.verify_integrity()
-print(f"Integrity: {'✓ Valid' if is_valid else '✗ Invalid'}")
+print(f"Integrity: {' Valid' if is_valid else ' Invalid'}")
 
 # Read all blocks
 for block in decoder.blocks:

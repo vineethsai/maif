@@ -81,7 +81,7 @@ class MAIFOverviewProvider {
         const items = [];
         // Format indicator
         const isSecure = this.format === 'secure';
-        items.push(new OverviewItem('Format', isSecure ? '🔒 Secure (Self-Contained)' : '📁 Legacy (+ Manifest)'));
+        items.push(new OverviewItem('Format', isSecure ? ' Secure (Self-Contained)' : '📁 Legacy (+ Manifest)'));
         // Version
         items.push(new OverviewItem('Version', this.manifest.maif_version || this.manifest.header?.version || 'Unknown'));
         // Created
@@ -100,10 +100,10 @@ class MAIFOverviewProvider {
         // Blocks
         items.push(new OverviewItem('Blocks', String(this.manifest.blocks?.length || 0)));
         // Signed
-        items.push(new OverviewItem('Signed', this.manifest.signature ? '✓ Yes' : '✗ No'));
+        items.push(new OverviewItem('Signed', this.manifest.signature ? ' Yes' : ' No'));
         // Finalized (secure format)
         if (isSecure && this.fileInfo) {
-            items.push(new OverviewItem('Finalized', this.fileInfo.isFinalized ? '✓ Yes' : '✗ No'));
+            items.push(new OverviewItem('Finalized', this.fileInfo.isFinalized ? ' Yes' : ' No'));
         }
         // Provenance
         items.push(new OverviewItem('Provenance', String(this.manifest.signature_metadata?.provenance_chain?.length || 0) + ' entries'));
@@ -122,9 +122,9 @@ class BlockItem extends vscode.TreeItem {
     constructor(block, index) {
         const statusIcons = [];
         if (block.isSigned)
-            statusIcons.push('🔐');
+            statusIcons.push('');
         if (block.isTampered)
-            statusIcons.push('⚠️');
+            statusIcons.push('');
         super(`${block.type} Block${statusIcons.length ? ' ' + statusIcons.join('') : ''}`, vscode.TreeItemCollapsibleState.None);
         this.block = block;
         this.index = index;
@@ -137,11 +137,11 @@ class BlockItem extends vscode.TreeItem {
         if (block.isSigned || block.isTampered) {
             tooltipLines.push('### Status');
             if (block.isSigned)
-                tooltipLines.push('- 🔐 **Signed**');
+                tooltipLines.push('-  **Signed**');
             if (block.isImmutable)
-                tooltipLines.push('- 🔒 **Immutable**');
+                tooltipLines.push('-  **Immutable**');
             if (block.isTampered)
-                tooltipLines.push('- ⚠️ **TAMPERED**');
+                tooltipLines.push('-  **TAMPERED**');
             tooltipLines.push('');
         }
         tooltipLines.push('### Details', `- **ID:** ${block.block_id || 'N/A'}`, `- **Size:** ${parser_1.MAIFParser.formatSize(block.size)}`, `- **Offset:** ${block.offset} (0x${block.offset.toString(16)})`, `- **Version:** ${block.version || 1}`, `- **Content Hash:** \`${(block.hash || 'N/A').slice(0, 20)}...\``);
@@ -213,7 +213,7 @@ class ProvenanceItem extends vscode.TreeItem {
             `- **Time:** ${parser_1.MAIFParser.formatTimestamp(entry.timestamp)}`,
             `- **Entry Hash:** \`${(entry.entry_hash || 'N/A').slice(0, 20)}...\``,
             `- **Block Hash:** \`${(entry.block_hash || 'N/A').slice(0, 20)}...\``,
-            entry.signature ? `- **Signed:** ✓` : ''
+            entry.signature ? `- **Signed:** ` : ''
         ].join('\n'));
         this.iconPath = new vscode.ThemeIcon(isGenesis ? 'star' : 'git-commit');
     }
@@ -249,17 +249,17 @@ exports.MAIFProvenanceProvider = MAIFProvenanceProvider;
 function formatAction(action) {
     const map = {
         'genesis': '🌟 Genesis',
-        'add_text_block': '📝 Add Text',
-        'add_embeddings_block': '🧠 Add Embeddings',
-        'add_knowledge_graph': '🕸️ Knowledge Graph',
-        'add_image_block': '🖼️ Add Image',
-        'add_audio_block': '🎵 Add Audio',
-        'add_video_block': '🎬 Add Video',
+        'add_text_block': ' Add Text',
+        'add_embeddings_block': ' Add Embeddings',
+        'add_knowledge_graph': ' Knowledge Graph',
+        'add_image_block': ' Add Image',
+        'add_audio_block': ' Add Audio',
+        'add_video_block': ' Add Video',
         'update': '✏️ Update',
         'delete': '🗑️ Delete',
-        'finalize': '🔒 Finalize',
+        'finalize': ' Finalize',
         'sign': '✍️ Sign',
-        'verify': '✅ Verify'
+        'verify': ' Verify'
     };
     return map[action] || action;
 }

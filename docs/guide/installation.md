@@ -88,34 +88,34 @@ import maif
 # Check core functionality
 print("Checking core components...")
 from maif.core import MAIFEncoder, MAIFDecoder
-print("  ✓ MAIFEncoder, MAIFDecoder")
+print("  - MAIFEncoder, MAIFDecoder")
 
 # Check security
 print("Checking security...")
 from maif.security import MAIFSigner, MAIFVerifier
-print("  ✓ MAIFSigner, MAIFVerifier")
+print("  - MAIFSigner, MAIFVerifier")
 
 # Check privacy
 print("Checking privacy...")
 from maif.privacy import PrivacyEngine, PrivacyLevel, EncryptionMode
-print("  ✓ PrivacyEngine, PrivacyLevel, EncryptionMode")
+print("  - PrivacyEngine, PrivacyLevel, EncryptionMode")
 
 # Check semantic features
 print("Checking semantic features...")
 from maif.semantic import SemanticEmbedder, CrossModalAttention
-print("  ✓ SemanticEmbedder, CrossModalAttention")
+print("  - SemanticEmbedder, CrossModalAttention")
 
 # Check streaming
 print("Checking streaming...")
 from maif.streaming import MAIFStreamReader, MAIFStreamWriter
-print("  ✓ MAIFStreamReader, MAIFStreamWriter")
+print("  - MAIFStreamReader, MAIFStreamWriter")
 
 # Check simple API
 print("Checking simple API...")
 from maif_api import MAIF, create_maif, load_maif
-print("  ✓ MAIF, create_maif, load_maif")
+print("  - MAIF, create_maif, load_maif")
 
-print("\n✅ All components verified successfully!")
+print("\nAll components verified successfully!")
 ```
 
 ## Platform-Specific Notes

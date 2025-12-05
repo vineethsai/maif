@@ -6,31 +6,31 @@ A beautiful, interactive web-based explorer for viewing and understanding MAIF (
 
 ## Features
 
-### 📊 Overview Dashboard
+### Overview Dashboard
 - File metadata and version information
 - Ed25519 signature status and verification
 - Block statistics with type breakdown
 - Merkle root integrity check
 
-### 📦 Block Explorer
+### Block Explorer
 - Visual grid of all content blocks
 - Search and filter by type
 - Detailed block information with signatures
 - Content preview for text blocks
 
-### 🔗 Provenance Timeline
+### Provenance Timeline
 - Complete embedded operation history
 - Genesis block tracking
 - Agent identification (DID support)
 - Ed25519 signatures per entry (64 bytes)
 
-### 🔐 Security Panel
+### Security Panel
 - Embedded public key display (32 bytes)
 - Ed25519 signature verification
 - Signer information
 - Merkle root verification
 
-### 🔢 Binary Viewer
+### Binary Viewer
 - Hex dump with ASCII preview
 - Offset navigation
 - Copy to clipboard

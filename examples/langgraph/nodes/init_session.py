@@ -30,7 +30,7 @@ def init_session_node(state: RAGState) -> RAGState:
     Returns:
         Updated state with session_artifact_path set
     """
-    print(f"🔧 [init_session] Initializing session: {state['session_id']}")
+    print(f"[init_session] Initializing session: {state['session_id']}")
 
     session_manager = SessionManager()
 
@@ -38,11 +38,11 @@ def init_session_node(state: RAGState) -> RAGState:
     session_path = f"examples/langgraph/data/sessions/{state['session_id']}.maif"
 
     if not Path(session_path).exists():
-        print(f"   Creating new session artifact...")
+        print(f"Creating new session artifact...")
         session_path = session_manager.create_session(state["session_id"])
-        print(f"   ✅ Session artifact created: {session_path}")
+        print(f"Session artifact created: {session_path}")
     else:
-        print(f"   ✅ Session artifact exists: {session_path}")
+        print(f"Session artifact exists: {session_path}")
 
     # Update state
     state["session_artifact_path"] = session_path

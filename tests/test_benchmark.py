@@ -45,10 +45,10 @@ def test_basic_maif_functionality():
             assert text_blocks[0].data.decode("utf-8") == "Hello, MAIF!"
             assert len(emb_blocks) == 1
 
-            print("✓ Basic MAIF functionality works")
+            print("Basic MAIF functionality works")
 
     except Exception as e:
-        print(f"✗ Basic MAIF test failed: {e}")
+        print(f"Basic MAIF test failed: {e}")
         assert False, f"Basic MAIF test failed: {e}"
 
 
@@ -86,14 +86,14 @@ def main():
     print(f"Test Results: {passed}/{total} passed")
 
     if passed == total:
-        print("🎉 All tests passed! The benchmark suite is ready to run.")
+        print("All tests passed! The benchmark suite is ready to run.")
         print("\nTo run the full benchmark suite:")
-        print("  python run_benchmark.py")
+        print("python run_benchmark.py")
         print("\nTo run a quick benchmark:")
-        print("  python run_benchmark.py --quick")
+        print("python run_benchmark.py --quick")
         return 0
     else:
-        print("⚠️  Some tests failed. Please check the implementation.")
+        print("Some tests failed. Please check the implementation.")
         return 1
 
 

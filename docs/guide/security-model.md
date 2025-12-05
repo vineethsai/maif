@@ -325,9 +325,9 @@ maif = load_maif("my_artifact.maif")
 
 # Verify file hasn't been tampered with
 if maif.verify_integrity():
-    print("✓ File integrity verified")
+    print(" File integrity verified")
 else:
-    print("✗ File may be corrupted or tampered")
+    print(" File may be corrupted or tampered")
 ```
 
 ### Hash Verification in Decoder

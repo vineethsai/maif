@@ -27,9 +27,9 @@ def test_cli_privacy_levels():
     for level in expected_levels:
         try:
             PrivacyLevel(level)
-            print(f"✓ Privacy level '{level}' is valid")
+            print(f"Privacy level '{level}' is valid")
         except ValueError:
-            print(f"✗ Privacy level '{level}' is invalid")
+            print(f"Privacy level '{level}' is invalid")
             assert False, f"Privacy level '{level}' is invalid"
 
     assert True  # Test passed
@@ -49,20 +49,20 @@ def test_basic_maif_creation():
 
             # Check files were created
             if os.path.exists(maif_path):
-                print("✓ Basic MAIF creation works")
+                print("Basic MAIF creation works")
                 assert True  # Test passed
             else:
-                print("✗ MAIF file not created")
+                print("MAIF file not created")
                 assert False, "MAIF file not created"
     except Exception as e:
-        print(f"✗ Basic MAIF creation failed: {e}")
+        print(f"Basic MAIF creation failed: {e}")
         assert False, f"Basic MAIF creation failed: {e}"
 
 
 def test_validation():
     """Test validation of a simple MAIF file."""
     from maif.core import MAIFEncoder
-    from maif.validation import MAIFValidator
+    from maif.utils.validation import MAIFValidator
 
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -80,13 +80,13 @@ def test_validation():
             result = validator.validate_file(maif_path, manifest_path)
 
             if result.is_valid:
-                print("✓ Validation works")
+                print("Validation works")
                 assert True  # Test passed
             else:
-                print(f"✗ Validation failed: {result.errors}")
+                print(f"Validation failed: {result.errors}")
                 return False
     except Exception as e:
-        print(f"✗ Validation test failed: {e}")
+        print(f"Validation test failed: {e}")
         return False
 
 
@@ -101,13 +101,13 @@ def test_semantic_embedder():
         embedding = embedder.embed_text("Test text")
 
         if hasattr(embedding, "vector") and len(embedding.vector) > 0:
-            print("✓ Semantic embedder works")
+            print("Semantic embedder works")
             assert True  # Test passed
         else:
-            print("✗ Semantic embedder failed to create embedding")
+            print("Semantic embedder failed to create embedding")
             return False
     except Exception as e:
-        print(f"✗ Semantic embedder test failed: {e}")
+        print(f"Semantic embedder test failed: {e}")
         return False
 
 
@@ -122,13 +122,13 @@ def test_hierarchical_compression():
         result = hsc.compress_embeddings([])
 
         if "compressed_data" in result:
-            print("✓ Hierarchical compression works")
+            print("Hierarchical compression works")
             assert True  # Test passed
         else:
-            print("✗ Hierarchical compression failed")
+            print("Hierarchical compression failed")
             return False
     except Exception as e:
-        print(f"✗ Hierarchical compression test failed: {e}")
+        print(f"Hierarchical compression test failed: {e}")
         return False
 
 
@@ -152,15 +152,15 @@ def main():
             if test():
                 passed += 1
         except Exception as e:
-            print(f"✗ Test {test.__name__} crashed: {e}")
+            print(f"Test {test.__name__} crashed: {e}")
 
     print(f"\nResults: {passed}/{total} tests passed")
 
     if passed == total:
-        print("🎉 All major fixes appear to be working!")
+        print("All major fixes appear to be working!")
         return 0
     else:
-        print("❌ Some issues remain")
+        print("Some issues remain")
         return 1
 
 

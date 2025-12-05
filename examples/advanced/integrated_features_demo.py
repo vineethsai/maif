@@ -82,14 +82,14 @@ def demonstrate_basic_usage(workspace: Path):
             "priority": i % 5,
         }
         block_id = maif.add_text_block(text, metadata)
-        print(f"  Added text block {i} with ID: {block_id}")
+        print(f"Added text block {i} with ID: {block_id}")
 
     # Add binary data
     binary_data = b"Binary data sample" * 100
     binary_id = maif.add_binary_block(
         binary_data, metadata={"type": "test_data", "timestamp": time.time()}
     )
-    print(f"  Added binary block with ID: {binary_id}")
+    print(f"Added binary block with ID: {binary_id}")
 
     # Save MAIF
     maif.save()
@@ -109,7 +109,7 @@ def demonstrate_basic_usage(workspace: Path):
     print("\nColumnar storage statistics:")
     stats = maif.get_columnar_statistics()
     for column, column_stats in stats.items():
-        print(f"  - {column}: {column_stats}")
+        print(f"- {column}: {column_stats}")
 
     # Evaluate adaptation rules
     print("\nEvaluating adaptation rules...")
@@ -142,8 +142,8 @@ def demonstrate_event_sourcing_features(maif: EnhancedMAIF):
         print(
             f"  - {event.event_type.value} at {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(event.timestamp))}"
         )
-        print(f"    Agent: {event.agent_id}")
-        print(f"    Payload: {event.payload}")
+        print(f"  Agent: {event.agent_id}")
+        print(f"  Payload: {event.payload}")
 
     # Save changes
     maif.save()
@@ -315,7 +315,7 @@ def demonstrate_version_management_features(workspace: Path):
 
     # Save the new MAIF
     maif_v2.save()
-    print(f"  New versioned MAIF saved to {maif_path_v2}")
+    print(f"New versioned MAIF saved to {maif_path_v2}")
 
     # Original MAIF info
     print(f"\nOriginal versioned MAIF: {maif_path}")
@@ -454,20 +454,20 @@ def demonstrate_integrated_manager(workspace: Path):
     status = manager.get_status()
     for name, maif_status in status.items():
         print(f"\n{name}:")
-        print(f"  Path: {maif_status['path']}")
-        print(f"  Agent: {maif_status['agent_id']}")
-        print(f"  State: {maif_status['state']}")
-        print(f"  Size: {maif_status['metrics']['size_bytes']} bytes")
-        print(f"  Blocks: {maif_status['metrics']['block_count']}")
-        print("  Features enabled:")
+        print(f"Path: {maif_status['path']}")
+        print(f"Agent: {maif_status['agent_id']}")
+        print(f"State: {maif_status['state']}")
+        print(f"Size: {maif_status['metrics']['size_bytes']} bytes")
+        print(f"Blocks: {maif_status['metrics']['block_count']}")
+        print("Features enabled:")
         for feature, enabled in maif_status["features"].items():
-            print(f"    - {feature}: {enabled}")
+            print(f"  - {feature}: {enabled}")
 
     # Evaluate rules for all MAIFs
     print("\nEvaluating rules for all MAIFs...")
     rule_results = manager.evaluate_all_rules()
     for name, actions in rule_results.items():
-        print(f"  {name}: {actions}")
+        print(f"{name}: {actions}")
 
     return manager
 

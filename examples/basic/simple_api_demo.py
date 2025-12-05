@@ -24,7 +24,7 @@ from maif_api import (
 
 def demo_basic_usage():
     """Demonstrate basic MAIF API usage."""
-    print("🚀 MAIF Simple API Demo")
+    print("MAIF Simple API Demo")
     print("=" * 40)
 
     # 1. Create a new MAIF using the MAIF class
@@ -36,11 +36,11 @@ def demo_basic_usage():
 
     # Add text - add_text returns self for chaining
     maif.add_text("This is a sample document about AI and machine learning.")
-    print("   ✅ Added text block")
+    print("Added text block")
 
     # Add more text content
     maif.add_text("MAIF provides secure, verifiable storage for AI artifacts.")
-    print("   ✅ Added second text block")
+    print("Added second text block")
 
     # Add embeddings (sample 384-dimensional vectors)
     sample_embeddings = [
@@ -48,15 +48,15 @@ def demo_basic_usage():
         [0.5, 0.6, 0.7, 0.8] * 96,  # 384-dimensional
     ]
     maif.add_embeddings(sample_embeddings)
-    print("   ✅ Added embeddings block")
+    print("Added embeddings block")
 
     # 3. Save the MAIF (self-contained, no manifest needed)
     print("\n3. Saving MAIF...")
     output_path = "simple_demo.maif"
     if maif.save(output_path):
-        print(f"   ✅ MAIF saved to {output_path}")
+        print(f"MAIF saved to {output_path}")
     else:
-        print("   ❌ Failed to save MAIF!")
+        print("Failed to save MAIF!")
         return False
 
     # 4. Load and verify
@@ -64,26 +64,26 @@ def demo_basic_usage():
     loaded_maif = load_maif(output_path)
 
     if loaded_maif.verify():
-        print("   ✅ MAIF integrity verified!")
+        print("MAIF integrity verified!")
     else:
-        print("   ❌ MAIF integrity check failed!")
+        print("MAIF integrity check failed!")
         return False
 
     # 5. Show content summary
     print("\n5. Content Summary:")
-    print(f"   Agent: {loaded_maif.agent_id}")
-    print(f"   Texts: {len(loaded_maif.texts)}")
+    print(f"Agent: {loaded_maif.agent_id}")
+    print(f"Texts: {len(loaded_maif.texts)}")
 
     for i, text in enumerate(loaded_maif.texts, 1):
         preview = text[:60] + "..." if len(text) > 60 else text
-        print(f"      [{i}] {preview}")
+        print(f"   [{i}] {preview}")
 
     return True
 
 
 def demo_quick_functions():
     """Demonstrate quick convenience functions."""
-    print("\n⚡ Quick Functions Demo")
+    print("\nQuick Functions Demo")
     print("=" * 40)
 
     # Quick text MAIF - one-liner creation
@@ -92,7 +92,7 @@ def demo_quick_functions():
         "quick_text.maif",
     )
     if result:
-        print(f"   ✅ Quick text MAIF created: {result}")
+        print(f"Quick text MAIF created: {result}")
 
     # Quick multimodal MAIF - create with text and embeddings
     result = quick_multimodal_maif(
@@ -101,14 +101,14 @@ def demo_quick_functions():
         output_path="quick_multimodal.maif",
     )
     if result:
-        print(f"   ✅ Quick multimodal MAIF created: {result}")
+        print(f"Quick multimodal MAIF created: {result}")
 
     return True
 
 
 def demo_create_maif_helper():
     """Demonstrate the create_maif helper function."""
-    print("\n📦 Create MAIF Helper Demo")
+    print("\nCreate MAIF Helper Demo")
     print("=" * 40)
 
     # create_maif is a convenience function that creates and saves in one call
@@ -123,11 +123,11 @@ def demo_create_maif_helper():
     )
 
     if result:
-        print(f"   ✅ Created MAIF using helper: {result}")
+        print(f"Created MAIF using helper: {result}")
 
         # Verify it worked
         loaded = load_maif(result)
-        print(f"   📋 Loaded {len(loaded.texts)} text blocks")
+        print(f"Loaded {len(loaded.texts)} text blocks")
 
         return True
 
@@ -144,18 +144,18 @@ if __name__ == "__main__":
         success = demo_create_maif_helper() and success
 
         if success:
-            print("\n🎉 All demos completed successfully!")
+            print("\nAll demos completed successfully!")
         else:
-            print("\n⚠️  Some demos had issues")
+            print("\nSome demos had issues")
 
         print("\nFiles created:")
-        print("  - simple_demo.maif")
-        print("  - quick_text.maif")
-        print("  - quick_multimodal.maif")
-        print("  - helper_demo.maif")
+        print("- simple_demo.maif")
+        print("- quick_text.maif")
+        print("- quick_multimodal.maif")
+        print("- helper_demo.maif")
 
     except Exception as e:
-        print(f"\n❌ Demo failed: {e}")
+        print(f"\nDemo failed: {e}")
         import traceback
 
         traceback.print_exc()

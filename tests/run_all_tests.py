@@ -46,7 +46,7 @@ def run_test_suite():
 
     total_start_time = time.time()
 
-    print(f"📋 Running {len(test_modules)} test modules...")
+    print(f"Running {len(test_modules)} test modules...")
     print()
 
     # Run each test module
@@ -54,7 +54,7 @@ def run_test_suite():
 
     for module in test_modules:
         if os.path.exists(module):
-            print(f"🔍 Testing {module}...")
+            print(f"Testing {module}...")
             start_time = time.time()
 
             # Run the specific test module
@@ -69,9 +69,9 @@ def run_test_suite():
                 "status": "PASSED" if result == 0 else "FAILED",
             }
 
-            print(f"   ✅ {module}: {results[module]['status']} ({duration:.2f}s)")
+            print(f"  {module}: {results[module]['status']} ({duration:.2f}s)")
         else:
-            print(f"   ⚠️  {module}: SKIPPED (file not found)")
+            print(f"   {module}: SKIPPED (file not found)")
             results[module] = {"result": -1, "duration": 0, "status": "SKIPPED"}
 
     total_end_time = time.time()
@@ -79,7 +79,7 @@ def run_test_suite():
 
     # Print summary
     print()
-    print("📊 Test Summary")
+    print("Test Summary")
     print("=" * 50)
 
     passed = sum(1 for r in results.values() if r["status"] == "PASSED")
@@ -87,34 +87,34 @@ def run_test_suite():
     skipped = sum(1 for r in results.values() if r["status"] == "SKIPPED")
 
     print(f"Total modules: {len(test_modules)}")
-    print(f"✅ Passed: {passed}")
-    print(f"❌ Failed: {failed}")
-    print(f"⚠️  Skipped: {skipped}")
-    print(f"⏱️  Total time: {total_duration:.2f}s")
+    print(f"Passed: {passed}")
+    print(f"Failed: {failed}")
+    print(f"Skipped: {skipped}")
+    print(f"Total time: {total_duration:.2f}s")
 
     # Detailed results
     if failed > 0:
         print()
-        print("❌ Failed Tests:")
+        print("Failed Tests:")
         for module, result in results.items():
             if result["status"] == "FAILED":
-                print(f"   - {module}")
+                print(f" - {module}")
 
     # Performance summary
     print()
-    print("⚡ Performance Summary:")
+    print("Performance Summary:")
     sorted_results = sorted(
         results.items(), key=lambda x: x[1]["duration"], reverse=True
     )
     for module, result in sorted_results[:5]:  # Top 5 slowest
         if result["status"] != "SKIPPED":
-            print(f"   {result['duration']:6.2f}s - {module}")
+            print(f" {result['duration']:6.2f}s - {module}")
 
     print()
 
     # Overall result
     if failed == 0:
-        print("🎉 All tests passed! MAIF codebase is ready for production.")
+        print("All tests passed! MAIF codebase is ready for production.")
         return 0
     else:
         print(f"💥 {failed} test module(s) failed. Please review and fix issues.")
@@ -134,7 +134,7 @@ def run_specific_tests():
         "format": ["tests/test_binary_format.py", "tests/test_metadata.py"],
     }
 
-    print("🎯 MAIF Test Categories")
+    print("MAIF Test Categories")
     print("=" * 30)
 
     for category, modules in test_categories.items():
@@ -152,14 +152,14 @@ def run_specific_tests():
         existing_modules = [m for m in modules if os.path.exists(m)]
 
         if existing_modules:
-            print(f"🔍 Running {category} tests...")
+            print(f"Running {category} tests...")
             result = pytest.main(["-v", "--tb=short"] + existing_modules)
             return result
         else:
-            print(f"❌ No test files found for category: {category}")
+            print(f"No test files found for category: {category}")
             return 1
     else:
-        print(f"❌ Unknown category: {category}")
+        print(f"Unknown category: {category}")
         return 1
 
 
@@ -174,7 +174,7 @@ def run_quick_tests():
         "tests/test_validation.py::TestMAIFValidator::test_validate_valid_file",
     ]
 
-    print("⚡ MAIF Quick Test Suite")
+    print("MAIF Quick Test Suite")
     print("=" * 30)
     print("Running essential tests for rapid feedback...")
 
@@ -188,13 +188,13 @@ def run_quick_tests():
         result = pytest.main(["-v", "--tb=short"] + existing_tests)
 
         if result == 0:
-            print("✅ Quick tests passed! Core functionality is working.")
+            print("Quick tests passed! Core functionality is working.")
         else:
-            print("❌ Quick tests failed! Check core functionality.")
+            print("Quick tests failed! Check core functionality.")
 
         return result
     else:
-        print("❌ No quick test files found.")
+        print("No quick test files found.")
         return 1
 
 
@@ -204,10 +204,10 @@ def run_coverage_analysis():
     try:
         import coverage
     except ImportError:
-        print("❌ Coverage package not installed. Install with: pip install coverage")
+        print("Coverage package not installed. Install with: pip install coverage")
         return 1
 
-    print("📊 MAIF Test Coverage Analysis")
+    print("MAIF Test Coverage Analysis")
     print("=" * 35)
 
     # Coverage configuration
@@ -226,7 +226,7 @@ def run_coverage_analysis():
 
     # Generate coverage report
     print()
-    print("📈 Coverage Report:")
+    print("Coverage Report:")
     print("-" * 20)
 
     cov.report(show_missing=True)
@@ -255,7 +255,7 @@ def main():
             print_help()
             return 0
         else:
-            print(f"❌ Unknown command: {command}")
+            print(f"Unknown command: {command}")
             print_help()
             return 1
     else:
@@ -271,16 +271,16 @@ def print_help():
     print("Usage: python tests/run_all_tests.py [command]")
     print()
     print("Commands:")
-    print("  (none)     - Run all tests")
-    print("  quick      - Run quick essential tests")
-    print("  category   - Run tests by category")
-    print("  coverage   - Run tests with coverage analysis")
-    print("  help       - Show this help message")
+    print("(none)     - Run all tests")
+    print("quick      - Run quick essential tests")
+    print("category   - Run tests by category")
+    print("coverage   - Run tests with coverage analysis")
+    print("help       - Show this help message")
     print()
     print("Examples:")
-    print("  python tests/run_all_tests.py")
-    print("  python tests/run_all_tests.py quick")
-    print("  python tests/run_all_tests.py coverage")
+    print("python tests/run_all_tests.py")
+    print("python tests/run_all_tests.py quick")
+    print("python tests/run_all_tests.py coverage")
 
 
 if __name__ == "__main__":

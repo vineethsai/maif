@@ -111,16 +111,16 @@ def create_enhanced_app(
 
 if __name__ == "__main__":
     print("🏗️  Building ENHANCED LangGraph...")
-    print("   ✅ Real ChromaDB vector search")
-    print("   ✅ Real embeddings (sentence-transformers)")
-    print("   ✅ LLM fact-checking (Gemini)")
-    print("   ✅ Multi-turn conversations")
+    print("  Real ChromaDB vector search")
+    print("  Real embeddings (sentence-transformers)")
+    print("  LLM fact-checking (Gemini)")
+    print("  Multi-turn conversations")
 
     app = create_enhanced_app()
-    print("\n✅ Enhanced graph built successfully!")
+    print("\n Enhanced graph built successfully!")
 
-    print("\n📊 Enhanced Features:")
-    print("   1. ChromaDB for semantic search")
-    print("   2. Sentence-transformers embeddings")
-    print("   3. Gemini-powered fact-checking")
-    print("   4. MAIF provenance for everything")
+    print("\n Enhanced Features:")
+    print(" 1. ChromaDB for semantic search")
+    print(" 2. Sentence-transformers embeddings")
+    print(" 3. Gemini-powered fact-checking")
+    print(" 4. MAIF provenance for everything")

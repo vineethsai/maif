@@ -13,9 +13,9 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 from maif.security import (
     MAIFSigner,
     MAIFVerifier,
-    ProvenanceEntry,
-    AccessController,
     SecurityManager,
+    AccessController,
+    ProvenanceEntry,
     generate_key_pair,
     sign_data,
     verify_signature,

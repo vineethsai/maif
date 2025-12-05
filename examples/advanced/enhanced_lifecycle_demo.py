@@ -250,9 +250,9 @@ def demonstrate_enhanced_lifecycle_manager():
     status = manager.get_status()
     for path, report in status.items():
         print(f"\n{Path(path).name}:")
-        print(f"  State: {report['state']}")
-        print(f"  Size: {report['metrics']['size_mb']:.2f} MB")
-        print(f"  Blocks: {report['metrics']['block_count']}")
+        print(f"State: {report['state']}")
+        print(f"Size: {report['metrics']['size_mb']:.2f} MB")
+        print(f"Blocks: {report['metrics']['block_count']}")
 
     # Create a custom rule
     custom_rule = AdaptationRule(
@@ -292,16 +292,16 @@ def demonstrate_enhanced_lifecycle_manager():
     print("\nEvaluating rules for all MAIFs...")
     for path, governed in manager.governed_maifs.items():
         actions = governed._evaluate_rules()
-        print(f"  {Path(path).name}: {actions}")
+        print(f"{Path(path).name}: {actions}")
 
     # Get updated status
     print("\nUpdated lifecycle status:")
     status = manager.get_status()
     for path, report in status.items():
         print(f"\n{Path(path).name}:")
-        print(f"  State: {report['state']}")
-        print(f"  Size: {report['metrics']['size_mb']:.2f} MB")
-        print(f"  History: {len(report['history'])} events")
+        print(f"State: {report['state']}")
+        print(f"Size: {report['metrics']['size_mb']:.2f} MB")
+        print(f"History: {len(report['history'])} events")
 
     # Clean up
     for path in maif_paths:

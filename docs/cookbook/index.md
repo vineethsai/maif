@@ -121,9 +121,9 @@ artifact.save("signed.maif", sign=True)  # Cryptographic signature
 # Verify on load
 loaded = load_maif("signed.maif")
 if loaded.verify_integrity():
-    print("✅ Artifact is authentic")
+    print("Artifact is authentic")
 else:
-    print("❌ Artifact may be tampered")
+    print("Artifact may be tampered")
 ```
 
 #### Access Control

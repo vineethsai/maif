@@ -2,12 +2,12 @@
 
 This is the official documentation for MAIF (Multi-Agent Intelligence Framework) - a revolutionary memory framework for AI agents with built-in privacy, semantic understanding, and enterprise-grade security.
 
-## 🚀 Live Documentation
+## Live Documentation
 
 - **Production**: [https://maif.ai/docs](https://maif.ai/docs)
 - **Staging**: [https://staging-docs.maif.ai](https://staging-docs.maif.ai)
 
-## 📁 Documentation Structure
+## Documentation Structure
 
 ```
 docs/
@@ -38,7 +38,7 @@ docs/
     └── maif-logo.svg
 ```
 
-## 🛠️ Local Development
+## Local Development
 
 ### Prerequisites
 
@@ -84,7 +84,7 @@ npm run deploy           # Deploy to GitHub Pages
 npm run sitemap          # Generate sitemap
 ```
 
-## 🏗️ Building Documentation
+## Building Documentation
 
 ### Production Build
 
@@ -114,7 +114,7 @@ npm run build
 npx vite-bundle-analyzer .vitepress/dist
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### GitHub Pages (Recommended)
 
@@ -229,7 +229,7 @@ spec:
   type: LoadBalancer
 ```
 
-## 📝 Contributing to Documentation
+## Contributing to Documentation
 
 ### Writing Guidelines
 
@@ -279,7 +279,7 @@ from maif_api import create_maif
 
 maif = create_maif("example-agent")
 maif.add_text("Hello!")
-print("✅ Example works!")
+print("Example works!")
 ```
 
 ::: tip Pro Tip
@@ -295,7 +295,7 @@ Use danger boxes for security-related warnings.
 :::
 ```
 
-## 🔧 Advanced Configuration
+## Advanced Configuration
 
 ### Custom Theme
 
@@ -353,7 +353,7 @@ export default {
 }
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Link Checking
 
@@ -385,7 +385,7 @@ npm install -g @lhci/cli
 lhci autorun
 ```
 
-## 📊 Monitoring & Analytics
+## Monitoring & Analytics
 
 ### Performance Metrics
 
@@ -411,7 +411,7 @@ window.addEventListener('error', (event) => {
 })
 ```
 
-## 🔄 CI/CD Pipeline
+## CI/CD Pipeline
 
 ### GitHub Actions
 
@@ -467,14 +467,14 @@ jobs:
 
 ### Quality Gates
 
-- ✅ **Linting**: ESLint passes
-- ✅ **Type Checking**: TypeScript compilation successful
-- ✅ **Link Checking**: All internal links valid
-- ✅ **Accessibility**: Meets WCAG 2.1 AA
-- ✅ **Performance**: Lighthouse score >90
-- ✅ **Bundle Size**: <500KB gzipped
+- **Linting**: ESLint passes
+- **Type Checking**: TypeScript compilation successful
+- **Link Checking**: All internal links valid
+- **Accessibility**: Meets WCAG 2.1 AA
+- **Performance**: Lighthouse score >90
+- **Bundle Size**: <500KB gzipped
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -520,16 +520,16 @@ npm install -g imagemin-cli
 imagemin public/images/* --out-dir=public/images/optimized
 ```
 
-## 📞 Support
+## Support
 
 - **Documentation Issues**: [GitHub Issues](https://github.com/maif-ai/maif/issues)
 - **General Support**: [Discord Community](https://discord.gg/maif)
 - **Feature Requests**: [GitHub Discussions](https://github.com/maif-ai/maif/discussions)
 
-## 📄 License
+## License
 
 This documentation is licensed under [MIT License](../LICENSE).
 
 ---
 
-**Built with ❤️ using [VitePress](https://vitepress.dev/)** 
+**Built with [VitePress](https://vitepress.dev/)** 

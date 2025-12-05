@@ -184,7 +184,7 @@ def main():
     print("=" * 60)
 
     # 1. Text sample
-    print("\n📝 Creating sample_text.maif...")
+    print("\nCreating sample_text.maif...")
     text_path = os.path.join(output_dir, "sample_text.maif")
     encoder = MAIFEncoder(text_path, agent_id="sample-text-agent")
     encoder.add_text_block(
@@ -201,10 +201,10 @@ def main():
         metadata={"source": "sample_document.txt", "language": "en"},
     )
     encoder.finalize()
-    print(f"   ✅ Created: {text_path}")
+    print(f"Created: {text_path}")
 
     # 2. Audio sample
-    print("\n🎵 Creating sample_audio.maif...")
+    print("\nCreating sample_audio.maif...")
     audio_path = os.path.join(output_dir, "sample_audio.maif")
     encoder = MAIFEncoder(audio_path, agent_id="sample-audio-agent")
     audio_data, audio_meta = create_mock_audio_data(duration=185.5, sample_rate=48000)
@@ -212,13 +212,13 @@ def main():
         audio_data, block_type=SecureBlockType.AUDIO, metadata=audio_meta
     )
     encoder.finalize()
-    print(f"   ✅ Created: {audio_path}")
+    print(f"Created: {audio_path}")
     print(
         f"      Duration: {audio_meta['duration']:.1f}s, {audio_meta['sample_rate']}Hz, {audio_meta['channels']} channels"
     )
 
     # 3. Video sample
-    print("\n🎬 Creating sample_video.maif...")
+    print("\nCreating sample_video.maif...")
     video_path = os.path.join(output_dir, "sample_video.maif")
     encoder = MAIFEncoder(video_path, agent_id="sample-video-agent")
     video_data, video_meta = create_mock_video_data(
@@ -228,13 +228,13 @@ def main():
         video_data, block_type=SecureBlockType.VIDEO, metadata=video_meta
     )
     encoder.finalize()
-    print(f"   ✅ Created: {video_path}")
+    print(f"Created: {video_path}")
     print(
         f"      Resolution: {video_meta['width']}×{video_meta['height']}, {video_meta['duration']:.1f}s @ {video_meta['fps']}fps"
     )
 
     # 4. Image sample
-    print("\n🖼️ Creating sample_image.maif...")
+    print("\nCreating sample_image.maif...")
     image_path = os.path.join(output_dir, "sample_image.maif")
     encoder = MAIFEncoder(image_path, agent_id="sample-image-agent")
     image_data, image_meta = create_mock_image_data(width=2048, height=1536)
@@ -242,13 +242,13 @@ def main():
         image_data, block_type=SecureBlockType.IMAGE, metadata=image_meta
     )
     encoder.finalize()
-    print(f"   ✅ Created: {image_path}")
+    print(f"Created: {image_path}")
     print(
         f"      Dimensions: {image_meta['width']}×{image_meta['height']}, {image_meta['color_mode']}"
     )
 
     # 5. Embeddings sample
-    print("\n🧠 Creating sample_embeddings.maif...")
+    print("\nCreating sample_embeddings.maif...")
     emb_path = os.path.join(output_dir, "sample_embeddings.maif")
     encoder = MAIFEncoder(emb_path, agent_id="sample-embeddings-agent")
     emb_data, emb_meta = create_embedding_data(dimensions=384)
@@ -256,11 +256,11 @@ def main():
         emb_data, block_type=SecureBlockType.EMBEDDINGS, metadata=emb_meta
     )
     encoder.finalize()
-    print(f"   ✅ Created: {emb_path}")
-    print(f"      Dimensions: {emb_meta['dimensions']}, Model: {emb_meta['model']}")
+    print(f"Created: {emb_path}")
+    print(f"   Dimensions: {emb_meta['dimensions']}, Model: {emb_meta['model']}")
 
     # 6. Multimodal sample (all types)
-    print("\n🌐 Creating sample_multimodal.maif...")
+    print("\nCreating sample_multimodal.maif...")
     multi_path = os.path.join(output_dir, "sample_multimodal.maif")
     encoder = MAIFEncoder(multi_path, agent_id="sample-multimodal-agent")
 
@@ -294,18 +294,18 @@ def main():
     encoder.add_binary_block(emb_data, SecureBlockType.EMBEDDINGS, emb_meta)
 
     encoder.finalize()
-    print(f"   ✅ Created: {multi_path}")
-    print(f"      Contains: text, audio, video, image, embeddings")
+    print(f"Created: {multi_path}")
+    print(f"   Contains: text, audio, video, image, embeddings")
 
     print("\n" + "=" * 60)
-    print("✅ All sample files created successfully!")
+    print("All sample files created successfully!")
     print("=" * 60)
-    print(f"\n📁 Output directory: {output_dir}")
+    print(f"\nOutput directory: {output_dir}")
     print("\nTo test in VS Code extension:")
-    print(f"   Open any .maif file from: {output_dir}")
+    print(f"Open any .maif file from: {output_dir}")
     print("\nTo test in web viewer:")
-    print(f"   1. Open tools/maif-explorer/index.html")
-    print(f"   2. Drag and drop a .maif file")
+    print(f"1. Open tools/maif-explorer/index.html")
+    print(f"2. Drag and drop a .maif file")
 
 
 if __name__ == "__main__":

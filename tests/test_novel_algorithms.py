@@ -17,7 +17,7 @@ def test_everything():
             CryptographicSemanticBinding,
         )
 
-        print("✅ Imports successful")
+        print("Imports successful")
 
         # Test ACAM
         acam = CrossModalAttention()
@@ -25,7 +25,7 @@ def test_everything():
             {"text": [0.1] * 384, "image": [0.2] * 384}
         )
         assert len(weights) > 0, "ACAM failed"
-        print("✅ ACAM working")
+        print("ACAM working")
 
         # Test HSC
         hsc = HierarchicalSemanticCompression()
@@ -37,20 +37,20 @@ def test_everything():
         assert result["metadata"]["compression_ratio"] > 0, (
             "HSC failed - invalid compression ratio"
         )
-        print("✅ HSC working")
+        print("HSC working")
 
         # Test CSB
         csb = CryptographicSemanticBinding()
         binding = csb.create_semantic_commitment([0.1] * 384, "test")
         valid = csb.verify_semantic_binding([0.1] * 384, "test", binding)
         assert valid, "CSB failed"
-        print("✅ CSB working")
+        print("CSB working")
 
-        print("🎉 All novel algorithms working perfectly!")
+        print("All novel algorithms working perfectly!")
         assert True  # Test passed
 
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"Test failed: {e}")
         assert False, f"Novel algorithms test failed: {e}"
 
 
