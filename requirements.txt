@@ -16,7 +16,7 @@ opencv-python==4.10.0.84
 
 # File format features
 aiofiles==24.1.0
-brotli==1.1.0
+brotli==1.2.0
 zstandard==0.25.0
 xxhash==3.6.0
 msgpack==1.1.0
