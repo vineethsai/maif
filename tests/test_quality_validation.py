@@ -195,7 +195,7 @@ class TestReconstructionQuality:
         config_lenient = CompressionConfig(quality_threshold=0.90)  # 90% fidelity
 
         compressor_strict = MAIFCompressor(config_strict)
-        compressor_lenient = MAIFCompressor(config_lenient)
+        _compressor_lenient = MAIFCompressor(config_lenient)  # noqa: F841
 
         # Test with mock results
         mock_result_medium_quality = CompressionResult(

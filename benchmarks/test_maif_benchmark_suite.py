@@ -250,7 +250,7 @@ class MAIFBenchmarkSuite:
                     similarities.append(sim)
 
                 # Find top results
-                top_indices = np.argsort(similarities)[-10:]
+                _top_indices = np.argsort(similarities)[-10:]  # noqa: F841
                 search_end = time.time()
 
                 search_time_ms = (search_end - search_start) * 1000
@@ -389,14 +389,14 @@ class MAIFBenchmarkSuite:
                     if hasattr(embedder, "search_similar"):
                         # Use optimized FAISS search
                         results = embedder.search_similar(query_embedding, top_k=20)
-                        top_indices = [idx for idx, sim in results]
+                        _top_indices = [idx for idx, sim in results]  # noqa: F841
                     else:
                         # Fallback to brute-force search
                         similarities = []
                         for emb in embeddings:
                             sim = embedder.compute_similarity(query_embedding, emb)
                             similarities.append(sim)
-                        top_indices = np.argsort(similarities)[-20:]
+                        _top_indices = np.argsort(similarities)[-20:]  # noqa: F841
 
                     search_end = time.time()
                     search_time_ms = (search_end - search_start) * 1000

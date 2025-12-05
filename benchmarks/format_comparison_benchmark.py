@@ -299,7 +299,7 @@ class FormatComparisonBenchmark:
                     start = time.time()
                     reader = SecureMAIFReader(secure_path)
                     reader.load()
-                    blocks = reader.get_blocks()
+                    _blocks = reader.get_blocks()  # noqa: F841
                     secure_read_times.append(time.time() - start)
                 secure_times.extend(secure_read_times)
 
@@ -750,7 +750,7 @@ def main():
         print("Running in quick mode with reduced iterations")
 
     try:
-        report = benchmark.run_all_benchmarks()
+        _report = benchmark.run_all_benchmarks()  # noqa: F841
         return 0
     except Exception as e:
         print(f"\n❌ Benchmark failed: {e}")

@@ -332,7 +332,7 @@ class TestStreamingIntegration:
         config = StreamingConfig(max_workers=4)
 
         with MAIFStreamReader(test_path, config) as reader:
-            blocks = list(reader.stream_blocks())
+            _blocks = list(reader.stream_blocks())  # noqa: F841
             stats = reader.get_performance_stats()
 
         assert stats["total_blocks_read"] >= 0
