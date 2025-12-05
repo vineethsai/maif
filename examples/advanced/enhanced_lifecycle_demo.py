@@ -4,6 +4,11 @@ Enhanced MAIF Lifecycle Management Demo
 
 This example demonstrates the enhanced lifecycle management capabilities
 using the Adaptation Rules Engine for more sophisticated governance.
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import os
@@ -11,8 +16,15 @@ import json
 import time
 import logging
 from pathlib import Path
-import matplotlib.pyplot as plt
 from typing import Dict, List, Any
+
+# matplotlib is optional - for visualization only
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    plt = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -30,7 +42,7 @@ from maif.adaptation_rules import (
     MetricCondition, ScheduleCondition, EventCondition, CompositeCondition,
     Action, ActionParameter
 )
-from maif.core import MAIFEncoder
+from maif import MAIFEncoder
 
 def setup_workspace():
     """Set up workspace for the demo."""
@@ -40,7 +52,7 @@ def setup_workspace():
 
 def create_sample_maif(workspace: Path, name: str, size_mb: float = 10.0) -> str:
     """
-    Create a sample MAIF file of specified size.
+    Create a sample MAIF file of specified size (secure format with Ed25519).
     
     Args:
         workspace: Workspace directory
@@ -51,7 +63,7 @@ def create_sample_maif(workspace: Path, name: str, size_mb: float = 10.0) -> str
         Path to created MAIF file
     """
     maif_path = workspace / f"{name}.maif"
-    encoder = MAIFEncoder()
+    encoder = MAIFEncoder(str(maif_path), agent_id=f"lifecycle-{name}")
     
     # Calculate number of blocks needed to reach target size
     # Each block is approximately 10KB
@@ -75,9 +87,8 @@ def create_sample_maif(workspace: Path, name: str, size_mb: float = 10.0) -> str
         # Add block
         encoder.add_text_block(text, metadata)
     
-    # Build MAIF
-    manifest_path = maif_path.with_suffix('.json')
-    encoder.build_maif(str(maif_path), str(manifest_path))
+    # Finalize MAIF (self-contained with Ed25519 signatures)
+    encoder.finalize()
     
     logger.info(f"Created {name} at {maif_path} ({maif_path.stat().st_size / (1024*1024):.2f} MB)")
     

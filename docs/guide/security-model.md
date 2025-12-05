@@ -6,11 +6,11 @@ MAIF implements security at multiple levels: cryptographic signatures, encryptio
 
 MAIF's security model provides:
 
-- **Digital Signatures**: Ed25519-based signing for data integrity
-- **Encryption**: AES-GCM and ChaCha20-Poly1305 encryption
+- **Ed25519 Digital Signatures**: Fast, compact 64-byte signatures on every block
+- **Encryption**: AES-GCM and ChaCha20-Poly1305 for data protection
 - **Access Control**: Block-level permission management
-- **Provenance**: Immutable audit trail of all operations
-- **Integrity Verification**: Hash-based integrity checks
+- **Embedded Provenance**: Complete audit trail built into the file
+- **Merkle Root Verification**: Fast whole-file integrity checking
 
 ```mermaid
 graph TB
@@ -26,17 +26,22 @@ graph TB
         
         L2 --> C1[AES-GCM Encryption]
         L2 --> C2[ChaCha20-Poly1305]
-        L2 --> C3[Ed25519 Signatures]
+        L2 --> C3[Ed25519 Signatures - 64 bytes]
         
         L3 --> A1[Block Permissions]
         L3 --> A2[Access Rules]
         
-        L4 --> P1[Provenance Chain]
-        L4 --> P2[Audit Trail]
+        L4 --> P1[Embedded Provenance Chain]
+        L4 --> P2[Merkle Root Verification]
     end
 ```
 
 ## Digital Signatures
+
+MAIF uses **Ed25519** for all digital signatures. Ed25519 provides:
+- **Speed**: Signing and verification are nearly instant
+- **Compact size**: Only 64 bytes per signature (vs 256+ bytes for RSA)
+- **Strong security**: 128-bit security level, resistant to timing attacks
 
 ### MAIFSigner
 
@@ -155,6 +160,7 @@ privacy_engine = PrivacyEngine()
 
 # Create encoder with privacy
 encoder = MAIFEncoder(
+    "secure_artifact.maif",
     agent_id="secure-encoder",
     enable_privacy=True,
     privacy_engine=privacy_engine
@@ -168,7 +174,7 @@ encoder.add_text_block(
     metadata={"classification": "top_secret"}
 )
 
-encoder.save("secure_artifact.maif")
+encoder.finalize()
 ```
 
 ## Access Control
@@ -246,6 +252,7 @@ from maif.privacy import PrivacyEngine, PrivacyLevel, EncryptionMode
 
 privacy = PrivacyEngine()
 encoder = MAIFEncoder(
+    "classified.maif",
     agent_id="classified-demo",
     enable_privacy=True,
     privacy_engine=privacy
@@ -271,7 +278,7 @@ encoder.add_text_block(
     encryption_mode=EncryptionMode.AES_GCM
 )
 
-encoder.save("classified.maif")
+encoder.finalize()
 ```
 
 ## Data Anonymization

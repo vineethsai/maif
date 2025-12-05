@@ -1,29 +1,27 @@
 #!/usr/bin/env python3
-"""Quick test to verify our fixes."""
+"""Quick test to verify v3 format fixes."""
 
 import os
 import tempfile
-from maif.core import MAIFEncoder
+from maif import MAIFEncoder, MAIFDecoder
 from maif.validation import MAIFValidator
-from maif.semantic import DeepSemanticUnderstanding
+
 
 def test_validation_fix():
     """Test that validation now works correctly."""
     print("Testing validation fix...")
     
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Create a simple MAIF file
-        encoder = MAIFEncoder(agent_id="test_agent")
-        encoder.add_text_block("Test content", metadata={"test": True})
-        
         maif_path = os.path.join(temp_dir, "test.maif")
-        manifest_path = os.path.join(temp_dir, "test_manifest.json")
         
-        encoder.build_maif(maif_path, manifest_path)
+        # Create a simple MAIF file (v3 format)
+        encoder = MAIFEncoder(maif_path, agent_id="test_agent")
+        encoder.add_text_block("Test content", metadata={"test": True})
+        encoder.finalize()
         
         # Validate it
         validator = MAIFValidator()
-        result = validator.validate_file(maif_path, manifest_path)
+        result = validator.validate(maif_path)
         
         print(f"  Validation result: is_valid={result.is_valid}")
         print(f"  Errors: {len(result.errors)}")
@@ -33,21 +31,19 @@ def test_validation_fix():
             for error in result.errors:
                 print(f"    Error: {error}")
         
-        if result.warnings:
-            for warning in result.warnings:
-                print(f"    Warning: {warning}")
-        
-        success = result.is_valid or len(result.errors) == 0
+        success = result.is_valid
         assert success, f"Validation failed: {result.errors}"
+
 
 def test_semantic_fix():
     """Test that semantic understanding works."""
     print("Testing semantic fix...")
     
     try:
+        from maif.semantic import DeepSemanticUnderstanding
+        
         dsu = DeepSemanticUnderstanding()
         
-        # Test process_multimodal_input
         inputs = {"text": "test text", "metadata": {"test": True}}
         result = dsu.process_multimodal_input(inputs)
         
@@ -60,16 +56,14 @@ def test_semantic_fix():
         print(f"  Error: {e}")
         assert False, f"Semantic test failed: {e}"
 
+
 if __name__ == "__main__":
     print("Running quick fix verification tests...\n")
     
-    validation_ok = test_validation_fix()
-    print(f"Validation fix: {'✓ PASS' if validation_ok else '✗ FAIL'}\n")
+    test_validation_fix()
+    print("Validation fix: ✓ PASS\n")
     
-    semantic_ok = test_semantic_fix()
-    print(f"Semantic fix: {'✓ PASS' if semantic_ok else '✗ FAIL'}\n")
+    test_semantic_fix()
+    print("Semantic fix: ✓ PASS\n")
     
-    if validation_ok and semantic_ok:
-        print("🎉 All fixes appear to be working!")
-    else:
-        print("❌ Some fixes still need work")
+    print("🎉 All fixes appear to be working!")

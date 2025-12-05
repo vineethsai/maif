@@ -3,22 +3,111 @@ MAIF (Multimodal Artifact File Format) Library
 
 A comprehensive library for creating, managing, and analyzing MAIF files.
 MAIF is an AI-native file format designed for multimodal content with
-embedded security, semantics, and provenance tracking.
+embedded security (Ed25519 signatures), semantics, and provenance tracking.
 
-Production-ready with seamless AWS integration.
+Version 3.0 - Secure Format
+- Self-contained binary files (no external manifest)
+- Ed25519 cryptographic signatures
+- Immutable blocks with tamper detection
+- Embedded provenance chain
+
+Quick Start:
+    from maif import MAIFEncoder, MAIFDecoder
+    
+    # Create a MAIF file
+    encoder = MAIFEncoder("output.maif", agent_id="my-agent")
+    encoder.add_text_block("Hello, world!")
+    encoder.finalize()
+    
+    # Read and verify a MAIF file
+    decoder = MAIFDecoder("output.maif")
+    is_valid, errors = decoder.verify_integrity()
+    if is_valid:
+        blocks = decoder.get_blocks()
 """
 
-from .core import MAIFEncoder, MAIFDecoder, MAIFParser, MAIFBlock, MAIFVersion
-from .security import MAIFSigner, MAIFVerifier
-from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule, DifferentialPrivacy, SecureMultipartyComputation, ZeroKnowledgeProof
-from .semantic import (
-    SemanticEmbedder, SemanticEmbedding, KnowledgeTriple,
-    CrossModalAttention, HierarchicalSemanticCompression,
-    CryptographicSemanticBinding, DeepSemanticUnderstanding,
-    KnowledgeGraphBuilder
+# =============================================================================
+# Core API - Main encoding/decoding functionality
+# =============================================================================
+
+from .core import (
+    # Primary classes
+    MAIFEncoder,
+    MAIFDecoder,
+    MAIFParser,
+    BlockType,
+    
+    # Data classes
+    MAIFBlock,
+    MAIFVersion,
+    MAIFHeader,
+    
+    # Secure format structures
+    SecureBlock,
+    SecureBlockHeader,
+    SecureFileHeader,
+    ProvenanceEntry,
+    FileFooter,
+    BlockFlags,
+    FileFlags,
+    
+    # Convenience functions
+    create_maif,
+    verify_maif,
+    quick_create,
+    quick_verify,
+    quick_read,
+    
+    # Constants
+    MAGIC_HEADER,
+    MAGIC_FOOTER,
+    FORMAT_VERSION_MAJOR,
+    FORMAT_VERSION_MINOR,
 )
 
-# Import enhanced algorithms from semantic_optimized
+# Legacy aliases for backwards compatibility
+SecureMAIFWriter = MAIFEncoder
+SecureMAIFReader = MAIFDecoder
+SecureBlockType = BlockType
+
+# =============================================================================
+# Security - Signing and verification
+# =============================================================================
+
+try:
+    from .security import MAIFSigner, MAIFVerifier
+except ImportError:
+    MAIFSigner = None
+    MAIFVerifier = None
+
+# =============================================================================
+# Privacy - Privacy controls and encryption
+# =============================================================================
+
+try:
+    from .privacy import (
+        PrivacyEngine, PrivacyPolicy, PrivacyLevel, 
+        EncryptionMode, AccessRule, DifferentialPrivacy,
+        SecureMultipartyComputation, ZeroKnowledgeProof
+    )
+except ImportError:
+    PrivacyEngine = None
+
+# =============================================================================
+# Semantics - Embeddings and knowledge graphs
+# =============================================================================
+
+try:
+    from .semantic import (
+        SemanticEmbedder, SemanticEmbedding, KnowledgeTriple,
+        CrossModalAttention, HierarchicalSemanticCompression,
+        CryptographicSemanticBinding, DeepSemanticUnderstanding,
+        KnowledgeGraphBuilder
+    )
+except ImportError:
+    SemanticEmbedder = None
+
+# Enhanced algorithms
 try:
     from .semantic_optimized import (
         AdaptiveCrossModalAttention,
@@ -30,20 +119,101 @@ try:
 except ImportError:
     ENHANCED_ALGORITHMS_AVAILABLE = False
 
-from .forensics import ForensicAnalyzer, ForensicEvidence
-from .compression_manager import CompressionManager
-from .compression import CompressionMetadata
-from .binary_format import MAIFBinaryParser, MAIFBinaryWriter
-from .validation import MAIFValidator, MAIFRepairTool
-from .metadata import MAIFMetadataManager
-from .streaming import MAIFStreamReader, MAIFStreamWriter
-from .integration_enhanced import EnhancedMAIFProcessor, ConversionResult
+# =============================================================================
+# Forensics and Validation
+# =============================================================================
 
+try:
+    from .forensics import ForensicAnalyzer, ForensicEvidence
+except ImportError:
+    ForensicAnalyzer = None
+
+try:
+    from .validation import MAIFValidator, MAIFRepairTool
+except ImportError:
+    MAIFValidator = None
+
+# =============================================================================
+# Compression
+# =============================================================================
+
+try:
+    from .compression_manager import CompressionManager
+    from .compression import CompressionMetadata
+except ImportError:
+    CompressionManager = None
+
+# =============================================================================
+# Streaming
+# =============================================================================
+
+try:
+    from .streaming import MAIFStreamReader, MAIFStreamWriter
+except ImportError:
+    MAIFStreamReader = None
+    MAIFStreamWriter = None
+
+# =============================================================================
+# Metadata
+# =============================================================================
+
+try:
+    from .metadata import MAIFMetadataManager
+except ImportError:
+    MAIFMetadataManager = None
+
+# =============================================================================
 # Agent Framework
-from .agentic_framework import MAIFAgent, PerceptionSystem, ReasoningSystem, ExecutionSystem
+# =============================================================================
 
-# AWS Integrations removed - core library now AWS-independent
-# AWS integrations - imported conditionally to avoid errors when AWS is not needed
+try:
+    from .agentic_framework import MAIFAgent, PerceptionSystem, ReasoningSystem, ExecutionSystem
+except ImportError:
+    MAIFAgent = None
+
+# =============================================================================
+# Production Features
+# =============================================================================
+
+try:
+    from .health_check import HealthChecker, HealthStatus
+except ImportError:
+    HealthChecker = None
+
+try:
+    from .rate_limiter import RateLimiter, RateLimitConfig, CostBasedRateLimiter, rate_limit
+except ImportError:
+    RateLimiter = None
+
+try:
+    from .metrics_aggregator import MetricsAggregator, MAIFMetrics, initialize_metrics, get_metrics
+except ImportError:
+    MetricsAggregator = None
+
+try:
+    from .cost_tracker import CostTracker, Budget, BudgetExceededException, initialize_cost_tracking, get_cost_tracker, with_cost_tracking
+except ImportError:
+    CostTracker = None
+
+try:
+    from .batch_processor import BatchProcessor, StreamBatchProcessor, DistributedBatchProcessor, batch_process
+except ImportError:
+    BatchProcessor = None
+
+# =============================================================================
+# Integration
+# =============================================================================
+
+try:
+    from .integration_enhanced import EnhancedMAIFProcessor, ConversionResult
+except ImportError:
+    EnhancedMAIFProcessor = None
+
+# =============================================================================
+# AWS Integrations (optional)
+# =============================================================================
+
+AWS_IMPORTS_AVAILABLE = False
 try:
     from .aws_lambda_integration import AWSLambdaIntegration
     from .aws_stepfunctions_integration import AWSStepFunctionsIntegration
@@ -51,37 +221,18 @@ try:
     from .aws_deployment import DeploymentManager, CloudFormationGenerator, LambdaPackager, DockerfileGenerator
     AWS_IMPORTS_AVAILABLE = True
 except ImportError:
-    # AWS features not available
-    AWS_IMPORTS_AVAILABLE = False
+    pass
 
-# Production Features
-from .health_check import HealthChecker, HealthStatus
-from .rate_limiter import RateLimiter, RateLimitConfig, CostBasedRateLimiter, rate_limit
-from .metrics_aggregator import MetricsAggregator, MAIFMetrics, initialize_metrics, get_metrics
-from .cost_tracker import CostTracker, Budget, BudgetExceededException, initialize_cost_tracking, get_cost_tracker, with_cost_tracking
-from .batch_processor import BatchProcessor, StreamBatchProcessor, DistributedBatchProcessor, batch_process
-# API Gateway integration removed (was AWS-dependent)
+# =============================================================================
+# Convenience API
+# =============================================================================
 
-# Advanced Features
-# from .multi_agent import MAIFAgentConsortium  # Disabled due to import issues
-
-# Import simple API for easy access
-try:
-    import sys
-    import os
-    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-    from maif_api import MAIF, create_maif, load_maif, quick_text_maif, quick_multimodal_maif
-    SIMPLE_API_AVAILABLE = True
-except ImportError:
-    SIMPLE_API_AVAILABLE = False
-
-# Import convenience features
 try:
     from .convenience_api import SimpleMAIFAgent, create_agent
     CONVENIENCE_API_AVAILABLE = True
 except ImportError:
     CONVENIENCE_API_AVAILABLE = False
-    
+
 try:
     from .migration_tools import VectorDBMigrator, migrate_to_maif
     MIGRATION_TOOLS_AVAILABLE = True
@@ -94,17 +245,44 @@ try:
 except ImportError:
     DEBUG_TOOLS_AVAILABLE = False
 
-__version__ = "2.0.0"
+# =============================================================================
+# Module Info
+# =============================================================================
+
+__version__ = "3.0.0"
 __author__ = "MAIF Development Team"
 __license__ = "MIT"
 
 __all__ = [
-    # Core functionality
+    # Core API
     'MAIFEncoder',
     'MAIFDecoder',
     'MAIFParser',
+    'BlockType',
     'MAIFBlock',
     'MAIFVersion',
+    'MAIFHeader',
+    
+    # Secure format
+    'SecureBlock',
+    'SecureBlockHeader',
+    'SecureFileHeader',
+    'ProvenanceEntry',
+    'FileFooter',
+    'BlockFlags',
+    'FileFlags',
+    
+    # Legacy aliases
+    'SecureMAIFWriter',
+    'SecureMAIFReader',
+    'SecureBlockType',
+    
+    # Convenience functions
+    'create_maif',
+    'verify_maif',
+    'quick_create',
+    'quick_verify',
+    'quick_read',
     
     # Security
     'MAIFSigner',
@@ -116,138 +294,39 @@ __all__ = [
     'PrivacyLevel',
     'EncryptionMode',
     'AccessRule',
-    'DifferentialPrivacy',
-    'SecureMultipartyComputation',
-    'ZeroKnowledgeProof',
     
     # Semantics
     'SemanticEmbedder',
     'SemanticEmbedding',
     'KnowledgeTriple',
-    'CrossModalAttention',
-    'HierarchicalSemanticCompression',
-    'CryptographicSemanticBinding',
-    'DeepSemanticUnderstanding',
     'KnowledgeGraphBuilder',
     
-    # Enhanced Novel Algorithms (if available)
-    'AdaptiveCrossModalAttention',
-    'EnhancedHierarchicalSemanticCompression',
-    'EnhancedCryptographicSemanticBinding',
-    'AttentionWeights',
-    'ENHANCED_ALGORITHMS_AVAILABLE',
-    
-    # Forensics
+    # Forensics & Validation
     'ForensicAnalyzer',
-    'ForensicEvidence',
-    
-    # Compression
-    'CompressionManager',
-    'CompressionMetadata',
-    
-    # Binary Format
-    'MAIFBinaryParser',
-    'MAIFBinaryWriter',
-    
-    # Validation
     'MAIFValidator',
-    'MAIFRepairTool',
-    
-    # Metadata
-    'MAIFMetadataManager',
     
     # Streaming
     'MAIFStreamReader',
     'MAIFStreamWriter',
     
-    # Integration
-    'EnhancedMAIFProcessor',
-    'ConversionResult',
-    
-    # Agent Framework
+    # Agent
     'MAIFAgent',
-    'PerceptionSystem',
-    'ReasoningSystem',
-    'ExecutionSystem',
     
-    # AWS Decorators
-    'maif_agent',
-    'aws_agent',
-    'aws_bedrock',
-    'aws_kms',
-    'aws_s3',
-    'aws_dynamodb',
-    'aws_lambda',
-    'aws_stepfunctions',
-    
-    # AWS Integrations
-    'AWSTrustEngine',
-    'AWSKMSIntegration',
-    'AWSS3Integration',
-    'AWSDynamoDBIntegration',
-    'AWSLambdaIntegration',
-    'AWSStepFunctionsIntegration',
-    'MAIFXRayIntegration',
-    'xray_trace',
-    'xray_subsegment',
-    
-    # Deployment Tools
-    'DeploymentManager',
-    'CloudFormationGenerator',
-    'LambdaPackager',
-    'DockerfileGenerator',
-    
-    # Production Features
+    # Production
     'HealthChecker',
-    'HealthStatus',
-    'ComponentHealth',
     'RateLimiter',
-    'RateLimitConfig',
-    'CostBasedRateLimiter',
-    'rate_limit',
     'MetricsAggregator',
-    'MAIFMetrics',
-    'initialize_metrics',
-    'get_metrics',
     'CostTracker',
-    'Budget',
-    'BudgetExceededException',
-    'initialize_cost_tracking',
-    'get_cost_tracker',
-    'with_cost_tracking',
     'BatchProcessor',
-    'StreamBatchProcessor',
-    'DistributedBatchProcessor',
-    'batch_process',
-    'APIGatewayIntegration',
-    'APIGatewayHandler',
-    'api_endpoint',
     
-    # Advanced Features
-    'BedrockAgentSwarm',
-    'BedrockModelProvider',
-    'MAIFAgentConsortium',
+    # Constants
+    'MAGIC_HEADER',
+    'MAGIC_FOOTER',
+    'FORMAT_VERSION_MAJOR',
+    'FORMAT_VERSION_MINOR',
     
-    # Simple API (if available)
-    'MAIF',
-    'create_maif',
-    'load_maif',
-    'quick_text_maif',
-    'quick_multimodal_maif',
-    'SIMPLE_API_AVAILABLE',
+    # Feature flags
+    'ENHANCED_ALGORITHMS_AVAILABLE',
+    'AWS_IMPORTS_AVAILABLE',
+    'CONVENIENCE_API_AVAILABLE',
 ]
-
-# Convenience functions for production use
-def create_production_agent(name: str, use_aws: bool = True, **kwargs):
-    """Create a production-ready MAIF agent with AWS integration."""
-    @maif_agent(use_aws=use_aws, **kwargs)
-    class ProductionAgent(MAIFAgent):
-        pass
-    
-    return ProductionAgent(agent_id=name)
-
-def initialize_production_monitoring(namespace: str = "MAIF/Production"):
-    """Initialize all production monitoring systems."""
-    metrics = initialize_metrics(namespace=namespace)
-    tracker = initialize_cost_tracking()
-    return metrics, tracker

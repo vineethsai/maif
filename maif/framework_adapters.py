@@ -16,6 +16,27 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Block type constants (match SecureBlockType values)
+BLOCK_TYPE_TEXT = 0x54455854       # 'TEXT'
+BLOCK_TYPE_EMBEDDINGS = 0x454D4244 # 'EMBD'
+BLOCK_TYPE_BINARY = 0x42494E41     # 'BINA'
+
+def _get_block_type(block) -> int:
+    """Get block type as int from a SecureBlock."""
+    if hasattr(block, 'header'):
+        return block.header.block_type
+    return getattr(block, 'block_type', 0)
+
+def _is_text_block(block) -> bool:
+    """Check if block is a text block."""
+    block_type = _get_block_type(block)
+    return block_type == BLOCK_TYPE_TEXT or block_type == 1
+
+def _is_embeddings_block(block) -> bool:
+    """Check if block is an embeddings block."""
+    block_type = _get_block_type(block)
+    return block_type == BLOCK_TYPE_EMBEDDINGS or block_type == 2
+
 # Base classes for framework compatibility
 class BaseVectorStore(ABC):
     """Base class for vector store implementations."""
@@ -67,19 +88,18 @@ class MAIFLangChainVectorStore(BaseVectorStore):
         from .core import MAIFEncoder, MAIFDecoder
         from .semantic_optimized import OptimizedSemanticEmbedder
         
-        # Create or load MAIF
-        self.manifest_path = self.maif_path.with_suffix('.json')
-        if self.maif_path.exists() and self.manifest_path.exists():
+        # Create or load MAIF (v3 format - self-contained)
+        if self.maif_path.exists():
             try:
-                self.decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
-                self.encoder = MAIFEncoder(existing_maif_path=str(self.maif_path),
-                                         existing_manifest_path=str(self.manifest_path))
+                self.decoder = MAIFDecoder(str(self.maif_path))
+                self.decoder.load()
+                self.encoder = None  # Will create when needed
             except Exception:
                 # If loading fails, start fresh
-                self.encoder = MAIFEncoder()
+                self.encoder = MAIFEncoder(str(self.maif_path), agent_id="langchain_adapter")
                 self.decoder = None
         else:
-            self.encoder = MAIFEncoder()
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="langchain_adapter")
             self.decoder = None
         
         # Use provided embedding function or default
@@ -100,9 +120,10 @@ class MAIFLangChainVectorStore(BaseVectorStore):
         
         # Load text blocks as documents
         for block in self.decoder.blocks:
-            if block.block_type == "text":
-                doc_id = block.metadata.get("doc_id", block.block_id)
-                content = self.decoder.get_block_data(block.block_id).decode('utf-8')
+            if _is_text_block(block):
+                meta = block.metadata or {}
+                doc_id = meta.get("doc_id", block.header.block_id.hex())
+                content = block.data.decode('utf-8') if block.data else ""
                 
                 self._document_cache[doc_id] = Document(
                     page_content=content,
@@ -111,10 +132,11 @@ class MAIFLangChainVectorStore(BaseVectorStore):
         
         # Load embeddings
         for block in self.decoder.blocks:
-            if block.block_type == "embeddings":
-                doc_id = block.metadata.get("doc_id")
+            if _is_embeddings_block(block):
+                meta = block.metadata or {}
+                doc_id = meta.get("doc_id")
                 if doc_id:
-                    embedding_data = self.decoder.get_block_data(block.block_id)
+                    embedding_data = block.data
                     # Deserialize embedding
                     import struct
                     num_floats = len(embedding_data) // 4
@@ -224,8 +246,14 @@ class MAIFLangChainVectorStore(BaseVectorStore):
         return True
     
     def _save(self):
-        """Save MAIF file."""
-        self.encoder.build_maif(str(self.maif_path), str(self.manifest_path))
+        """Save MAIF file (v3 format)."""
+        from .core import MAIFEncoder, MAIFDecoder
+        if self.encoder is None:
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="langchain_adapter")
+        self.encoder.finalize()
+        # Reload decoder
+        self.decoder = MAIFDecoder(str(self.maif_path))
+        self.decoder.load()
     
     def as_retriever(self, **kwargs):
         """Return a retriever interface."""
@@ -257,16 +285,15 @@ class MAIFLlamaIndexVectorStore:
         self.maif_path = Path(maif_path)
         self.dim = dim
         
-        # Initialize MAIF
+        # Initialize MAIF (v3 format - self-contained)
         from .core import MAIFEncoder, MAIFDecoder
         
-        self.manifest_path = self.maif_path.with_suffix('.json')
         if self.maif_path.exists():
-            self.decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
-            self.encoder = MAIFEncoder(existing_maif_path=str(self.maif_path),
-                                     existing_manifest_path=str(self.manifest_path))
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+            self.encoder = None
         else:
-            self.encoder = MAIFEncoder()
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="llamaindex_adapter")
             self.decoder = None
         
         # Node storage
@@ -279,10 +306,12 @@ class MAIFLlamaIndexVectorStore:
         if not self.decoder:
             return
         
+        from .core import BlockType
         for block in self.decoder.blocks:
-            if block.block_type == "text" and block.metadata.get("node_id"):
+            block_type = block.header.block_type
+            if block_type == BlockType.TEXT and block.metadata and block.metadata.get("node_id"):
                 node_id = block.metadata["node_id"]
-                content = self.decoder.get_block_data(block.block_id).decode('utf-8')
+                content = block.data.decode('utf-8')
                 
                 self._nodes[node_id] = {
                     "id": node_id,
@@ -292,9 +321,9 @@ class MAIFLlamaIndexVectorStore:
         
         # Load embeddings
         for block in self.decoder.blocks:
-            if block.block_type == "embeddings" and block.metadata.get("node_id"):
+            if _is_embeddings_block(block) and (block.metadata or {}).get("node_id"):
                 node_id = block.metadata["node_id"]
-                embedding_data = self.decoder.get_block_data(block.block_id)
+                embedding_data = block.data
                 
                 import struct
                 num_floats = len(embedding_data) // 4
@@ -375,8 +404,14 @@ class MAIFLlamaIndexVectorStore:
         return self._nodes.get(node_id)
     
     def _save(self):
-        """Save MAIF file."""
-        self.encoder.build_maif(str(self.maif_path), str(self.manifest_path))
+        """Save MAIF file (v3 format)."""
+        from .core import MAIFEncoder, MAIFDecoder
+        if self.encoder is None:
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="llamaindex_adapter")
+        self.encoder.finalize()
+        # Reload decoder
+        self.decoder = MAIFDecoder(str(self.maif_path))
+        self.decoder.load()
 
 # MemGPT Paging Backend
 class MAIFMemGPTBackend:
@@ -390,16 +425,15 @@ class MAIFMemGPTBackend:
         self.page_size = page_size
         self.max_pages_in_memory = max_pages_in_memory
         
-        # Initialize MAIF
+        # Initialize MAIF (v3 format - self-contained)
         from .core import MAIFEncoder, MAIFDecoder
         
-        self.manifest_path = self.maif_path.with_suffix('.json')
         if self.maif_path.exists():
-            self.decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
-            self.encoder = MAIFEncoder(existing_maif_path=str(self.maif_path),
-                                     existing_manifest_path=str(self.manifest_path))
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+            self.encoder = None
         else:
-            self.encoder = MAIFEncoder()
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="memgpt_adapter")
             self.decoder = None
         
         # Page management
@@ -416,9 +450,10 @@ class MAIFMemGPTBackend:
             return
         
         for block in self.decoder.blocks:
-            if block.block_type == "memory_page":
-                page_id = block.metadata.get("page_id", 0)
-                page_data = json.loads(self.decoder.get_block_data(block.block_id).decode('utf-8'))
+            block_type_name = block.header.block_type.name if hasattr(block.header.block_type, 'name') else str(block.header.block_type)
+            if block_type_name == "memory_page" or (block.metadata and block.metadata.get("type") == "memory_page"):
+                page_id = block.metadata.get("page_id", 0) if block.metadata else 0
+                page_data = json.loads(block.data.decode('utf-8'))
                 
                 self._pages[page_id] = page_data
                 self._next_page_id = max(self._next_page_id, page_id + 1)
@@ -435,10 +470,11 @@ class MAIFMemGPTBackend:
         # Load from MAIF if exists
         if self.decoder:
             for block in self.decoder.blocks:
-                if (block.block_type == "memory_page" and 
-                    block.metadata.get("page_id") == page_id):
+                meta = block.metadata or {}
+                if (meta.get("type") == "memory_page" and 
+                    meta.get("page_id") == page_id):
                     page_data = json.loads(
-                        self.decoder.get_block_data(block.block_id).decode('utf-8')
+                        block.data.decode('utf-8') if block.data else '{}'
                     )
                     
                     # Add to memory cache
@@ -499,28 +535,41 @@ class MAIFMemGPTBackend:
         # Serialize page
         page_json = json.dumps(page_data)
         
+        # Ensure encoder exists
+        from .core import MAIFEncoder, BlockType
+        if self.encoder is None:
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="memgpt_adapter")
+        
         # Add to MAIF
         metadata = {
             "page_id": page_id,
             "size": len(page_json),
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "type": "memory_page"
         }
         
         self.encoder.add_binary_block(
             page_json.encode('utf-8'),
-            "memory_page",
-            metadata
+            BlockType.BINARY,
+            metadata=metadata
         )
     
     def flush(self):
-        """Flush all dirty pages to MAIF."""
+        """Flush all dirty pages to MAIF (v3 format)."""
+        from .core import MAIFEncoder, MAIFDecoder
+        
         for page_id in list(self._dirty_pages):
             self._write_page_to_maif(page_id)
         
         self._dirty_pages.clear()
         
-        # Save MAIF
-        self.encoder.build_maif(str(self.maif_path), str(self.manifest_path))
+        # Finalize MAIF (v3 format)
+        if self.encoder:
+            self.encoder.finalize()
+            # Reload decoder
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+            self.encoder = None
     
     def get_memory_context(self, start_page: int, num_pages: int) -> str:
         """Get memory context for LLM processing."""

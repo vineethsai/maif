@@ -128,6 +128,7 @@ from maif.privacy import PrivacyEngine, PrivacyLevel, EncryptionMode
 
 privacy = PrivacyEngine()
 encoder = MAIFEncoder(
+    "classified.maif",
     agent_id="classified",
     enable_privacy=True,
     privacy_engine=privacy
@@ -150,7 +151,7 @@ encoder.add_text_block(
     encryption_mode=EncryptionMode.AES_GCM
 )
 
-encoder.save("classified.maif")
+encoder.finalize()
 ```
 
 ## Data Anonymization
@@ -396,6 +397,7 @@ privacy.add_access_rule(AccessRule(
 
 # Create encoder with privacy
 encoder = MAIFEncoder(
+    "financial_q4.maif",
     agent_id="financial-system",
     enable_privacy=True,
     privacy_engine=privacy
@@ -425,8 +427,8 @@ encoder.add_text_block(
     metadata={"type": "personnel"}
 )
 
-# Save
-encoder.save("financial_q4.maif")
+# Finalize
+encoder.finalize()
 print("Privacy-protected financial report created")
 ```
 

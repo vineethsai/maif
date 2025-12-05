@@ -678,16 +678,17 @@ class VersionManager:
                     shutil.copy2(source_path, target_path)
                 return source_version
             
-            # Load source file
+            # Load source file (v3 format - self-contained)
             decoder = MAIFDecoder(source_path)
+            decoder.load()
             
-            # Create encoder for target file
-            encoder = MAIFEncoder()
+            # Create encoder for target file (v3 format)
+            encoder = MAIFEncoder(target_path, agent_id="version_manager")
             
             # Copy blocks with transformation
             for block in decoder.blocks:
                 # Get block data
-                data = decoder.get_block_data(block.block_id)
+                data = block.data
                 
                 # Transform metadata if needed
                 if block.metadata:
@@ -700,15 +701,14 @@ class VersionManager:
                 else:
                     metadata = {}
                 
+                # Add schema version to metadata
+                metadata["schema_version"] = target_version
+                
                 # Add block to encoder
-                encoder.add_binary_block(data, block.block_type, metadata)
+                encoder.add_binary_block(data, block.header.block_type, metadata=metadata)
             
-            # Add schema version to file metadata
-            file_metadata = decoder.get_metadata() or {}
-            file_metadata["schema_version"] = target_version
-            
-            # Build target file
-            encoder.build_maif(target_path, metadata=file_metadata)
+            # Finalize (v3 format)
+            encoder.finalize()
             
             return target_version
     

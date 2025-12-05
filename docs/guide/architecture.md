@@ -76,9 +76,9 @@ maif.save("output.maif")
 ```python
 from maif.core import MAIFEncoder, MAIFDecoder
 
-encoder = MAIFEncoder(agent_id="my-agent")
+encoder = MAIFEncoder("output.maif", agent_id="my-agent")
 encoder.add_text_block("Hello!", metadata={"lang": "en"})
-encoder.save("output.maif")
+encoder.finalize()
 ```
 
 ### Core Components
@@ -193,13 +193,15 @@ sequenceDiagram
 graph TB
     subgraph "Security Layers"
         L1[Block Integrity - SHA-256 Hashes]
-        L2[Digital Signatures - Ed25519]
-        L3[Encryption - AES-GCM/ChaCha20]
-        L4[Access Control - Rules & Policies]
+        L2[Ed25519 Signatures - 64 bytes each]
+        L3[Merkle Root - Fast file verification]
+        L4[Encryption - AES-GCM/ChaCha20]
+        L5[Access Control - Rules & Policies]
         
         L1 --> L2
         L2 --> L3
         L3 --> L4
+        L4 --> L5
     end
 ```
 
@@ -229,7 +231,7 @@ encoder.add_text_block(
 )
 
 # Save with signatures
-encoder.save("secure.maif")
+encoder.finalize()
 ```
 
 ## Semantic Architecture
@@ -278,40 +280,45 @@ kg = KnowledgeGraphBuilder()
 
 ## Storage Format
 
-### MAIF File Structure
+### Secure MAIF File Structure
 
-A `.maif` file is a binary format with:
+MAIF files are **self-contained** — no external manifest needed. A `.maif` file contains:
 
-1. **Header**: Magic bytes, version, metadata
-2. **Blocks**: Sequential data blocks
-3. **Index**: Block location index
+1. **File Header** (252 bytes)
+   - Magic bytes (`MAIF`)
+   - Version info
+   - Ed25519 public key (32 bytes)
+   - Merkle root hash (32 bytes)
+   - File-level signature (64 bytes)
 
-### Manifest File
+2. **Signed Blocks** (variable size)
+   - Block header (180 bytes each)
+   - Block data
+   - Ed25519 signature (64 bytes)
+   - Link to previous block hash
 
-Accompanying `_manifest.json` contains:
-- Block registry
-- Signatures
-- File metadata
-- Integrity hashes
+3. **Provenance Section**
+   - Complete operation history
+   - Agent IDs and timestamps
+   - Signed provenance entries
 
-```json
-{
-  "version": "2.0.0",
-  "agent_id": "my-agent",
-  "created_at": "2024-01-15T10:30:00Z",
-  "blocks": [
-    {
-      "id": "block-001",
-      "type": "TEXT",
-      "offset": 64,
-      "size": 256,
-      "hash": "sha256:..."
-    }
-  ],
-  "signatures": {
-    "manifest": "..."
-  }
-}
+4. **Security Section**
+   - Verification metadata
+   - Algorithm identifiers
+
+### Block Header Structure
+
+Each block header contains:
+```
+┌─────────────────────────────────────┐
+│  Block ID (16 bytes UUID)           │
+│  Block Type (4 chars)               │
+│  Data Size + Flags                  │
+│  SHA-256 Hash (32 bytes)            │
+│  Previous Block Hash (32 bytes)     │
+│  Ed25519 Signature (64 bytes)       │
+│  Timestamp                          │
+└─────────────────────────────────────┘
 ```
 
 ## Performance Optimization
@@ -362,10 +369,10 @@ with MAIFStreamReader("large.maif") as reader:
 from maif.core import MAIFEncoder, MAIFDecoder
 
 # Store agent memory
-encoder = MAIFEncoder(agent_id="langchain-agent")
+encoder = MAIFEncoder("agent_memory.maif", agent_id="langchain-agent")
 encoder.add_text_block(conversation_history)
 encoder.add_embeddings_block(context_embeddings)
-encoder.save("agent_memory.maif")
+encoder.finalize()
 
 # Load for retrieval
 decoder = MAIFDecoder("agent_memory.maif")
@@ -422,10 +429,10 @@ maif.save("output.maif")
 # Core API for fine-grained control
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="agent")
+encoder = MAIFEncoder("output.maif", agent_id="agent")
 encoder.add_text_block("content", metadata={...})
 encoder.add_embeddings_block(vectors, metadata={...})
-encoder.save("output.maif")
+encoder.finalize()
 ```
 
 ### 3. Enable Privacy for Sensitive Data

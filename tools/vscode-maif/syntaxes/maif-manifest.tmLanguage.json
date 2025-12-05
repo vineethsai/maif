@@ -1,0 +1,32 @@
+{
+  "scopeName": "source.json.maif",
+  "patterns": [
+    { "include": "source.json" },
+    {
+      "match": "\"(signature|public_key|root_hash|entry_hash|block_hash|previous_hash)\"",
+      "name": "support.type.property-name.maif.security"
+    },
+    {
+      "match": "\"(provenance_chain|signature_metadata|signer_id)\"",
+      "name": "support.type.property-name.maif.provenance"
+    },
+    {
+      "match": "\"(blocks|block_id|block_type|offset|size|version)\"",
+      "name": "support.type.property-name.maif.block"
+    },
+    {
+      "match": "\"(TEXT|EMBD|KGRF|IMAG|AUDI|VIDE|SECU|LIFE)\"",
+      "name": "constant.language.maif.blocktype"
+    },
+    {
+      "match": "\"(genesis|add_text_block|add_embeddings_block|add_knowledge_graph)\"",
+      "name": "keyword.control.maif.action"
+    },
+    {
+      "match": "\"did:maif:[^\"]+\"",
+      "name": "string.quoted.double.maif.did"
+    }
+  ]
+}
+
+

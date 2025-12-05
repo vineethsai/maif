@@ -1,5 +1,10 @@
 # MAIF Examples
 
+All examples use the **secure MAIF format** with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
+
 ## 🚀 Featured: LangGraph Multi-Agent RAG
 
 **Location:** `langgraph/`
@@ -8,7 +13,7 @@ Production-ready multi-agent system with:
 - Real ChromaDB vector search
 - Gemini API integration
 - LLM fact-checking
-- MAIF cryptographic provenance
+- MAIF cryptographic provenance (Ed25519 signed)
 
 ```bash
 cd langgraph

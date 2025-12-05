@@ -12,7 +12,7 @@ import asyncio
 import os
 from pathlib import Path
 from maif.agentic_framework import MAIFAgent, AgentState
-from maif_api import create_maif, MAIF
+from maif_api import MAIF
 
 
 class StatefulProcessingAgent(MAIFAgent):

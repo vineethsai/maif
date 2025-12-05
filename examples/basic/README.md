@@ -16,27 +16,28 @@ No AWS, no vector databases, no complex dependencies. Just core MAIF.
 
 ### basic_usage.py
 
-Demonstrates essential MAIF operations:
+Demonstrates essential MAIF operations using the secure format:
 
 ```python
-from maif.core import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder
 
-# Create encoder
-encoder = MAIFEncoder()
+# Create encoder (secure format with Ed25519)
+encoder = MAIFEncoder("data.maif", agent_id="agent-001")
 
-# Add text block
+# Add text block (signed immediately)
 encoder.add_text_block(
     "Agent conversation data",
     metadata={"agent_id": "agent-001"}
 )
 
-# Save to file
-encoder.build_maif("data.maif", "data_manifest.json")
+# Finalize (self-contained, no manifest needed)
+encoder.finalize()
 
 # Load and read
-decoder = MAIFDecoder("data.maif", "data_manifest.json")
+decoder = MAIFDecoder("data.maif")
+decoder.load()
 for block in decoder.blocks:
-    print(f"Block: {block.block_type}, Size: {block.size}")
+    print(f"Block: {block.header.block_type}, Size: {block.header.size}")
 ```
 
 **Run:**
@@ -93,11 +94,13 @@ python3 simple_api_demo.py
 ## Key Concepts
 
 ### MAIF Artifacts
-Self-contained files with:
-- Header block (metadata)
-- Content blocks (text, binary, embeddings, etc.)
+Self-contained files with everything built in:
+- File header with Ed25519 public key and Merkle root
+- Signed content blocks (text, binary, embeddings, etc.)
 - Hash chains (cryptographic links between blocks)
-- Manifest (JSON index for fast access)
+- Embedded provenance chain for full audit trail
+
+No external manifest files needed — everything is in the `.maif` file.
 
 ### Block Structure
 Each block contains:
@@ -106,20 +109,21 @@ Each block contains:
 - Unique ID (UUID)
 - Timestamp
 - Previous block hash (for chain integrity)
+- **Ed25519 signature (64 bytes)**
 - Metadata dictionary
 - Raw data bytes
 
 ### Integrity Verification
-MAIF uses SHA-256 hash chains:
+MAIF uses Ed25519 signatures and SHA-256 hash chains:
 ```
-Block 1 (hash: abc123)
+Block 1 (hash: abc123, signed with Ed25519)
     ↓ previous_hash
-Block 2 (hash: def456)
+Block 2 (hash: def456, signed with Ed25519)
     ↓ previous_hash
-Block 3 (hash: ghi789)
+Block 3 (hash: ghi789, signed with Ed25519)
 ```
 
-Any tampering breaks the chain and is immediately detectable.
+Any tampering breaks both the hash chain and the signatures — instantly detectable.
 
 ## Usage Patterns
 

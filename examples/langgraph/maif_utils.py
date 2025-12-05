@@ -1,5 +1,10 @@
 """
 MAIF utility functions for session and KB management.
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import json
@@ -15,8 +20,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from maif.block_storage import BlockStorage
 from maif.block_types import BlockType
-from maif.core import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner
+from maif.secure_format import SecureBlockType
 
 
 class SessionManager:
@@ -28,7 +34,7 @@ class SessionManager:
     
     def create_session(self, session_id: Optional[str] = None) -> str:
         """
-        Create a new session artifact.
+        Create a new session artifact (secure format with Ed25519).
         
         Returns:
             session_artifact_path: Path to the created MAIF artifact
@@ -38,8 +44,8 @@ class SessionManager:
         
         session_path = self.sessions_dir / f"{session_id}.maif"
         
-        # Create new session using MAIFEncoder
-        encoder = MAIFEncoder(agent_id=f"session_{session_id}")
+        # Create new session using MAIFEncoder (secure format)
+        encoder = MAIFEncoder(str(session_path), agent_id=f"session_{session_id}")
         
         # Add session initialization metadata
         session_metadata = {
@@ -51,13 +57,12 @@ class SessionManager:
         
         encoder.add_binary_block(
             data=json.dumps(session_metadata).encode('utf-8'),
-            block_type="BDAT",  # Binary data - 4 chars
+            block_type=SecureBlockType.BINARY,
             metadata={"type": "session_init"}
         )
         
-        # Save the session artifact
-        manifest_path = str(session_path).replace('.maif', '_manifest.json')
-        encoder.build_maif(str(session_path), manifest_path)
+        # Finalize the session artifact (self-contained with Ed25519 signatures)
+        encoder.finalize()
         
         return str(session_path)
     
@@ -118,7 +123,7 @@ class SessionManager:
                 retrieval_data.update(metadata)
             
             block_id = storage.add_block(
-                block_type="BDAT",  # Binary data - 4 chars
+                block_type="BDAT",  # BlockStorage uses 4-char string types
                 data=json.dumps(retrieval_data).encode('utf-8'),
                 metadata={"type": "retrieval_event"}
             )
@@ -165,7 +170,7 @@ class SessionManager:
             })
             
             block_id = storage.add_block(
-                block_type="BDAT",  # Binary data - 4 chars
+                block_type="BDAT",  # BlockStorage uses 4-char string types
                 data=json.dumps(verification_results).encode('utf-8'),
                 metadata=verif_metadata
             )
@@ -189,7 +194,7 @@ class SessionManager:
             })
             
             block_id = storage.add_block(
-                block_type="BDAT",  # Binary data - 4 chars
+                block_type="BDAT",  # BlockStorage uses 4-char string types
                 data=json.dumps({"citations": citations}).encode('utf-8'),
                 metadata=citation_metadata
             )
@@ -203,10 +208,10 @@ class SessionManager:
         Returns:
             List of blocks with their data and metadata
         """
-        manifest_path = session_path.replace('.maif', '_manifest.json')
-        
         try:
-            decoder = MAIFDecoder(session_path, manifest_path)
+            # No manifest needed - secure format is self-contained
+            decoder = MAIFDecoder(session_path)
+            decoder.load()
             
             history = []
             for block in decoder.blocks:
@@ -249,7 +254,7 @@ class KBManager:
     def create_kb_artifact(self, doc_id: str, chunks: List[Dict],
                           document_metadata: Optional[Dict] = None) -> str:
         """
-        Create a KB artifact from document chunks.
+        Create a KB artifact from document chunks (secure format with Ed25519).
         
         Args:
             doc_id: Unique document identifier
@@ -261,7 +266,8 @@ class KBManager:
         """
         kb_path = self.kb_dir / f"{doc_id}.maif"
         
-        encoder = MAIFEncoder(agent_id=f"kb_{doc_id}")
+        # Secure format with Ed25519 signatures
+        encoder = MAIFEncoder(str(kb_path), agent_id=f"kb_{doc_id}")
         
         # Add document metadata block
         doc_meta = document_metadata or {}
@@ -274,7 +280,7 @@ class KBManager:
         
         encoder.add_binary_block(
             data=json.dumps(doc_meta).encode('utf-8'),
-            block_type="METADATA",
+            block_type=SecureBlockType.METADATA,
             metadata={"type": "document_metadata"}
         )
         
@@ -302,7 +308,7 @@ class KBManager:
                 
                 encoder.add_binary_block(
                     data=embedding_bytes,
-                    block_type="EMBEDDING",
+                    block_type=SecureBlockType.EMBEDDINGS,
                     metadata={
                         "chunk_index": i,
                         "doc_id": doc_id,
@@ -310,9 +316,8 @@ class KBManager:
                     }
                 )
         
-        # Save KB artifact
-        manifest_path = str(kb_path).replace('.maif', '_manifest.json')
-        encoder.build_maif(str(kb_path), manifest_path)
+        # Finalize KB artifact (self-contained with Ed25519 signatures)
+        encoder.finalize()
         
         return str(kb_path)
     
@@ -323,14 +328,14 @@ class KBManager:
         Returns:
             List of chunks with text and metadata
         """
-        manifest_path = kb_path.replace('.maif', '_manifest.json')
-        
         try:
-            decoder = MAIFDecoder(kb_path, manifest_path)
+            # No manifest needed - secure format is self-contained
+            decoder = MAIFDecoder(kb_path)
+            decoder.load()
             
             chunks = []
             for block in decoder.blocks:
-                if block.block_type == "text":
+                if block.block_type == SecureBlockType.TEXT:
                     block_data = decoder.get_block_data(block.block_id)
                     if block_data:
                         text = block_data.decode('utf-8')

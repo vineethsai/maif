@@ -483,6 +483,7 @@ from maif.privacy import PrivacyLevel, EncryptionMode
 
 # Create encoder with privacy enabled
 encoder = MAIFEncoder(
+    "private.maif",
     agent_id="my-agent",
     enable_privacy=True
 )
@@ -495,8 +496,8 @@ block_id = encoder.add_text_block(
     anonymize=True
 )
 
-# Save
-encoder.save("private.maif")
+# Finalize
+encoder.finalize()
 ```
 
 ## Thread Safety

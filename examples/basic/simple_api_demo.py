@@ -2,178 +2,147 @@
 MAIF Simple API Demo
 
 This example shows how easy it is to use the new MAIF API for common tasks.
+The MAIF class provides a high-level interface that handles all the complexity
+of the self-contained secure format.
 """
 
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from maif_api import create_maif, load_maif, quick_text_maif, quick_multimodal_maif
+from maif_api import MAIF, create_maif, load_maif, quick_text_maif, quick_multimodal_maif
 
 def demo_basic_usage():
     """Demonstrate basic MAIF API usage."""
     print("🚀 MAIF Simple API Demo")
     print("=" * 40)
     
-    # 1. Create a new MAIF
+    # 1. Create a new MAIF using the MAIF class
     print("\n1. Creating new MAIF...")
-    maif = create_maif("demo_agent")
+    maif = MAIF("demo_agent")  # Use MAIF class, not create_maif
     
     # 2. Add different types of content
     print("2. Adding content...")
     
-    # Add text
-    text_id = maif.add_text(
-        "This is a sample document about AI and machine learning.",
-        title="AI Document"
-    )
-    print(f"   ✅ Added text: {text_id}")
+    # Add text - add_text returns self for chaining
+    maif.add_text("This is a sample document about AI and machine learning.")
+    print("   ✅ Added text block")
     
-    # Add multimodal content with ACAM processing
-    multimodal_id = maif.add_multimodal({
-        "text": "A beautiful mountain landscape at sunset",
-        "image_description": "Scenic photography with warm colors",
-        "location": "Rocky Mountains, Colorado"
-    }, title="Mountain Sunset")
-    print(f"   ✅ Added multimodal content: {multimodal_id}")
+    # Add more text content
+    maif.add_text("MAIF provides secure, verifiable storage for AI artifacts.")
+    print("   ✅ Added second text block")
     
-    # Add embeddings
+    # Add embeddings (sample 384-dimensional vectors)
     sample_embeddings = [
         [0.1, 0.2, 0.3, 0.4] * 96,  # 384-dimensional
         [0.5, 0.6, 0.7, 0.8] * 96   # 384-dimensional
     ]
-    embedding_id = maif.add_embeddings(
-        sample_embeddings,
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        compress=True
-    )
-    print(f"   ✅ Added compressed embeddings: {embedding_id}")
+    maif.add_embeddings(sample_embeddings)
+    print("   ✅ Added embeddings block")
     
-    # 3. Save the MAIF
+    # 3. Save the MAIF (self-contained, no manifest needed)
     print("\n3. Saving MAIF...")
-    if maif.save("simple_demo.maif"):
-        print("   ✅ MAIF saved successfully!")
+    output_path = "simple_demo.maif"
+    if maif.save(output_path):
+        print(f"   ✅ MAIF saved to {output_path}")
     else:
         print("   ❌ Failed to save MAIF!")
-        return
+        return False
     
     # 4. Load and verify
     print("\n4. Loading and verifying MAIF...")
-    loaded_maif = load_maif("simple_demo.maif")
+    loaded_maif = load_maif(output_path)
     
-    if loaded_maif.verify_integrity():
+    if loaded_maif.verify():
         print("   ✅ MAIF integrity verified!")
     else:
         print("   ❌ MAIF integrity check failed!")
-        return
+        return False
     
     # 5. Show content summary
     print("\n5. Content Summary:")
-    content_list = loaded_maif.get_content_list()
-    for i, content in enumerate(content_list, 1):
-        title = content.get('title', 'Untitled')
-        content_type = content.get('type', 'unknown')
-        print(f"   {i}. {title} ({content_type})")
+    print(f"   Agent: {loaded_maif.agent_id}")
+    print(f"   Texts: {len(loaded_maif.texts)}")
     
-    print(f"\n📊 Total content blocks: {len(content_list)}")
+    for i, text in enumerate(loaded_maif.texts, 1):
+        preview = text[:60] + "..." if len(text) > 60 else text
+        print(f"      [{i}] {preview}")
+    
+    return True
 
-def demo_privacy_features():
-    """Demonstrate privacy and security features."""
-    print("\n🔒 Privacy & Security Demo")
-    print("=" * 40)
-    
-    # Create MAIF with privacy enabled
-    secure_maif = create_maif("secure_agent", enable_privacy=True)
-    
-    # Add encrypted content
-    secure_maif.add_text(
-        "This is sensitive information that should be encrypted.",
-        title="Confidential Document",
-        encrypt=True,
-        anonymize=True
-    )
-    
-    # Save with signing
-    if secure_maif.save("secure_demo.maif", sign=True):
-        print("✅ Secure MAIF created with encryption and signing!")
-        
-        # Get privacy report
-        privacy_report = secure_maif.get_privacy_report()
-        print(f"📋 Privacy Report: {privacy_report}")
-    else:
-        print("❌ Failed to create secure MAIF!")
 
 def demo_quick_functions():
     """Demonstrate quick convenience functions."""
     print("\n⚡ Quick Functions Demo")
     print("=" * 40)
     
-    # Quick text MAIF
-    if quick_text_maif(
+    # Quick text MAIF - one-liner creation
+    result = quick_text_maif(
         "This is a quick text document created with one function call!",
-        "quick_text.maif",
-        title="Quick Text Demo"
-    ):
-        print("✅ Quick text MAIF created!")
+        "quick_text.maif"
+    )
+    if result:
+        print(f"   ✅ Quick text MAIF created: {result}")
     
-    # Quick multimodal MAIF
-    if quick_multimodal_maif({
-        "text": "Quick multimodal content",
-        "description": "Created with a single function call",
-        "category": "demo"
-    }, "quick_multimodal.maif", title="Quick Multimodal Demo"):
-        print("✅ Quick multimodal MAIF created!")
+    # Quick multimodal MAIF - create with text and embeddings
+    result = quick_multimodal_maif(
+        texts=["Quick multimodal content", "Second text block"],
+        embeddings=[[0.1] * 128, [0.2] * 128],  # 128-dimensional embeddings
+        output_path="quick_multimodal.maif"
+    )
+    if result:
+        print(f"   ✅ Quick multimodal MAIF created: {result}")
+    
+    return True
 
-def demo_advanced_features():
-    """Demonstrate advanced features like search."""
-    print("\n🔍 Advanced Features Demo")
+
+def demo_create_maif_helper():
+    """Demonstrate the create_maif helper function."""
+    print("\n📦 Create MAIF Helper Demo")
     print("=" * 40)
     
-    # Create MAIF with searchable content
-    search_maif = create_maif("search_agent")
+    # create_maif is a convenience function that creates and saves in one call
+    result = create_maif(
+        output_path="helper_demo.maif",
+        texts=[
+            "First document using the helper function.",
+            "Second document with more content."
+        ],
+        embeddings=[[0.5] * 64, [0.6] * 64],  # 64-dimensional embeddings
+        agent_id="helper_agent"
+    )
     
-    # Add multiple text documents
-    documents = [
-        ("Machine learning is a subset of artificial intelligence.", "ML Basics"),
-        ("Deep learning uses neural networks with multiple layers.", "Deep Learning"),
-        ("Natural language processing helps computers understand text.", "NLP Overview"),
-        ("Computer vision enables machines to interpret visual information.", "Computer Vision")
-    ]
-    
-    for text, title in documents:
-        search_maif.add_text(text, title=title)
-    
-    # Save and load for searching
-    if search_maif.save("searchable_demo.maif"):
-        print("✅ Searchable MAIF created!")
+    if result:
+        print(f"   ✅ Created MAIF using helper: {result}")
         
-        # Load for searching
-        loaded_search_maif = load_maif("searchable_demo.maif")
+        # Verify it worked
+        loaded = load_maif(result)
+        print(f"   📋 Loaded {len(loaded.texts)} text blocks")
         
-        # Perform search
-        try:
-            results = loaded_search_maif.search("neural networks", top_k=2)
-            print(f"🔍 Search results for 'neural networks': {len(results)} found")
-            for result in results:
-                print(f"   - {result}")
-        except Exception as e:
-            print(f"⚠️  Search not available: {e}")
+        return True
+    
+    return False
+
 
 if __name__ == "__main__":
     try:
-        # Run all demos
-        demo_basic_usage()
-        demo_privacy_features()
-        demo_quick_functions()
-        demo_advanced_features()
+        success = True
         
-        print("\n🎉 All demos completed successfully!")
+        # Run all demos
+        success = demo_basic_usage() and success
+        success = demo_quick_functions() and success
+        success = demo_create_maif_helper() and success
+        
+        if success:
+            print("\n🎉 All demos completed successfully!")
+        else:
+            print("\n⚠️  Some demos had issues")
+        
         print("\nFiles created:")
         print("  - simple_demo.maif")
-        print("  - secure_demo.maif") 
         print("  - quick_text.maif")
         print("  - quick_multimodal.maif")
-        print("  - searchable_demo.maif")
+        print("  - helper_demo.maif")
         
     except Exception as e:
         print(f"\n❌ Demo failed: {e}")

@@ -177,12 +177,12 @@ report = secure_memory.get_privacy_report()
 
 ### 3. Cryptographic Provenance
 
-Every block in a MAIF artifact is cryptographically linked:
+Every block is signed with Ed25519 and cryptographically linked:
 
 ```python
 from maif_api import load_maif
 
-# Load and verify
+# Load and verify (all signatures and hashes checked)
 artifact = load_maif("important_data.maif")
 
 # Check for tampering
@@ -233,21 +233,25 @@ artifact.save("product_catalog.maif")
 
 ## Architecture
 
+MAIF files are **self-contained** — everything in a single `.maif` file:
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                    MAIF Artifact (.maif)                │
 ├─────────────────────────────────────────────────────────┤
+│  File Header: Ed25519 Public Key + Merkle Root          │
+├─────────────────────────────────────────────────────────┤
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │
 │  │ Block 1 │→│ Block 2 │→│ Block 3 │→│ Block n │       │
 │  │  Text   │ │  Image  │ │Embedding│ │Metadata │       │
-│  │ hash_1  │ │ hash_2  │ │ hash_3  │ │ hash_n  │       │
+│  │ sig+hash│ │ sig+hash│ │ sig+hash│ │ sig+hash│       │
 │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘       │
 │       │           │           │           │             │
 │       └───────────┴───────────┴───────────┘             │
 │                         ↓                               │
-│              Cryptographic Hash Chain                   │
-│                         ↓                               │
-│              Digital Signature (optional)               │
+│       Hash Chain + Ed25519 Signatures (64 bytes each)   │
+├─────────────────────────────────────────────────────────┤
+│  Embedded Provenance Chain (complete audit trail)       │
 └─────────────────────────────────────────────────────────┘
 ```
 

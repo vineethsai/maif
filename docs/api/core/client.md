@@ -16,7 +16,7 @@ artifact = client.create_artifact("my-artifact")
 # Write content
 with client.open_file("data.maif", "w") as encoder:
     encoder.add_text_block("Hello, World!")
-    encoder.save("data.maif", "manifest.json")
+    encoder.finalize()
 
 # Read content
 content = client.read_content("data.maif")
@@ -102,7 +102,7 @@ def open_file(self, filepath: str, mode: str = 'r'):
 # Write access
 with client.open_file("data.maif", "w") as encoder:
     encoder.add_text_block("Hello world")
-    encoder.save("data.maif", "manifest.json")
+    encoder.finalize()
 
 # Read access  
 with client.open_file("data.maif", "r") as decoder:

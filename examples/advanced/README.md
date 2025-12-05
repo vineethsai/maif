@@ -2,6 +2,12 @@
 
 Complex examples demonstrating advanced features including multi-agent systems, lifecycle management, and novel algorithms.
 
+All examples use the **secure MAIF format** with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest needed)
+- Embedded provenance chain for complete audit trail
+- Merkle root for fast integrity verification
+
 ## Overview
 
 These examples showcase:
@@ -192,16 +198,17 @@ python3 versioning_demo.py
 
 ### Multi-Agent Coordination
 
-Agents coordinate via shared MAIF artifacts:
+Agents coordinate via shared MAIF artifacts (all blocks Ed25519 signed):
 
 ```python
-# Agent 1 writes
+# Agent 1 writes (signed immediately with Ed25519)
 agent1_maif.add_text(result, metadata={"agent": "agent_1"})
+agent1_maif.finalize()
 
 # Agent 2 reads and extends
-agent2_maif = load_maif("shared.maif")
+agent2_maif = load_maif("shared.maif")  # No manifest needed
+agent2_maif.verify_integrity()  # Verify all signatures
 previous_results = agent2_maif.get_blocks_by_agent("agent_1")
-agent2_maif.add_text(extended_result, metadata={"agent": "agent_2"})
 ```
 
 ### Lifecycle Policies

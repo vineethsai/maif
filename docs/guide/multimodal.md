@@ -135,7 +135,7 @@ For more control, use the encoder directly:
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="core-demo")
+encoder = MAIFEncoder("core_multimodal.maif", agent_id="core-demo")
 
 # Add text block
 text_id = encoder.add_text_block(
@@ -178,7 +178,7 @@ embed_id = encoder.add_embeddings_block(
     metadata={"model": "bert", "dimension": 3}
 )
 
-encoder.save("core_multimodal.maif")
+encoder.finalize()
 ```
 
 ### Cross-Modal Block
@@ -186,7 +186,7 @@ encoder.save("core_multimodal.maif")
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="cross-modal")
+encoder = MAIFEncoder("cross_modal.maif", agent_id="cross-modal")
 
 # Add cross-modal content with ACAM
 cross_modal_id = encoder.add_cross_modal_block(
@@ -199,7 +199,7 @@ cross_modal_id = encoder.add_cross_modal_block(
     metadata={"type": "multimodal_content"}
 )
 
-encoder.save("cross_modal.maif")
+encoder.finalize()
 ```
 
 ## Reading Multimodal Content

@@ -849,9 +849,9 @@ class AcidMAIFEncoder:
         self.acid_level = acid_level
         self.agent_id = agent_id
         
-        # Create base encoder
+        # Create base encoder (v3 format)
         try:
-            self._encoder = MAIFEncoder(agent_id=agent_id)
+            self._encoder = MAIFEncoder(self.maif_path, agent_id=agent_id)
         except Exception as e:
             raise RuntimeError(f"Failed to create MAIFEncoder: {e}")
         
@@ -1025,17 +1025,15 @@ class AcidMAIFEncoder:
         
         return block_id
     
-    def save(self, maif_path: str = None, manifest_path: str = None) -> bool:
-        """Save MAIF file with transaction support."""
+    def save(self) -> bool:
+        """Save MAIF file with transaction support (v3 format)."""
         # Commit any pending transaction
         if self._current_transaction:
             self.commit_transaction()
             
-        # Save using base encoder
-        return self._encoder.save(
-            maif_path or self.maif_path,
-            manifest_path or f"{self.maif_path}.json"
-        )
+        # Finalize using base encoder (v3 format)
+        self._encoder.finalize()
+        return True
     
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get transaction performance statistics."""

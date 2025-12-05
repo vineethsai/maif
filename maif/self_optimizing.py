@@ -97,17 +97,16 @@ class SelfOptimizingMAIF:
         self._optimization_thread: Optional[threading.Thread] = None
         self._running = False
         
-        # Initialize MAIF
+        # Initialize MAIF (v3 format - self-contained)
         from .core import MAIFEncoder, MAIFDecoder
         from .hot_buffer import HotBufferLayer
         
-        self.manifest_path = self.maif_path.with_suffix('.json')
         if self.maif_path.exists():
-            self.decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
-            self.encoder = MAIFEncoder(existing_maif_path=str(self.maif_path),
-                                     existing_manifest_path=str(self.manifest_path))
+            self.decoder = MAIFDecoder(str(self.maif_path))
+            self.decoder.load()
+            self.encoder = None  # Will create when needed
         else:
-            self.encoder = MAIFEncoder()
+            self.encoder = MAIFEncoder(str(self.maif_path), agent_id="self_optimizing")
             self.decoder = None
         
         # Hot buffer for frequently accessed blocks
@@ -287,8 +286,11 @@ class SelfOptimizingMAIF:
         if not self.decoder:
             return
         
-        # Create new MAIF with optimized layout
-        new_encoder = self.encoder.__class__()
+        from .core import MAIFEncoder, MAIFDecoder
+        
+        # Create new MAIF with optimized layout (v3 format)
+        temp_path = self.maif_path.with_suffix('.reorg.maif')
+        new_encoder = MAIFEncoder(str(temp_path), agent_id="self_optimizing_reorg")
         
         # Group blocks by access pattern
         hot_blocks = []
@@ -296,42 +298,44 @@ class SelfOptimizingMAIF:
         cold_blocks = []
         
         for block in self.decoder.blocks:
-            if block.block_id in self.hot_blocks:
+            block_id = block.header.block_id
+            if block_id in self.hot_blocks:
                 hot_blocks.append(block)
-            elif block.block_id in self.cold_blocks:
+            elif block_id in self.cold_blocks:
                 cold_blocks.append(block)
             else:
                 warm_blocks.append(block)
         
         # Write blocks in optimized order: hot -> warm -> cold
+        # Block type constants
+        BLOCK_TYPE_TEXT = 0x54455854  # 'TEXT'
+        
         for block_list in [hot_blocks, warm_blocks, cold_blocks]:
             for block in block_list:
-                block_data = self.decoder.get_block_data(block.block_id)
+                block_data = block.data
+                block_type = block.header.block_type
                 
-                if block.block_type == "text":
+                # Check if text block (by comparing int values)
+                if block_type == BLOCK_TYPE_TEXT or block_type == 1:
                     new_encoder.add_text_block(
                         block_data.decode('utf-8'),
-                        block.metadata
+                        metadata=block.metadata
                     )
                 else:
                     new_encoder.add_binary_block(
                         block_data,
-                        block.block_type,
-                        block.metadata
+                        metadata=block.metadata
                     )
         
-        # Build reorganized MAIF
-        temp_path = self.maif_path.with_suffix('.reorg')
-        temp_manifest = temp_path.with_suffix('.json')
-        
-        new_encoder.build_maif(str(temp_path), str(temp_manifest))
+        # Finalize reorganized MAIF (v3 format)
+        new_encoder.finalize()
         
         # Atomic replace
         os.replace(temp_path, self.maif_path)
-        os.replace(temp_manifest, self.manifest_path)
         
         # Reload
-        self.decoder = self.decoder.__class__(str(self.maif_path), str(self.manifest_path))
+        self.decoder = MAIFDecoder(str(self.maif_path))
+        self.decoder.load()
         
         logger.info("MAIF reorganization completed")
     

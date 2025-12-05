@@ -1,11 +1,11 @@
 # MAIFEncoder & MAIFDecoder
 
-The `MAIFEncoder` and `MAIFDecoder` classes provide low-level access to MAIF binary format operations. These are the foundation upon which the higher-level SDK is built.
+The `MAIFEncoder` and `MAIFDecoder` classes provide low-level access to MAIF v3 binary format operations. The v3 format is **self-contained** with all security and provenance embedded directly in the `.maif` file.
 
 ::: tip When to Use
 Use these classes when you need:
 - Direct control over block structure
-- Append-on-write operations
+- Immutable, signed data containers
 - Custom block types
 - Integration with existing systems
 
@@ -14,22 +14,22 @@ For most use cases, prefer the high-level `MAIFClient` and `Artifact` classes.
 
 ## MAIFEncoder
 
-The encoder creates MAIF files by adding blocks of various types.
+The encoder creates self-contained MAIF v3 files with embedded security and provenance.
 
 ### Quick Start
 
 ```python
 from maif import MAIFEncoder
 
-# Create encoder
-encoder = MAIFEncoder(agent_id="my-agent")
+# Create encoder with output path (v3 format)
+encoder = MAIFEncoder("output.maif", agent_id="my-agent")
 
 # Add blocks
 encoder.add_text_block("Hello, World!")
-encoder.add_binary_block(b"binary data", block_type="data")
+encoder.add_binary_block(b"binary data", block_type=BlockType.BINARY)
 
-# Save to file
-encoder.save("output.maif")
+# Finalize - signs and writes all security data
+encoder.finalize()
 ```
 
 ### Constructor
@@ -38,27 +38,17 @@ encoder.save("output.maif")
 class MAIFEncoder:
     def __init__(
         self,
-        agent_id: Optional[str] = None,
-        existing_maif_path: Optional[str] = None,
-        existing_manifest_path: Optional[str] = None,
-        enable_privacy: bool = False,
-        privacy_engine: Optional[PrivacyEngine] = None,
-        use_aws: bool = False,
-        aws_bucket: Optional[str] = None,
-        aws_prefix: str = "maif/"
+        file_path: str,
+        agent_id: str = "default-agent",
+        enable_privacy: bool = False
     ):
         """
-        Initialize MAIF encoder.
+        Initialize MAIF v3 encoder.
 
         Args:
-            agent_id: Unique agent identifier (auto-generated if not provided)
-            existing_maif_path: Path to existing MAIF file for append operations
-            existing_manifest_path: Path to existing manifest for append operations
+            file_path: Output path for the self-contained MAIF file
+            agent_id: Unique agent identifier
             enable_privacy: Enable privacy features (encryption, anonymization)
-            privacy_engine: Custom privacy engine instance
-            use_aws: Use AWS unified storage backend
-            aws_bucket: S3 bucket for AWS storage
-            aws_prefix: S3 key prefix for AWS storage
         """
 ```
 
@@ -66,39 +56,28 @@ class MAIFEncoder:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `blocks` | `List[MAIFBlock]` | List of all blocks in the encoder |
+| `blocks` | `List[SecureBlock]` | List of all blocks in the encoder |
 | `agent_id` | `str` | Agent identifier |
-| `version_history` | `Dict[str, List[MAIFVersion]]` | Version history by block ID |
-| `block_registry` | `Dict[str, List[MAIFBlock]]` | Block versions by block ID |
+| `provenance` | `List[ProvenanceEntry]` | Embedded provenance chain |
 
 ### Methods
 
 #### add_text_block
 
-Add a text block with optional privacy controls.
+Add a text block with automatic signing.
 
 ```python
 def add_text_block(
     self,
     text: str,
-    metadata: Optional[Dict] = None,
-    update_block_id: Optional[str] = None,
-    privacy_policy: Optional[PrivacyPolicy] = None,
-    anonymize: bool = False,
-    privacy_level: Optional[PrivacyLevel] = None,
-    encryption_mode: Optional[EncryptionMode] = None
+    metadata: Optional[Dict] = None
 ) -> str:
     """
-    Add or update a text block.
+    Add a text block (automatically signed with Ed25519).
 
     Args:
         text: Text content to add
         metadata: Optional metadata dictionary
-        update_block_id: If provided, updates existing block
-        privacy_policy: Privacy policy to apply
-        anonymize: Apply anonymization to text
-        privacy_level: Privacy level for the block
-        encryption_mode: Encryption mode for the block
 
     Returns:
         Block ID
@@ -108,26 +87,20 @@ def add_text_block(
 **Example:**
 
 ```python
-from maif import MAIFEncoder, PrivacyLevel, EncryptionMode
+from maif import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="agent-1", enable_privacy=True)
+encoder = MAIFEncoder("output.maif", agent_id="agent-1")
 
 # Simple text block
 block_id = encoder.add_text_block("Hello, World!")
 
 # Text with metadata
 block_id = encoder.add_text_block(
-    "Sensitive information",
-    metadata={"category": "personal"},
-    privacy_level=PrivacyLevel.CONFIDENTIAL,
-    encryption_mode=EncryptionMode.AES_GCM
+    "Important information",
+    metadata={"category": "research", "priority": "high"}
 )
 
-# Anonymized text
-block_id = encoder.add_text_block(
-    "User John Doe lives at 123 Main St",
-    anonymize=True
-)
+encoder.finalize()
 ```
 
 #### add_binary_block
@@ -138,20 +111,16 @@ Add a binary data block.
 def add_binary_block(
     self,
     data: bytes,
-    block_type: str,
-    metadata: Optional[Dict] = None,
-    update_block_id: Optional[str] = None,
-    privacy_policy: Optional[PrivacyPolicy] = None
+    block_type: BlockType,
+    metadata: Optional[Dict] = None
 ) -> str:
     """
-    Add or update a binary block.
+    Add a binary block (automatically signed with Ed25519).
 
     Args:
         data: Binary data to add
-        block_type: Type of block (e.g., "data", "image", "video")
+        block_type: Type of block (BlockType enum)
         metadata: Optional metadata dictionary
-        update_block_id: If provided, updates existing block
-        privacy_policy: Privacy policy to apply
 
     Returns:
         Block ID
@@ -161,21 +130,27 @@ def add_binary_block(
 **Example:**
 
 ```python
+from maif import MAIFEncoder, BlockType
+
+encoder = MAIFEncoder("output.maif", agent_id="agent-1")
+
 # Add image data
 with open("image.png", "rb") as f:
     block_id = encoder.add_binary_block(
         f.read(),
-        block_type="image",
+        BlockType.IMAGE,
         metadata={"format": "png", "width": 1920, "height": 1080}
     )
 
-# Add JSON data
+# Add JSON data as binary
 import json
 block_id = encoder.add_binary_block(
     json.dumps({"key": "value"}).encode(),
-    block_type="data",
+    BlockType.BINARY,
     metadata={"format": "json"}
 )
+
+encoder.finalize()
 ```
 
 #### add_embeddings_block
@@ -186,18 +161,14 @@ Add semantic embeddings.
 def add_embeddings_block(
     self,
     embeddings: List[List[float]],
-    metadata: Optional[Dict] = None,
-    update_block_id: Optional[str] = None,
-    privacy_policy: Optional[PrivacyPolicy] = None
+    metadata: Optional[Dict] = None
 ) -> str:
     """
-    Add or update an embeddings block.
+    Add an embeddings block (automatically signed with Ed25519).
 
     Args:
         embeddings: List of embedding vectors
         metadata: Optional metadata dictionary
-        update_block_id: If provided, updates existing block
-        privacy_policy: Privacy policy to apply
 
     Returns:
         Block ID
@@ -217,141 +188,73 @@ block_id = encoder.add_embeddings_block(
     embeddings,
     metadata={"model": "sentence-transformers", "dimensions": 768}
 )
+
+encoder.finalize()
 ```
 
-#### add_video_block
+#### finalize
 
-Add video data with optional metadata extraction.
-
-```python
-def add_video_block(
-    self,
-    video_data: bytes,
-    metadata: Optional[Dict] = None,
-    update_block_id: Optional[str] = None,
-    privacy_policy: Optional[PrivacyPolicy] = None,
-    extract_metadata: bool = True,
-    enable_semantic_analysis: bool = True
-) -> str:
-    """
-    Add or update a video block.
-
-    Args:
-        video_data: Raw video bytes
-        metadata: Optional metadata dictionary
-        update_block_id: If provided, updates existing block
-        privacy_policy: Privacy policy to apply
-        extract_metadata: Extract video metadata (duration, resolution, etc.)
-        enable_semantic_analysis: Enable semantic analysis of video content
-
-    Returns:
-        Block ID
-    """
-```
-
-#### update_text_block
-
-Update an existing text block (creates a new version).
+Finalize the MAIF file with signatures and Merkle root.
 
 ```python
-def update_text_block(
-    self,
-    block_id: str,
-    text: str,
-    metadata: Optional[Dict] = None,
-    privacy_policy: Optional[PrivacyPolicy] = None,
-    anonymize: bool = False
-) -> str:
+def finalize(self) -> None:
     """
-    Update an existing text block.
-
-    Args:
-        block_id: ID of block to update
-        text: New text content
-        metadata: Optional metadata dictionary
-        privacy_policy: Privacy policy to apply
-        anonymize: Apply anonymization
-
-    Returns:
-        Block ID (same as input)
-    """
-```
-
-#### save
-
-Save the encoded data to files.
-
-```python
-def save(
-    self,
-    maif_path: str,
-    manifest_path: Optional[str] = None
-) -> Tuple[str, str]:
-    """
-    Save the MAIF file and manifest.
-
-    Args:
-        maif_path: Path for the binary MAIF file
-        manifest_path: Path for the JSON manifest (defaults to maif_path + '.manifest.json')
-
-    Returns:
-        Tuple of (maif_path, manifest_path)
+    Finalize the MAIF file.
+    
+    This method:
+    - Calculates the Merkle root
+    - Signs the file with Ed25519
+    - Writes the provenance chain
+    - Updates file header with final checksums
+    
+    After calling finalize(), no more blocks can be added.
     """
 ```
 
 **Example:**
 
 ```python
-encoder = MAIFEncoder(agent_id="agent-1")
+encoder = MAIFEncoder("output.maif", agent_id="agent-1")
 encoder.add_text_block("Hello")
 encoder.add_text_block("World")
 
-# Save to files
-maif_path, manifest_path = encoder.save("output.maif")
-# Creates: output.maif and output.maif.manifest.json
+# Finalize - signs and completes the file
+encoder.finalize()
+# Creates: output.maif (self-contained, no manifest needed)
 ```
 
 ## MAIFDecoder
 
-The decoder reads MAIF files and provides access to blocks and their content.
+The decoder reads self-contained MAIF v3 files and provides access to blocks, provenance, and security info.
 
 ### Quick Start
 
 ```python
 from maif import MAIFDecoder
 
-# Load a MAIF file
-decoder = MAIFDecoder("data.maif", "data.maif.manifest.json")
+# Load a MAIF v3 file (no manifest needed)
+decoder = MAIFDecoder("data.maif")
+decoder.load()
 
 # Access blocks
 for block in decoder.blocks:
-    print(f"Block {block.block_id}: {block.block_type}")
+    print(f"Block {block.header.block_id}: {block.header.block_type}")
     
-# Read block data
-data = decoder.read_block(decoder.blocks[0])
+# Verify integrity
+is_valid, errors = decoder.verify_integrity()
+print(f"Integrity: {'VALID' if is_valid else 'INVALID'}")
 ```
 
 ### Constructor
 
 ```python
 class MAIFDecoder:
-    def __init__(
-        self,
-        maif_path: str,
-        manifest_path: Optional[str] = None,
-        privacy_engine: Optional[PrivacyEngine] = None,
-        requesting_agent: Optional[str] = None,
-        preload_semantic: bool = False
-    ):
+    def __init__(self, file_path: str):
         """
-        Initialize MAIF decoder.
+        Initialize MAIF v3 decoder.
 
         Args:
-            maif_path: Path to the MAIF binary file
-            manifest_path: Path to the manifest JSON file
-            privacy_engine: Privacy engine for decryption
-            requesting_agent: Agent ID for access control
-            preload_semantic: Preload semantic indices
+            file_path: Path to the self-contained MAIF file
 
         Raises:
             FileNotFoundError: If MAIF file doesn't exist
@@ -362,156 +265,168 @@ class MAIFDecoder:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `blocks` | `List[MAIFBlock]` | List of all blocks in the file |
-| `manifest` | `Dict` | Parsed manifest dictionary |
-| `version_history` | `Dict[str, List[MAIFVersion]]` | Version history by block ID |
-| `block_registry` | `Dict[str, List[MAIFBlock]]` | Block versions by block ID |
+| `blocks` | `List[SecureBlock]` | List of all blocks in the file |
+| `file_header` | `SecureFileHeader` | File header with metadata |
+| `provenance` | `List[ProvenanceEntry]` | Embedded provenance chain |
 
 ### Methods
 
-#### read_block
+#### load
 
-Read data from a specific block.
+Load and parse the MAIF file.
 
 ```python
-def read_block(self, block: MAIFBlock) -> bytes:
+def load(self) -> None:
     """
-    Read data from a block.
+    Load and parse the MAIF file.
+    
+    Must be called before accessing blocks or provenance.
+    """
+```
 
-    Args:
-        block: The block to read
+#### verify_integrity
+
+Verify the integrity of the MAIF file.
+
+```python
+def verify_integrity(self) -> Tuple[bool, List[str]]:
+    """
+    Verify file integrity including:
+    - File header checksum
+    - Merkle root verification
+    - Block content hashes
+    - Block signatures (Ed25519)
+    - Provenance chain integrity
 
     Returns:
-        Block data bytes (decrypted if necessary)
+        Tuple of (is_valid, error_messages)
     """
 ```
 
 **Example:**
 
 ```python
-decoder = MAIFDecoder("data.maif", "data.maif.manifest.json")
+decoder = MAIFDecoder("data.maif")
+decoder.load()
 
-# Read all text blocks
-for block in decoder.blocks:
-    if block.block_type == "text":
-        data = decoder.read_block(block)
-        print(data.decode('utf-8'))
+is_valid, errors = decoder.verify_integrity()
+if is_valid:
+    print("✓ File integrity verified")
+else:
+    print("✗ Integrity check failed:")
+    for error in errors:
+        print(f"  - {error}")
 ```
 
-#### get_block_by_id
+#### get_file_info
 
-Get a specific block by its ID.
+Get file information summary.
 
 ```python
-def get_block_by_id(self, block_id: str) -> Optional[MAIFBlock]:
+def get_file_info(self) -> Dict[str, Any]:
     """
-    Get a block by its ID.
-
-    Args:
-        block_id: The block ID to find
+    Get file information.
 
     Returns:
-        MAIFBlock if found, None otherwise
+        Dictionary with version, block_count, is_signed, is_finalized, etc.
     """
 ```
 
-#### get_block_versions
+#### get_security_info
 
-Get all versions of a block.
+Get security information.
 
 ```python
-def get_block_versions(self, block_id: str) -> List[MAIFBlock]:
+def get_security_info(self) -> Dict[str, Any]:
     """
-    Get all versions of a block.
-
-    Args:
-        block_id: The block ID
+    Get security information.
 
     Returns:
-        List of block versions (oldest to newest)
+        Dictionary with key_algorithm, public_key, merkle_root, etc.
     """
 ```
 
-#### get_version_history
+#### get_provenance
 
-Get the version history for a block.
+Get the embedded provenance chain.
 
 ```python
-def get_version_history(self, block_id: str) -> List[MAIFVersion]:
+def get_provenance(self) -> List[ProvenanceEntry]:
     """
-    Get version history for a block.
-
-    Args:
-        block_id: The block ID
+    Get the embedded provenance chain.
 
     Returns:
-        List of MAIFVersion entries
+        List of ProvenanceEntry objects in chronological order
     """
 ```
 
-## MAIFBlock
+#### export_manifest
 
-The `MAIFBlock` dataclass represents a single block in a MAIF file.
+Export manifest data (for compatibility with tools expecting JSON).
+
+```python
+def export_manifest(self) -> Dict[str, Any]:
+    """
+    Export manifest-like data from the self-contained file.
+
+    Returns:
+        Dictionary with blocks, provenance, file_info, security
+    """
+```
+
+## SecureBlock
+
+The `SecureBlock` dataclass represents a single block in a MAIF v3 file.
 
 ```python
 @dataclass
-class MAIFBlock:
-    block_type: str
-    offset: int = 0
-    size: int = 0
-    hash_value: str = ""
-    version: int = 1
-    previous_hash: Optional[str] = None
-    block_id: Optional[str] = None
+class SecureBlock:
+    header: SecureBlockHeader
+    data: bytes
     metadata: Optional[Dict] = None
-    data: Optional[bytes] = None
+    
+    def get_content_hash(self) -> bytes:
+        """Calculate SHA-256 hash of block data."""
 ```
 
-### Properties
+### SecureBlockHeader Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `block_type` | `str` | Type of block (e.g., "text", "data", "image") |
-| `offset` | `int` | Byte offset in the MAIF file |
-| `size` | `int` | Size of the block in bytes |
-| `hash_value` | `str` | SHA-256 hash of block data |
-| `version` | `int` | Version number (starts at 1) |
-| `previous_hash` | `str` | Hash of previous version (for updates) |
+| `block_type` | `BlockType` | Type of block (TEXT, BINARY, IMAGE, etc.) |
+| `size` | `int` | Size of the block data in bytes |
+| `content_hash` | `bytes` | SHA-256 hash of block data (32 bytes) |
+| `block_signature` | `bytes` | Ed25519 signature (64 bytes) |
 | `block_id` | `str` | Unique block identifier (UUID) |
-| `metadata` | `Dict` | Arbitrary metadata dictionary |
-| `data` | `bytes` | Block data (may be lazy-loaded) |
-| `hash` | `str` | Alias for `hash_value` |
+| `timestamp` | `int` | Block creation timestamp |
+| `version` | `int` | Block version number |
+| `flags` | `int` | Block flags (signed, encrypted, etc.) |
 
 ## Block Types
 
-MAIF supports the following standard block types:
+MAIF v3 supports the following standard block types:
 
 ```python
-from maif.block_types import BlockType
+from maif import BlockType
 
-BlockType.TEXT_DATA      # "text" - UTF-8 text content
-BlockType.BINARY_DATA    # "binr" - Binary data
-BlockType.IMAGE_DATA     # "imag" - Image data
-BlockType.VIDEO_DATA     # "vide" - Video data
-BlockType.AUDIO_DATA     # "audi" - Audio data
-BlockType.EMBEDDING      # "embd" - Vector embeddings
-BlockType.METADATA       # "meta" - Metadata block
-BlockType.CROSS_MODAL    # "xmod" - Cross-modal associations
-BlockType.KNOWLEDGE_GRAPH # "kgra" - Knowledge graph data
-BlockType.SECURITY       # "secu" - Security information
-BlockType.PROVENANCE     # "prov" - Provenance chain
-BlockType.ACCESS_CONTROL # "actl" - Access control rules
-BlockType.LIFECYCLE      # "life" - Lifecycle information
+BlockType.TEXT         # Text content (UTF-8)
+BlockType.BINARY       # Binary data
+BlockType.IMAGE        # Image data
+BlockType.VIDEO        # Video data
+BlockType.AUDIO        # Audio data
+BlockType.EMBEDDINGS   # Vector embeddings
+BlockType.METADATA     # Metadata block
+BlockType.SECURITY     # Security information
+BlockType.PROVENANCE   # Provenance chain
 ```
 
 ## Complete Example
 
 ```python
-from maif import MAIFEncoder, MAIFDecoder
-from maif.privacy import PrivacyPolicy, PrivacyLevel, EncryptionMode
+from maif import MAIFEncoder, MAIFDecoder, BlockType
 
-# Create a MAIF file with mixed content
-encoder = MAIFEncoder(agent_id="demo-agent", enable_privacy=True)
+# Create a self-contained MAIF v3 file
+encoder = MAIFEncoder("research.maif", agent_id="demo-agent")
 
 # Add text content
 doc_id = encoder.add_text_block(
@@ -519,18 +434,10 @@ doc_id = encoder.add_text_block(
     metadata={"title": "AI Safety", "category": "research"}
 )
 
-# Update the document
-encoder.update_text_block(
-    doc_id,
-    "This is an updated document about AI safety and alignment.",
-    metadata={"title": "AI Safety", "category": "research", "updated": True}
-)
-
-# Add encrypted sensitive data
+# Add another text block
 encoder.add_text_block(
-    "Secret research notes",
-    privacy_level=PrivacyLevel.RESTRICTED,
-    encryption_mode=EncryptionMode.AES_GCM
+    "Additional research notes on alignment.",
+    metadata={"category": "notes"}
 )
 
 # Add embeddings
@@ -539,24 +446,37 @@ encoder.add_embeddings_block(
     metadata={"model": "ada-002"}
 )
 
-# Save
-encoder.save("research.maif")
+# Finalize (signs everything with Ed25519)
+encoder.finalize()
 
-# Load and read
-decoder = MAIFDecoder("research.maif", "research.maif.manifest.json")
+# Load and verify
+decoder = MAIFDecoder("research.maif")
+decoder.load()
 
-print(f"Total blocks: {len(decoder.blocks)}")
+# Check integrity
+is_valid, errors = decoder.verify_integrity()
+print(f"Integrity: {'✓ VALID' if is_valid else '✗ INVALID'}")
 
-# Read each block
+# Get file info
+file_info = decoder.get_file_info()
+print(f"Blocks: {file_info['block_count']}")
+print(f"Signed: {file_info['is_signed']}")
+
+# Get security info
+security = decoder.get_security_info()
+print(f"Algorithm: {security['key_algorithm']}")
+
+# Get provenance
+provenance = decoder.get_provenance()
+print(f"Provenance entries: {len(provenance)}")
+for entry in provenance:
+    print(f"  - {entry.action} by {entry.agent_id}")
+
+# Read blocks
 for block in decoder.blocks:
-    print(f"\nBlock ID: {block.block_id}")
-    print(f"  Type: {block.block_type}")
-    print(f"  Version: {block.version}")
-    print(f"  Hash: {block.hash_value[:16]}...")
-    
-# Get version history
-history = decoder.get_version_history(doc_id)
-print(f"\nDocument has {len(history)} versions:")
-for v in history:
-    print(f"  v{v.version}: {v.operation} by {v.agent_id}")
+    print(f"\nBlock ID: {block.header.block_id}")
+    print(f"  Type: {block.header.block_type.name}")
+    print(f"  Size: {block.header.size} bytes")
+    if block.header.block_type == BlockType.TEXT:
+        print(f"  Content: {block.data.decode('utf-8')[:50]}...")
 ```

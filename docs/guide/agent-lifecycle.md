@@ -121,7 +121,7 @@ from maif.core import MAIFEncoder
 
 def load_training_data(agent_id: str, examples: list):
     """Load training examples into MAIF."""
-    encoder = MAIFEncoder(agent_id=agent_id)
+    encoder = MAIFEncoder(f"agents/{agent_id}/training.maif", agent_id=agent_id)
     
     for example in examples:
         encoder.add_text_block(
@@ -133,7 +133,7 @@ def load_training_data(agent_id: str, examples: list):
             }
         )
     
-    encoder.save(f"agents/{agent_id}/training.maif")
+    encoder.finalize()
 ```
 
 ## Phase 3: Deployment

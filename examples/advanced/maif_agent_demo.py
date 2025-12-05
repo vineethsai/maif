@@ -28,7 +28,7 @@ from maif.agentic_framework import (
     MemorySystem
 )
 
-from maif_api import create_maif, MAIF as MAIFArtifact
+from maif_api import MAIF as MAIFArtifact
 
 # Specialized Agent Types
 class ResearchAgent(MAIFAgent):

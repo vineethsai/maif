@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from pathlib import Path
 
 # Import core MAIF components
-from .core import MAIFEncoder, MAIFDecoder, MAIFBlock
+from .core import MAIFEncoder, MAIFDecoder, MAIFBlock, BlockType
 from .security import MAIFSigner, ProvenanceEntry
 from .validation import MAIFValidator
 
@@ -70,9 +70,9 @@ class EnhancedMAIF:
         self.maif_path = Path(maif_path)
         self.agent_id = agent_id or f"agent-{int(time.time())}"
         
-        # Core MAIF components
-        self.encoder = MAIFEncoder(agent_id=self.agent_id)
-        self.manifest_path = self.maif_path.with_suffix('.json')
+        # Core MAIF components (v3 format - self-contained)
+        self.encoder = MAIFEncoder(str(self.maif_path), agent_id=self.agent_id)
+        self.manifest_path = self.maif_path  # v3 is self-contained, no separate manifest
         
         # Initialize components based on enabled features
         self._init_event_sourcing() if enable_event_sourcing else None
@@ -363,28 +363,27 @@ class EnhancedMAIF:
             
             return block_id
     
-    def add_binary_block(self, data: bytes, block_type: str, 
+    def add_binary_block(self, data: bytes, 
                         metadata: Optional[Dict] = None) -> str:
         """
         Add a binary block to the MAIF.
         
         Args:
             data: Binary data
-            block_type: Block type
             metadata: Block metadata
             
         Returns:
             Block ID
         """
         with self._lock:
-            # Add to core MAIF
-            block_id = self.encoder.add_binary_block(data, block_type, metadata)
+            # Add to core MAIF (block_type defaults to BINARY)
+            block_id = self.encoder.add_binary_block(data, metadata=metadata)
             
             # Record event if event sourcing enabled
             if hasattr(self, 'event_sourced_maif'):
                 self.event_sourced_maif.add_block(
                     block_id=block_id,
-                    block_type=block_type,
+                    block_type="binary",
                     data=data,
                     metadata=metadata
                 )
@@ -403,7 +402,7 @@ class EnhancedMAIF:
             # Load MAIF to get block count if needed
             if self.metrics.block_count == 0:
                 try:
-                    decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
+                    decoder = MAIFDecoder(str(self.maif_path))
                     self.metrics.block_count = len(decoder.blocks)
                 except Exception as e:
                     logger.error(f"Error loading MAIF for metrics update: {e}")
@@ -455,10 +454,11 @@ class EnhancedMAIF:
             return results
     
     def save(self):
-        """Save MAIF to disk."""
+        """Save MAIF to disk (v3 format - finalize)."""
         with self._lock:
-            # Save core MAIF
-            self.encoder.save(str(self.maif_path), str(self.manifest_path))
+            # Finalize the MAIF file (v3 self-contained format)
+            if not self.encoder.finalized:
+                self.encoder.finalize()
             
             # Save columnar file if enabled
             if hasattr(self, 'columnar_file'):
@@ -877,8 +877,8 @@ class EnhancedMAIFProcessor:
             output_dir.mkdir(parents=True, exist_ok=True)
             
             try:
-                # Load MAIF
-                decoder = MAIFDecoder(str(maif.maif_path), str(maif.manifest_path))
+                # Load MAIF (v3 format - self-contained)
+                decoder = MAIFDecoder(str(maif.maif_path))
                 
                 # Extract content
                 extracted_files = []
@@ -988,20 +988,22 @@ class EnhancedMAIFProcessor:
         
         maif.add_binary_block(content, "binary", metadata)
     
-    def _extract_block(self, block: MAIFBlock, output_dir: Path) -> Optional[str]:
+    def _extract_block(self, block, output_dir: Path) -> Optional[str]:
         """Extract a block to a file."""
+        from .secure_format import SecureBlockType
         try:
             # Determine filename
             if block.metadata and "filename" in block.metadata:
                 filename = block.metadata["filename"]
             else:
-                if block.block_type == "text":
+                block_type = block.block_type
+                if block_type == SecureBlockType.TEXT:
                     filename = f"{block.block_id}.txt"
-                elif block.block_type == "image":
+                elif block_type == SecureBlockType.IMAGE:
                     filename = f"{block.block_id}.png"
-                elif block.block_type == "audio":
+                elif block_type == SecureBlockType.AUDIO:
                     filename = f"{block.block_id}.mp3"
-                elif block.block_type == "video":
+                elif block_type == SecureBlockType.VIDEO:
                     filename = f"{block.block_id}.mp4"
                 else:
                     filename = f"{block.block_id}.bin"
@@ -1009,12 +1011,12 @@ class EnhancedMAIFProcessor:
             output_path = output_dir / filename
             
             # Write content
-            if block.block_type == "text":
+            if block.block_type == SecureBlockType.TEXT:
                 with open(output_path, 'w', encoding='utf-8') as f:
-                    f.write(block.content)
+                    f.write(block.data.decode('utf-8', errors='replace'))
             else:
                 with open(output_path, 'wb') as f:
-                    f.write(block.content)
+                    f.write(block.data)
             
             return str(output_path)
             

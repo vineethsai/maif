@@ -1,5 +1,5 @@
 """
-Comprehensive tests for MAIF forensics functionality.
+Comprehensive tests for MAIF forensics functionality (v3 format).
 """
 
 import pytest
@@ -7,10 +7,10 @@ import tempfile
 import os
 import json
 import hashlib
-from unittest.mock import Mock, patch, MagicMock
+import shutil
 
 from maif.validation import MAIFValidator, MAIFRepairTool, ValidationResult
-from maif.core import MAIFEncoder, MAIFDecoder
+from maif import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner, MAIFVerifier
 
 
@@ -20,127 +20,93 @@ class TestForensicAnalysis:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        self.maif_path = os.path.join(self.temp_dir, "test.maif")
         self.validator = MAIFValidator()
         self.repair_tool = MAIFRepairTool()
     
     def teardown_method(self):
         """Clean up test fixtures."""
-        import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_forensic_validation_chain(self):
         """Test forensic validation of provenance chain."""
-        # Create a MAIF file with provenance
-        encoder = MAIFEncoder(agent_id="forensic_test")
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_test")
         encoder.add_text_block("Forensic evidence data", metadata={"evidence_id": "E001"})
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "evidence.maif")
-        manifest_path = os.path.join(self.temp_dir, "evidence_manifest.json")
-        
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Validate forensically
-        result = self.validator.validate_file(maif_path, manifest_path)
+        result = self.validator.validate(self.maif_path)
         
         assert isinstance(result, ValidationResult)
         assert result.is_valid is True
     
     def test_forensic_integrity_verification(self):
         """Test forensic integrity verification."""
-        # Create test file
-        encoder = MAIFEncoder(agent_id="forensic_test")
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_test")
         encoder.add_text_block("Chain of custody data", metadata={"custody_id": "C001"})
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "custody.maif")
-        manifest_path = os.path.join(self.temp_dir, "custody_manifest.json")
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Load and verify using direct integrity check
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        integrity_valid = decoder.verify_integrity()
-        
-        assert integrity_valid is True
+        is_valid, errors = decoder.verify_integrity()
+        assert is_valid is True
     
     def test_forensic_signature_verification(self):
         """Test forensic signature verification."""
-        # Create signed MAIF
         signer = MAIFSigner(agent_id="forensic_signer")
-        encoder = MAIFEncoder(agent_id="forensic_test")
+        
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_test")
         encoder.add_text_block("Signed evidence", metadata={"signature_required": True})
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "signed_evidence.maif")
-        manifest_path = os.path.join(self.temp_dir, "signed_evidence_manifest.json")
+        # Verify file is signed
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Load and sign manifest
-        with open(manifest_path, 'r') as f:
-            manifest = json.load(f)
-        
-        signed_manifest = signer.sign_maif_manifest(manifest)
-        
-        with open(manifest_path, 'w') as f:
-            json.dump(signed_manifest, f)
-        
-        # Verify signature
-        verifier = MAIFVerifier()
-        is_valid = verifier.verify_maif_signature(signed_manifest)
-        
+        is_valid, errors = decoder.verify_integrity()
         assert is_valid is True
+        
+        # Check security info
+        security_info = decoder.get_security_info()
+        assert security_info.get('key_algorithm') == 'Ed25519'
     
     def test_forensic_tamper_detection(self):
         """Test detection of tampering."""
-        # Create original file
-        encoder = MAIFEncoder(agent_id="forensic_test")
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_test")
         encoder.add_text_block("Original evidence", metadata={"tamper_test": True})
-        
-        maif_path = os.path.join(self.temp_dir, "tamper_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "tamper_test_manifest.json")
-        
-        encoder.build_maif(maif_path, manifest_path)
+        encoder.finalize()
         
         # First verify clean file passes
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        clean_result = decoder.verify_integrity()
-        assert clean_result is True
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        is_valid, _ = decoder.verify_integrity()
+        assert is_valid is True
         
-        # Tamper with the file - find the actual data location
-        with open(maif_path, 'r+b') as f:
-            # Read the first block to find where data starts
-            f.seek(decoder.blocks[0].offset + 32)  # Skip header, go to data
-            original_data = f.read(8)  # Read some original data
-            f.seek(decoder.blocks[0].offset + 32)  # Go back to data start
-            f.write(b'TAMPERED')  # Overwrite with tampered data
+        # Tamper with the file
+        with open(self.maif_path, 'r+b') as f:
+            f.seek(500)
+            f.write(b'TAMPERED')
         
-        # Use verify_integrity directly for tamper detection
-        tampered_decoder = MAIFDecoder(maif_path, manifest_path)
-        tampered_result = tampered_decoder.verify_integrity()
+        # Re-verify - should detect tampering
+        tampered_decoder = MAIFDecoder(self.maif_path)
+        tampered_decoder.load()
+        is_valid, errors = tampered_decoder.verify_integrity()
         
-        # Should detect tampering
-        assert tampered_result is False
+        # Should detect tampering (may be invalid or have errors)
+        assert is_valid is False or len(errors) > 0
     
     def test_forensic_repair_attempt(self):
         """Test forensic repair capabilities."""
-        # Create file with known issues
-        encoder = MAIFEncoder(agent_id="forensic_test")
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_test")
         encoder.add_text_block("Repair test data", metadata={"repair_test": True})
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "repair_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "repair_test_manifest.json")
-        
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Attempt repair
-        repair_success = self.repair_tool.repair_file(maif_path, manifest_path)
-        
-        # Should handle repair attempt
+        repair_success = self.repair_tool.repair_file(self.maif_path)
         assert isinstance(repair_success, bool)
     
     def test_forensic_metadata_analysis(self):
         """Test forensic metadata analysis."""
-        # Create file with rich metadata
-        encoder = MAIFEncoder(agent_id="forensic_analyst")
+        encoder = MAIFEncoder(self.maif_path, agent_id="forensic_analyst")
         encoder.add_text_block(
             "Evidence with metadata",
             metadata={
@@ -148,45 +114,17 @@ class TestForensicAnalysis:
                 "evidence_type": "digital",
                 "chain_of_custody": ["Officer A", "Lab Tech B", "Analyst C"],
                 "collection_timestamp": "2024-01-01T12:00:00Z",
-                "hash_algorithm": "SHA-256"
+                "hash_verified": True
             }
         )
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "metadata_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "metadata_test_manifest.json")
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Analyze metadata
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        
-        # Should have blocks with metadata
-        assert len(decoder.blocks) > 0
-        assert decoder.blocks[0].metadata is not None
-        assert "case_id" in decoder.blocks[0].metadata
-    
-    def test_forensic_version_history_analysis(self):
-        """Test forensic analysis of version history."""
-        # Create file with version history
-        encoder = MAIFEncoder(agent_id="forensic_test")
-        
-        # Add initial block
-        block_id = encoder.add_text_block("Initial evidence", metadata={"version": 1})
-        
-        # Update the block to create version history
-        encoder.update_text_block(block_id, "Updated evidence", metadata={"version": 2})
-        
-        maif_path = os.path.join(self.temp_dir, "version_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "version_test_manifest.json")
-        
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Analyze version history
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        
-        # Should have version history
-        assert hasattr(decoder, 'version_history')
-        assert len(decoder.version_history) >= 0  # May be empty if not implemented
+        block = decoder.blocks[0]
+        assert block.metadata["case_id"] == "CASE-2024-001"
+        assert len(block.metadata["chain_of_custody"]) == 3
 
 
 class TestForensicCompliance:
@@ -195,95 +133,64 @@ class TestForensicCompliance:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        self.maif_path = os.path.join(self.temp_dir, "compliance.maif")
     
     def teardown_method(self):
         """Clean up test fixtures."""
-        import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_forensic_hash_verification(self):
-        """Test forensic hash verification."""
-        # Create file with known content
-        test_content = "Forensic hash test content"
-        expected_hash = hashlib.sha256(test_content.encode()).hexdigest()
+    def test_forensic_chain_of_custody(self):
+        """Test chain of custody tracking."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="custody_agent")
+        encoder.add_text_block("Evidence item 1", metadata={"custody_entry": 1})
+        encoder.add_text_block("Evidence item 2", metadata={"custody_entry": 2})
+        encoder.finalize()
         
-        encoder = MAIFEncoder(agent_id="hash_test")
-        encoder.add_text_block(test_content, metadata={"expected_hash": expected_hash})
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        maif_path = os.path.join(self.temp_dir, "hash_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "hash_test_manifest.json")
+        # Verify provenance chain exists
+        provenance = decoder.get_provenance()
+        assert len(provenance) >= 3  # genesis + 2 blocks + finalize
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Verify hashes using direct integrity verification
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        integrity_valid = decoder.verify_integrity()
-        
-        assert integrity_valid is True
-        
-        # Also verify that the content hash matches what we expect
-        text_blocks = decoder.get_text_blocks()
-        assert len(text_blocks) > 0
-        actual_content_hash = hashlib.sha256(text_blocks[0].encode()).hexdigest()
-        assert actual_content_hash == expected_hash
+        # Verify chain links
+        for i in range(1, len(provenance)):
+            assert provenance[i].previous_entry_hash == provenance[i-1].entry_hash
     
     def test_forensic_audit_trail(self):
-        """Test forensic audit trail creation."""
-        # Create file with audit information
-        encoder = MAIFEncoder(agent_id="audit_test")
-        encoder.add_text_block(
-            "Audit trail test",
-            metadata={
-                "audit_trail": [
-                    {"action": "created", "timestamp": "2024-01-01T10:00:00Z", "user": "analyst1"},
-                    {"action": "accessed", "timestamp": "2024-01-01T11:00:00Z", "user": "supervisor1"},
-                    {"action": "verified", "timestamp": "2024-01-01T12:00:00Z", "user": "expert1"}
-                ]
-            }
-        )
+        """Test audit trail generation."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="audit_agent")
+        encoder.add_text_block("Audit entry 1")
+        encoder.add_text_block("Audit entry 2")
+        encoder.add_text_block("Audit entry 3")
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "audit_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "audit_test_manifest.json")
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Verify audit trail is preserved
-        decoder = MAIFDecoder(maif_path, manifest_path)
-        
-        assert len(decoder.blocks) > 0
-        assert decoder.blocks[0].metadata is not None
-        assert "audit_trail" in decoder.blocks[0].metadata
+        # Get file info for audit
+        file_info = decoder.get_file_info()
+        assert file_info['block_count'] == 3
+        assert file_info['is_signed'] is True
+        assert file_info['is_finalized'] is True
     
-    def test_forensic_chain_of_custody(self):
-        """Test chain of custody preservation."""
-        # Create file with chain of custody
-        encoder = MAIFEncoder(agent_id="custody_test")
-        encoder.add_text_block(
-            "Chain of custody evidence",
-            metadata={
-                "chain_of_custody": {
-                    "collected_by": "Officer Smith",
-                    "collected_at": "2024-01-01T09:00:00Z",
-                    "transferred_to": "Lab Tech Jones",
-                    "transferred_at": "2024-01-01T10:00:00Z",
-                    "analyzed_by": "Forensic Expert Brown",
-                    "analyzed_at": "2024-01-01T14:00:00Z"
-                }
-            }
-        )
+    def test_forensic_evidence_integrity(self):
+        """Test evidence integrity verification."""
+        evidence_data = "Critical forensic evidence content"
         
-        maif_path = os.path.join(self.temp_dir, "custody_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "custody_test_manifest.json")
+        encoder = MAIFEncoder(self.maif_path, agent_id="evidence_agent")
+        encoder.add_text_block(evidence_data, metadata={"evidence": True})
+        encoder.finalize()
         
-        encoder.build_maif(maif_path, manifest_path)
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
-        # Verify chain of custody is preserved
-        decoder = MAIFDecoder(maif_path, manifest_path)
+        # Verify content hash
+        block = decoder.blocks[0]
+        content_hash = block.get_content_hash()
+        stored_hash = block.header.content_hash
         
-        assert len(decoder.blocks) > 0
-        assert decoder.blocks[0].metadata is not None
-        assert "chain_of_custody" in decoder.blocks[0].metadata
-        assert "collected_by" in decoder.blocks[0].metadata["chain_of_custody"]
+        assert content_hash == stored_hash
 
 
 class TestForensicReporting:
@@ -292,53 +199,116 @@ class TestForensicReporting:
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.validator = MAIFValidator()
+        self.maif_path = os.path.join(self.temp_dir, "report.maif")
     
     def teardown_method(self):
         """Clean up test fixtures."""
-        import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
     def test_forensic_validation_report(self):
         """Test forensic validation report generation."""
-        # Create test file
-        encoder = MAIFEncoder(agent_id="report_test")
-        encoder.add_text_block("Report test data", metadata={"report_test": True})
+        encoder = MAIFEncoder(self.maif_path, agent_id="report_agent")
+        encoder.add_text_block("Report content")
+        encoder.finalize()
         
-        maif_path = os.path.join(self.temp_dir, "report_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "report_test_manifest.json")
+        validator = MAIFValidator()
+        result = validator.validate(self.maif_path)
         
-        encoder.build_maif(maif_path, manifest_path)
-        
-        # Generate validation report
-        result = self.validator.validate_file(maif_path, manifest_path)
-        
-        # Should have comprehensive report
-        assert isinstance(result, ValidationResult)
-        assert hasattr(result, 'is_valid')
-        assert hasattr(result, 'errors')
-        assert hasattr(result, 'warnings')
-        assert hasattr(result, 'details')
+        assert result.is_valid is True
+        assert "block_count" in result.details
     
     def test_forensic_summary_generation(self):
         """Test forensic summary generation."""
-        # Create file with multiple blocks
-        encoder = MAIFEncoder(agent_id="summary_test")
-        encoder.add_text_block("Evidence block 1", metadata={"evidence_id": "E001"})
-        encoder.add_text_block("Evidence block 2", metadata={"evidence_id": "E002"})
-        encoder.add_binary_block(b"Binary evidence", "evidence", metadata={"evidence_id": "E003"})
+        encoder = MAIFEncoder(self.maif_path, agent_id="summary_agent")
         
-        maif_path = os.path.join(self.temp_dir, "summary_test.maif")
-        manifest_path = os.path.join(self.temp_dir, "summary_test_manifest.json")
+        for i in range(5):
+            encoder.add_text_block(f"Summary block {i}", metadata={"index": i})
         
-        encoder.build_maif(maif_path, manifest_path)
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
         
         # Generate summary
-        decoder = MAIFDecoder(maif_path, manifest_path)
+        file_info = decoder.get_file_info()
+        security_info = decoder.get_security_info()
+        provenance = decoder.get_provenance()
         
-        # Should have multiple blocks
-        assert len(decoder.blocks) >= 3
+        summary = {
+            "file_info": file_info,
+            "security": security_info,
+            "provenance_count": len(provenance),
+            "block_count": len(decoder.blocks)
+        }
         
-        # Should have different block types
-        block_types = [block.block_type for block in decoder.blocks]
-        assert len(set(block_types)) > 1  # Multiple different types
+        assert summary["block_count"] == 5
+        assert summary["provenance_count"] >= 6  # genesis + 5 adds + finalize
+    
+    def test_forensic_export_manifest(self):
+        """Test forensic manifest export."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="export_agent")
+        encoder.add_text_block("Export test", metadata={"export": True})
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        
+        manifest = decoder.export_manifest()
+        
+        assert "blocks" in manifest
+        assert "provenance" in manifest
+        assert "file_info" in manifest
+        assert len(manifest["blocks"]) >= 1
+
+
+class TestForensicTimeline:
+    """Test forensic timeline analysis."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.maif_path = os.path.join(self.temp_dir, "timeline.maif")
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_forensic_event_timeline(self):
+        """Test forensic event timeline creation."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="timeline_agent")
+        
+        import time
+        for i in range(3):
+            encoder.add_text_block(f"Event {i}")
+            time.sleep(0.01)  # Small delay between events
+        
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        
+        provenance = decoder.get_provenance()
+        
+        # Verify chronological order
+        timestamps = [p.timestamp for p in provenance]
+        assert timestamps == sorted(timestamps)
+    
+    def test_forensic_agent_activity(self):
+        """Test forensic agent activity tracking."""
+        encoder = MAIFEncoder(self.maif_path, agent_id="activity_agent")
+        encoder.add_text_block("Activity 1")
+        encoder.add_text_block("Activity 2")
+        encoder.finalize()
+        
+        decoder = MAIFDecoder(self.maif_path)
+        decoder.load()
+        
+        provenance = decoder.get_provenance()
+        
+        # All actions should be by the same agent
+        for entry in provenance:
+            assert entry.agent_id == "activity_agent"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

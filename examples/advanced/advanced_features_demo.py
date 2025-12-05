@@ -1,13 +1,18 @@
 """
 Advanced MAIF Features Demonstration
 
-This example showcases the comprehensive capabilities of MAIF 2.0 including:
+This example showcases the comprehensive capabilities of MAIF including:
 - Advanced compression algorithms
 - Binary format handling
 - Validation and repair
 - Streaming operations
 - Format conversion
 - Performance profiling
+
+Uses the secure MAIF format with:
+- Ed25519 signatures (64 bytes per block)
+- Self-contained files (no external manifest)
+- Embedded provenance chain
 """
 
 import os
@@ -18,7 +23,7 @@ import time
 from pathlib import Path
 
 # Import MAIF modules
-from maif.core import MAIFEncoder, MAIFParser
+from maif import MAIFEncoder, MAIFDecoder
 from maif.security import MAIFSigner, MAIFVerifier
 from maif.compression import MAIFCompressor, CompressionAlgorithm
 from maif.binary_format import MAIFBinaryWriter, MAIFBinaryParser
@@ -106,44 +111,32 @@ def demo_validation_and_repair():
     """Demonstrate validation and repair capabilities."""
     print("\n=== Validation and Repair Demo ===")
     
-    # Create a MAIF file
-    encoder = MAIFEncoder(agent_id="demo_agent")
-    encoder.add_text_block("Sample content for validation")
-    encoder.add_binary_block(
-        json.dumps({"demo": True, "version": "2.0"}).encode(),
-        "metadata",
-        {"content_type": "application/json"}
-    )
-    
+    # Create a MAIF file (new self-contained format)
     maif_file = "demo_validation.maif"
-    manifest_file = f"{maif_file}.manifest.json"
-    encoder.build_maif(maif_file, manifest_file)
+    encoder = MAIFEncoder(maif_file, agent_id="demo_agent")
+    encoder.add_text_block("Sample content for validation")
+    encoder.add_text_block(json.dumps({"demo": True, "version": "2.0"}))
+    encoder.finalize()  # Self-contained, no manifest needed
     
     print(f"✓ Created MAIF file: {maif_file}")
     
-    # Validate the file
-    validator = MAIFValidator()
-    report = validator.validate_file(maif_file, manifest_file)
+    # Validate the file using MAIFDecoder
+    decoder = MAIFDecoder(maif_file)
+    is_valid, errors = decoder.verify_integrity()
     
     print(f"✓ Validation complete:")
-    print(f"  Valid: {report.is_valid}")
-    print(f"  Errors found: {len(report.errors)}")
-    print(f"  Warnings found: {len(report.warnings)}")
-    print(f"  Block count: {report.block_count}")
-    print(f"  File size: {report.file_size} bytes")
+    print(f"  Valid: {is_valid}")
+    print(f"  Errors found: {len(errors)}")
+    print(f"  Block count: {len(decoder.get_blocks())}")
     
-    if not report.is_valid:
-        # Attempt repair
-        repair_tool = MAIFRepairTool()
-        if repair_tool.repair_file(maif_file, manifest_file):
-            print("✓ File repaired successfully")
-        else:
-            print("✗ Could not repair all issues")
+    if not is_valid:
+        print("✗ File has integrity issues - in self-contained format, tampering is detected")
+        for err in errors:
+            print(f"  - {err}")
     
     # Cleanup
-    for file_path in [maif_file, manifest_file]:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    if os.path.exists(maif_file):
+        os.remove(maif_file)
 
 def demo_streaming_operations():
     """Demonstrate streaming operations."""
@@ -209,20 +202,20 @@ def demo_format_conversion():
     maif_file = "converted.maif"
     manifest_file = "converted.maif.manifest.json"
     
-    result = converter.convert_to_maif(json_file, maif_file, manifest_file, "json")
+    result = converter.convert_to_maif(json_file, maif_file, "json")
     
-    if result["success"]:
+    if result.success:
         print(f"✓ Converted to MAIF: {maif_file}")
-        print(f"  Message: {result.get('message', 'Success')}")
+        print(f"  Message: {result.message or 'Success'}")
         
         # Note: Export functionality is not implemented in MAIFConverter
         # The conversion demo shows successful import to MAIF format
-        print("\n(Export from MAIF to other formats is not yet implemented)")
+        print("  (Export from MAIF to other formats is not yet implemented)")
     else:
-        print(f"✗ Conversion failed: {result.get('error', 'Unknown error')}")
+        print(f"✗ Conversion failed: {result.error or 'Unknown error'}")
     
     # Cleanup
-    for file_path in [json_file, maif_file, f"{maif_file}.manifest.json"]:
+    for file_path in [json_file, maif_file]:
         if os.path.exists(file_path):
             os.remove(file_path)
 
@@ -273,40 +266,33 @@ def demo_forensic_analysis():
     """Demonstrate forensic analysis capabilities."""
     print("\n=== Forensic Analysis Demo ===")
     
-    # Create a MAIF file with multiple versions
-    encoder = MAIFEncoder(agent_id="forensic_demo")
+    # Create a MAIF file (self-contained with Ed25519)
+    maif_file = "forensic_demo.maif"
+    encoder = MAIFEncoder(maif_file, agent_id="forensic_demo")
     
     # Add initial content
-    encoder.add_text_block("Initial content", metadata={"version": 1, "author": "user1"})
+    encoder.add_text_block("Initial content", {"version": 1, "author": "user1"})
     
     # Simulate modifications
-    encoder.add_text_block("Modified content", metadata={"version": 2, "author": "user2", "modification": "content_update"})
+    encoder.add_text_block("Modified content", {"version": 2, "author": "user2", "modification": "content_update"})
     
-    maif_file = "forensic_demo.maif"
-    manifest_file = f"{maif_file}.manifest.json"
-    encoder.build_maif(maif_file, manifest_file)
+    # Finalize (self-contained, no manifest)
+    encoder.finalize()
     
     print(f"✓ Created MAIF file for forensic analysis: {maif_file}")
     
     # Perform forensic analysis
     analyzer = ForensicAnalyzer()
     
-    report = analyzer.analyze_maif_file(maif_file, manifest_file)
+    report = analyzer.analyze_maif_file(maif_file)
     
     print(f"✓ Forensic analysis complete:")
-    print(f"  File ID: {report.get('file_id', 'N/A')}")
-    print(f"  Block count: {report.get('block_count', 0)}")
-    print(f"  Total size: {report.get('total_size', 0)} bytes")
-    
-    if 'blocks' in report and report['blocks']:
-        print(f"  Blocks analyzed: {len(report['blocks'])}")
-        for i, block in enumerate(report['blocks'][:3]):  # Show first 3
-            print(f"    - Block {i}: Type {block.get('block_type', 'unknown')}, {block.get('size', 0)} bytes")
+    print(f"  Risk Level: {report.get('risk_assessment', {}).get('overall_risk', 'N/A')}")
+    print(f"  Total Evidence: {len(report.get('recommendations', []))}")
     
     # Cleanup
-    for file_path in [maif_file, manifest_file]:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+    if os.path.exists(maif_file):
+        os.remove(maif_file)
 
 def main():
     """Run all demonstrations."""

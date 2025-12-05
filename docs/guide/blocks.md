@@ -6,7 +6,7 @@ Blocks are the fundamental unit of data storage in MAIF. This guide explains blo
 
 Every MAIF file consists of blocks, each containing:
 
-- **Header**: ID, type, size, hash
+- **Header**: ID, type, size, hash, and Ed25519 signature
 - **Data**: The actual content
 - **Metadata**: Additional information
 
@@ -15,8 +15,11 @@ Every MAIF file consists of blocks, each containing:
 │            Block Header              │
 │  - Block ID (UUID)                  │
 │  - Block Type (4 chars)             │
-│  - Data Size                        │
+│  - Data Size + Flags                │
 │  - Hash (SHA-256)                   │
+│  - Previous Block Hash              │
+│  - Ed25519 Signature (64 bytes)     │
+│  - Timestamp                        │
 ├─────────────────────────────────────┤
 │            Block Data                │
 │  - Content (text, binary, vectors)  │
@@ -25,10 +28,11 @@ Every MAIF file consists of blocks, each containing:
 ├─────────────────────────────────────┤
 │           Block Metadata             │
 │  - Custom JSON metadata             │
-│  - Timestamps                       │
 │  - Privacy level                    │
 └─────────────────────────────────────┘
 ```
+
+Each block is signed immediately when written, making it immutable and tamper-evident.
 
 ## Block Types
 
@@ -54,7 +58,7 @@ BlockType.BINARY      # "BINA" - Generic binary data
 ```python
 from maif.core import MAIFEncoder
 
-encoder = MAIFEncoder(agent_id="block-demo")
+encoder = MAIFEncoder("blocks.maif", agent_id="block-demo")
 
 # Text block
 text_id = encoder.add_text_block(
@@ -83,7 +87,7 @@ embed_id = encoder.add_embeddings_block(
     metadata={"model": "bert", "dimension": 3}
 )
 
-encoder.save("blocks.maif")
+encoder.finalize()
 ```
 
 ### Using Simple API
@@ -408,7 +412,7 @@ encoder.add_text_block(
     anonymize=True
 )
 
-encoder.save("private_blocks.maif")
+encoder.finalize()
 ```
 
 ## Complete Example
@@ -417,8 +421,8 @@ encoder.save("private_blocks.maif")
 from maif.core import MAIFEncoder, MAIFDecoder
 from maif.privacy import PrivacyLevel
 
-# Create encoder
-encoder = MAIFEncoder(agent_id="complete-demo")
+# Create encoder (file path is first argument in v3 API)
+encoder = MAIFEncoder("complete.maif", agent_id="complete-demo")
 
 # Add various blocks
 # Text block
@@ -442,8 +446,8 @@ embed_id = encoder.add_embeddings_block(
     }
 )
 
-# Save
-encoder.save("complete.maif")
+# Finalize and save
+encoder.finalize()
 
 # Read back
 decoder = MAIFDecoder("complete.maif")

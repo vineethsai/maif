@@ -276,20 +276,19 @@ embedding_model: str = "all-MiniLM-L6-v2"  # Change model
 ### Directory Structure
 ```
 data/
-├── sessions/              # MAIF session artifacts
-│   ├── {session_id}.maif
-│   └── {session_id}_manifest.json
+├── sessions/              # MAIF session artifacts (self-contained)
+│   └── {session_id}.maif  # All blocks, signatures, provenance in one file
 ├── kb/                    # Knowledge base artifacts
-│   ├── doc_001.maif
-│   ├── doc_001_manifest.json
-│   └── ...
+│   └── doc_001.maif       # Self-contained with Ed25519 signatures
 ├── chroma_db/            # ChromaDB persistent storage
 └── checkpoints_enhanced.db  # LangGraph checkpoints
 ```
 
+**Note:** The secure MAIF format is self-contained — no separate manifest files are needed. All signatures, provenance, and metadata are embedded in the `.maif` file.
+
 ### Session Artifact Structure
 
-Each conversation creates a session MAIF file containing cryptographically-linked blocks:
+Each conversation creates a session MAIF file containing cryptographically-linked and Ed25519-signed blocks:
 
 ```
 Block 1: Session initialization (BDAT type)

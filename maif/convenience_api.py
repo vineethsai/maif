@@ -38,15 +38,11 @@ class SimpleMAIFAgent:
         self.embedder = OptimizedSemanticEmbedder()
         self.privacy_engine = PrivacyEngine()
         
-        # Load or create MAIF
+        # Load or create MAIF (v3 format - self-contained)
+        self.encoder = MAIFEncoder(str(self.maif_path), agent_id=agent_id)
         if self.maif_path.exists():
             self.decoder = MAIFDecoder(str(self.maif_path))
-            self.encoder = MAIFEncoder(
-                existing_maif_path=str(self.maif_path),
-                agent_id=agent_id
-            )
         else:
-            self.encoder = MAIFEncoder(agent_id=agent_id)
             self.decoder = None
         
         # Memory cache for fast access
@@ -291,8 +287,8 @@ class SimpleMAIFAgent:
         return explanation
     
     def save(self):
-        """Save the current state to MAIF file."""
-        self.encoder.save(str(self.maif_path))
+        """Save the current state to MAIF file (v3 format)."""
+        self.encoder.finalize()
         logger.info(f"Saved agent memory to {self.maif_path}")
     
     def _load_memories(self):
@@ -301,8 +297,9 @@ class SimpleMAIFAgent:
             return
         
         # Load text blocks as memories
+        from .secure_format import SecureBlockType
         for block in self.decoder.blocks:
-            if block.block_type == "text":
+            if block.block_type == SecureBlockType.TEXT:
                 content = self.decoder.get_block_data(block.block_id).decode('utf-8')
                 
                 # Try to parse JSON

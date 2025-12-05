@@ -14,11 +14,12 @@ MAIF (Multimodal Artifact File Format) is a comprehensive, AI-native file format
 - **Versioning**: Block-level versioning with append-on-write architecture
 
 ### Security Features
-- **Digital Signatures**: RSA/ECDSA signatures with certificate chains
+- **Ed25519 Digital Signatures**: Fast, compact 64-byte signatures on every block
+- **Self-Contained Format**: All signatures, provenance, and keys embedded in the file
 - **Cryptographic Provenance**: Immutable audit trails with cryptographic verification
+- **Merkle Root Verification**: Fast whole-file integrity checking
 - **Access Control**: Role-based permissions and encryption
-- **Integrity Verification**: Multi-level checksums and validation
-- **Classified Data Support** (NEW):
+- **Classified Data Support**:
   - Mandatory Access Control (Bell-LaPadula model)
   - PKI/CAC/PIV authentication
   - Hardware MFA integration
@@ -31,35 +32,41 @@ MAIF (Multimodal Artifact File Format) is a comprehensive, AI-native file format
 
 #### MAIFEncoder
 ```python
-from maif import MAIFEncoder
+from maif import MAIFEncoder, BlockType
 
-encoder = MAIFEncoder(agent_id="my_agent")
+# v3 format - self-contained with embedded security
+encoder = MAIFEncoder("output.maif", agent_id="my_agent")
 encoder.add_text_block("Hello, MAIF!")
-encoder.add_binary_block(image_data, "image_data")
-encoder.build_maif("output.maif", "manifest.json")
+encoder.add_binary_block(image_data, BlockType.IMAGE)
+encoder.finalize()  # Signs and embeds all provenance
 ```
 
 **Features:**
 - Text and binary block encoding
 - Metadata attachment
-- Automatic hash generation
-- Version tracking
+- Automatic Ed25519 signing per block
+- Merkle root calculation
+- Embedded provenance chain
 - Agent attribution
 
 #### MAIFDecoder
 ```python
-from maif.core import MAIFDecoder
+from maif import MAIFDecoder
 
-decoder = MAIFDecoder("file.maif", "manifest.json")
-blocks = list(decoder.blocks)
-metadata = decoder.manifest
+# v3 format - no manifest needed
+decoder = MAIFDecoder("file.maif")
+decoder.load()
+blocks = decoder.blocks
+is_valid, errors = decoder.verify_integrity()
+provenance = decoder.get_provenance()
 ```
 
 **Features:**
+- Self-contained file parsing
 - Content extraction
-- Metadata parsing
-- Version history access
-- Dependency resolution
+- Embedded provenance access
+- Integrity verification
+- Signature verification
 
 ### 2. Security & Provenance (`maif.security`)
 
@@ -67,7 +74,7 @@ metadata = decoder.manifest
 ```python
 from maif.security import MAIFSigner, MAIFVerifier
 
-signer = MAIFSigner(private_key_path="key.pem", agent_id="signer")
+signer = MAIFSigner(agent_id="signer")
 signer.add_provenance_entry("create", block_hash)
 signed_manifest = signer.sign_maif_manifest(manifest)
 
@@ -76,9 +83,9 @@ is_valid = verifier.verify_maif_signature(signed_manifest)
 ```
 
 **Features:**
-- RSA/ECDSA signature support
-- Certificate chain validation
+- Ed25519 signatures (64 bytes, fast signing and verification)
 - Provenance chain tracking with cryptographic hash chaining
+- Embedded public keys for self-contained verification
 - Timestamp verification
 - Non-repudiation guarantees
 
@@ -102,7 +109,7 @@ maif.save("secure.maif", sign=True)
 
 # Verify integrity
 loaded = maif.load("secure.maif")
-is_valid = loaded.verify_integrity()
+is_valid = loaded.verify()
 ```
 
 **Features:**
@@ -355,7 +362,7 @@ maif extract file.maif --output-dir ./extracted --type all
 ### 1. AI Model Artifacts
 ```python
 # Store model weights, metadata, and provenance
-encoder = MAIFEncoder(agent_id="training_system")
+encoder = MAIFEncoder("model_artifact.maif", agent_id="training_system")
 encoder.add_binary_block(model_weights, "model_weights")
 encoder.add_metadata_block({
     "model_type": "transformer",
@@ -363,33 +370,37 @@ encoder.add_metadata_block({
     "accuracy": 0.95,
     "training_time": "4h 32m"
 })
+encoder.finalize()
 ```
 
 ### 2. Document Versioning
 ```python
 # Track document changes with full history
-encoder = MAIFEncoder(agent_id="document_editor")
+encoder = MAIFEncoder("document_versions.maif", agent_id="document_editor")
 for version in document_versions:
     block_id = encoder.add_text_block(version.content)
     encoder.add_version_metadata(block_id, version.metadata)
+encoder.finalize()
 ```
 
 ### 3. Multimedia Collections
 ```python
 # Store mixed media with semantic relationships
-encoder = MAIFEncoder(agent_id="media_curator")
+encoder = MAIFEncoder("multimedia.maif", agent_id="media_curator")
 text_id = encoder.add_text_block(description)
 image_id = encoder.add_binary_block(image_data, "image_data")
 encoder.add_relationship(text_id, "describes", image_id)
+encoder.finalize()
 ```
 
 ### 4. Scientific Data
 ```python
 # Research data with provenance and validation
-encoder = MAIFEncoder(agent_id="research_lab")
+encoder = MAIFEncoder("experiment_data.maif", agent_id="research_lab")
 encoder.add_binary_block(experiment_data, "scientific_data")
 encoder.add_provenance_chain(experiment_metadata)
 encoder.add_validation_schema(data_schema)
+encoder.finalize()
 ```
 
 ## Performance Characteristics
@@ -412,14 +423,15 @@ encoder.add_validation_schema(data_schema)
 ## Security Guarantees
 
 ### Cryptographic Strength
-- **Signatures**: RSA-2048/ECDSA-256
-- **Hashing**: SHA-256/SHA-3
+- **Signatures**: Ed25519 (128-bit security, 64-byte signatures)
+- **Hashing**: SHA-256
 - **Encryption**: AES-256-GCM
 
 ### Provenance Integrity
-- **Immutable History**: Append-only structure
-- **Chain Validation**: Cryptographic linking
-- **Timestamp Verification**: RFC 3161 compliance
+- **Immutable History**: Append-only structure with signed blocks
+- **Chain Validation**: Cryptographic linking via previous block hashes
+- **Merkle Root**: Fast verification of entire file integrity
+- **Embedded Keys**: Public keys stored in file header for self-contained verification
 
 ## Standards Compliance
 

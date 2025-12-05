@@ -28,7 +28,7 @@ from maif.core import MAIFEncoder
 from maif.privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode
 
 # Create encoder with privacy enabled
-encoder = MAIFEncoder(agent_id="privacy_demo", enable_privacy=True)
+encoder = MAIFEncoder("private.maif", agent_id="privacy_demo", enable_privacy=True)
 
 # Create privacy policy
 policy = PrivacyPolicy(
@@ -46,8 +46,8 @@ encoder.add_text_block(
     anonymize=True
 )
 
-# Save with encryption
-encoder.build_maif("private.maif", "manifest.json")
+# Finalize with encryption
+encoder.finalize()
 ```
 
 ## What You'll Learn
