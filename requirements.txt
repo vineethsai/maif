@@ -1,42 +1,43 @@
 # Core dependencies
-numpy>=1.21.0
-cryptography>=41.0.0  # For Ed25519 signatures and encryption
-pydantic>=2.0.0       # For data validation
-structlog>=23.0.0     # For structured logging
-tenacity>=8.0.0       # For retry logic
-scikit-learn>=1.0.0   # For ML utilities
+numpy==2.0.2
+cryptography==46.0.3
+pydantic==2.12.4
+structlog==24.4.0
+tenacity==9.1.2
+scikit-learn==1.6.1
 
 # Optional: AWS SDK (only needed for AWS integrations)
-# boto3>=1.26.0
+# boto3==1.35.0
 
 # Optional dependencies for enhanced functionality
-sentence-transformers>=2.2.0  # For semantic embeddings
-faiss-cpu>=1.7.0      # For efficient similarity search
-opencv-python>=4.5.0  # For video/image processing
+sentence-transformers==5.1.2
+faiss-cpu==1.9.0
+opencv-python==4.10.0.84
 
 # File format features
-aiofiles>=0.8.0       # For async file operations
-brotli>=1.0.9         # For Brotli compression
-zstandard>=0.18.0     # For Zstandard compression
-xxhash>=3.0.0         # For fast hashing
-msgpack>=1.0.4        # For efficient serialization
-jsonschema>=4.0.0     # For schema validation
-click>=8.0.0          # For CLI interface
-tqdm>=4.64.0          # For progress bars
-psutil>=5.8.0         # For system monitoring
-networkx>=2.6.0       # For knowledge graphs
-matplotlib>=3.4.0     # For visualization
-pillow>=8.3.0         # For image processing
-scipy>=1.7.0          # For scientific computing
-lz4>=4.0.0            # For LZ4 compression
-numba>=0.56.0         # For performance optimization
+aiofiles==24.1.0
+brotli==1.1.0
+zstandard==0.25.0
+xxhash==3.6.0
+msgpack==1.1.0
+jsonschema==4.25.1
+click==8.1.8
+tqdm==4.67.1
+psutil==7.1.3
+networkx==3.2.1
+matplotlib==3.9.0
+pillow==11.3.0
+scipy==1.13.1
+lz4==4.3.3
+numba==0.60.0
 
 # Production monitoring
-prometheus-client>=0.16.0  # For metrics export
+prometheus-client==0.21.0
 
 # Development dependencies
-pytest>=6.0.0
-pytest-cov>=2.12.0
-pytest-asyncio>=0.21.0
-black>=21.0.0
-mypy>=1.0.0
+pytest==8.4.2
+pytest-cov==6.0.0
+pytest-asyncio==0.24.0
+black==24.10.0
+mypy==1.13.0
+ruff==0.8.0
