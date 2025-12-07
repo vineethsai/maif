@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "maif"
-version = "0.1.0"
+version = "0.1.1"
 description = "Multimodal Artifact File Format - Production-ready AI-native container with trustworthy AI capabilities"
 readme = "README.md"
 license = {text = "MIT"}
