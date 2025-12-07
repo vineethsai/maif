@@ -115,9 +115,8 @@ class MAIFDashboard {
         for (const file of files) {
             if (file.name.endsWith('.maif')) {
                 try {
-                    const buffer = await file.arrayBuffer();
                     const parser = new MAIFParser();
-                    parser.loadBinaryFromBuffer(new Uint8Array(buffer));
+                    await parser.loadBinary(file);
                     
                     this.artifacts.set(file.name, {
                         name: file.name,
