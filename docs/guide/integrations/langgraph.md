@@ -30,6 +30,20 @@ pip install maif langgraph
 - LangGraph 0.2.0+
 - langgraph-checkpoint 1.0.0+
 
+## Migration from SqliteSaver
+
+Already using SqliteSaver? Migrate with one line:
+
+```python
+from maif.integrations.langgraph import migrate_from_sqlite
+
+# Migrate all checkpoints
+migrate_from_sqlite("checkpoints.db", "checkpoints.maif")
+
+# Or migrate specific thread
+migrate_from_sqlite("checkpoints.db", "checkpoints.maif", thread_id="my-thread")
+```
+
 ## Quick Start
 
 ```python
@@ -326,6 +340,67 @@ is_valid, errors = decoder.verify_integrity()
 3. Artifact corrupted
 
 **Solution:** The integrity failure indicates tampering or corruption. Investigate the source and restore from backup if needed.
+
+## Pre-built Patterns
+
+MAIF provides ready-to-use graph patterns for common use cases:
+
+### Chat with Memory
+
+```python
+from maif.integrations.langgraph import create_chat_graph
+
+def my_llm(messages):
+    # Your LLM call here
+    return "Hello!"
+
+app = create_chat_graph("chat.maif", my_llm)
+result = app.invoke(
+    {"messages": [{"role": "user", "content": "Hi!"}]},
+    {"configurable": {"thread_id": "session-1"}}
+)
+```
+
+### RAG with Citations
+
+```python
+from maif.integrations.langgraph import create_rag_graph
+
+app = create_rag_graph("rag.maif", my_retriever, my_llm)
+```
+
+### Multi-Agent Router
+
+```python
+from maif.integrations.langgraph import create_multi_agent_graph
+
+app = create_multi_agent_graph(
+    "agents.maif",
+    {"researcher": researcher_fn, "writer": writer_fn},
+    router_fn
+)
+```
+
+## CLI Tools
+
+Inspect and manage MAIF artifacts from the command line:
+
+```bash
+# Inspect artifact
+python -m maif.integrations.langgraph.cli inspect state.maif
+
+# Verify integrity
+python -m maif.integrations.langgraph.cli verify state.maif
+
+# Export to JSON/CSV/Markdown
+python -m maif.integrations.langgraph.cli export state.maif --format json
+
+# Migrate from SqliteSaver
+python -m maif.integrations.langgraph.cli migrate checkpoints.db state.maif
+
+# List all threads
+python -m maif.integrations.langgraph.cli threads state.maif
+```
 
 ## Example: Enterprise AI Governance Demo
 
