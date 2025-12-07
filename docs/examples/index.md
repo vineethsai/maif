@@ -32,6 +32,39 @@ python3 demo_enhanced.py
 
 ---
 
+### CrewAI Research Crew
+
+Multi-agent research workflow with complete audit trails.
+
+**Location**: Uses `maif.integrations.crewai`
+
+**Features**:
+- Two specialized agents (Researcher, Writer)
+- Task and step-level provenance tracking
+- Persistent agent memory with search
+- Complete execution audit trail
+- Error handling with logging
+
+**Quick Start**:
+```python
+from crewai import Crew, Agent, Task
+from maif.integrations.crewai import MAIFCrewCallback
+
+callback = MAIFCrewCallback("session.maif")
+crew = Crew(
+    agents=[researcher, writer],
+    tasks=[research_task, write_task],
+    task_callback=callback.on_task_complete,
+    step_callback=callback.on_step,
+)
+result = crew.kickoff()
+callback.finalize()
+```
+
+**Documentation**: See [CrewAI Research Guide](./crewai-research.md) for complete details.
+
+---
+
 ## Available Examples
 
 ### Hello World
@@ -213,12 +246,14 @@ agent.save()
 
 **Advanced:**
 - [LangGraph RAG](./langgraph-rag.md) - Complete multi-agent system
+- [CrewAI Research](./crewai-research.md) - Multi-agent workflows with CrewAI
 - [Distributed](./distributed.md) - Distributed systems
 
 ### By Use Case
 
 **AI/ML Applications:**
 - [LangGraph RAG](./langgraph-rag.md) - Research assistant with fact-checking
+- [CrewAI Research](./crewai-research.md) - Research and documentation workflow
 - [Multi-Agent](./multi-agent.md) - Collaborative agents
 
 **Enterprise:**

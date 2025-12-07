@@ -289,7 +289,7 @@ except ImportError:
     batch_process = None
 
 # =============================================================================
-# Integration
+# Integration (Legacy - use maif.integrations instead for framework support)
 # =============================================================================
 
 try:
@@ -298,6 +298,25 @@ except ImportError:
     EnhancedMAIFProcessor = None
     ConversionResult = None
     EnhancedMAIF = None
+
+# =============================================================================
+# Framework Integrations (NEW - LangGraph, LangChain, CrewAI, Strands)
+# =============================================================================
+# Use: from maif.integrations.langgraph import MAIFCheckpointer
+# See docs/guide/integrations/ for documentation
+
+INTEGRATIONS_AVAILABLE = True
+try:
+    from .integrations import (
+        EventType,
+        MAIFProvenanceTracker,
+        BaseMAIFCallback,
+    )
+except ImportError:
+    INTEGRATIONS_AVAILABLE = False
+    EventType = None
+    MAIFProvenanceTracker = None
+    BaseMAIFCallback = None
 
 # =============================================================================
 # AWS Integrations (optional)
@@ -428,4 +447,9 @@ __all__ = [
     "CONVENIENCE_API_AVAILABLE",
     "MIGRATION_TOOLS_AVAILABLE",
     "DEBUG_TOOLS_AVAILABLE",
+    "INTEGRATIONS_AVAILABLE",
+    # Framework Integrations (base classes)
+    "EventType",
+    "MAIFProvenanceTracker",
+    "BaseMAIFCallback",
 ]

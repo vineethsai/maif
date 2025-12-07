@@ -42,6 +42,52 @@ MAIF is a file format and SDK designed for AI agents that need **trustworthy mem
 - **Research** - Reproducible experiments with complete data lineage
 - **Enterprise AI** - Secure, auditable AI workflows with access control
 
+## Framework Integrations
+
+MAIF provides drop-in integrations for popular AI agent frameworks:
+
+| Framework | Status | Description |
+|-----------|--------|-------------|
+| LangGraph | Available | State checkpointer with provenance |
+| CrewAI | Available | Crew/Agent callbacks, Memory |
+| LangChain | Coming Soon | Callbacks, VectorStore, Memory |
+| AWS Strands | Coming Soon | Agent callbacks |
+
+```bash
+pip install maif[integrations]
+```
+
+### LangGraph
+
+```python
+from langgraph.graph import StateGraph
+from maif.integrations.langgraph import MAIFCheckpointer
+
+checkpointer = MAIFCheckpointer("state.maif")
+app = graph.compile(checkpointer=checkpointer)
+result = app.invoke(state, config)
+checkpointer.finalize()
+```
+
+### CrewAI
+
+```python
+from crewai import Crew
+from maif.integrations.crewai import MAIFCrewCallback
+
+callback = MAIFCrewCallback("crew.maif")
+crew = Crew(
+    agents=[...],
+    tasks=[...],
+    task_callback=callback.on_task_complete,
+    step_callback=callback.on_step,
+)
+result = crew.kickoff()
+callback.finalize()
+```
+
+See the [integrations documentation](docs/guide/integrations/) for full details.
+
 ---
 
 ## Quick Start
@@ -127,6 +173,26 @@ python3 demo_enhanced.py
 - Multi-turn conversation support
 
 See [`examples/langgraph/README.md`](examples/langgraph/README.md) for full documentation.
+
+---
+
+## NEW: Enterprise AI Governance Demo
+
+Interactive demonstration of MAIF's enterprise-grade governance features:
+
+```bash
+cd examples/integrations/langgraph_governance_demo
+python main.py
+```
+
+**Features demonstrated:**
+- Cryptographic provenance (Ed25519 signatures, hash chains)
+- Tamper detection and data integrity verification
+- Role-based access control with audit logging
+- Multi-agent coordination with clear handoffs
+- Compliance report generation (Markdown, JSON, CSV)
+
+See [`examples/integrations/langgraph_governance_demo/README.md`](examples/integrations/langgraph_governance_demo/README.md) for details.
 
 ---
 
@@ -232,14 +298,16 @@ maif/
 │   ├── core.py           # MAIFEncoder, MAIFDecoder
 │   ├── security.py       # Signing, verification
 │   ├── privacy.py        # Encryption, anonymization
+│   ├── integrations/     # Framework integrations (LangGraph, etc.)
 │   └── semantic*.py      # Embeddings, compression
 ├── maif_api.py           # High-level API
 ├── examples/
 │   ├── langgraph/        # Multi-agent RAG system
+│   ├── integrations/     # Framework integration demos
 │   ├── basic/            # Getting started
 │   ├── security/         # Privacy & encryption
 │   └── advanced/         # Agent framework, lifecycle
-├── tests/                # 431 tests
+├── tests/                # 450+ tests
 ├── docs/                 # VitePress documentation
 └── benchmarks/           # Performance tests
 ```
