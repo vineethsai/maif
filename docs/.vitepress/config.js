@@ -130,6 +130,7 @@ export default withMermaid(defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/guide/getting-started' },
+      { text: 'Integrations', link: '/guide/integrations/' },
       { text: 'API Reference', link: '/api/' },
       { text: 'Examples', link: '/examples/' },
       {
@@ -157,6 +158,17 @@ export default withMermaid(defineConfig({
             { text: 'Overview', link: '/guide/concepts' },
             { text: 'Architecture', link: '/guide/architecture' },
             { text: 'Blocks & Artifacts', link: '/guide/blocks' }
+          ]
+        },
+        {
+          text: 'Framework Integrations',
+          collapsed: false,
+          items: [
+            { text: 'Overview', link: '/guide/integrations/' },
+            { text: 'LangGraph', link: '/guide/integrations/langgraph' },
+            { text: 'LangChain', link: '/guide/integrations/langchain' },
+            { text: 'CrewAI', link: '/guide/integrations/crewai' },
+            { text: 'Strands SDK', link: '/guide/integrations/strands' }
           ]
         },
         {
@@ -224,9 +236,11 @@ export default withMermaid(defineConfig({
           ]
         },
         {
-          text: 'Featured',
+          text: 'Framework Integrations',
+          collapsed: false,
           items: [
-            { text: 'LangGraph Multi-Agent RAG', link: '/examples/langgraph-rag' }
+            { text: 'LangGraph Multi-Agent RAG', link: '/examples/langgraph-rag' },
+            { text: 'CrewAI Research Crew', link: '/examples/crewai-research' }
           ]
         },
         {
