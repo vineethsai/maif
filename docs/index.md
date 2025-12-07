@@ -113,6 +113,33 @@ results = memory.search("user preferences")
 
 **That's it.** Your AI agent now has persistent, verifiable memory.
 
+## Framework Integrations
+
+MAIF integrates seamlessly with popular AI agent frameworks:
+
+| Framework | Status | What You Get |
+|-----------|--------|--------------|
+| [**LangGraph**](/guide/integrations/langgraph) | Available | Checkpointer with cryptographic provenance |
+| [**LangChain**](/guide/integrations/langchain) | Available | Callbacks, VectorStore, ChatMessageHistory |
+| [**CrewAI**](/guide/integrations/crewai) | Available | Crew/Agent callbacks, persistent memory |
+| [**Strands SDK**](/guide/integrations/strands) | Coming Soon | AWS Strands agent integration |
+
+```python
+# LangGraph - One line to add provenance
+from maif.integrations.langgraph import MAIFCheckpointer
+app = graph.compile(checkpointer=MAIFCheckpointer("session.maif"))
+
+# LangChain - Track all LLM calls
+from maif.integrations.langchain import MAIFCallbackHandler
+llm = ChatOpenAI(callbacks=[MAIFCallbackHandler("llm.maif")])
+
+# CrewAI - Full crew provenance
+from maif.integrations.crewai import MAIFCrewCallback
+crew = Crew(agents=[...], task_callback=callback.on_task_complete)
+```
+
+[View All Integrations →](/guide/integrations/)
+
 ## Real-World Use Case: Multi-Agent RAG System
 
 MAIF powers production AI systems. See our complete example: a research assistant with 5 specialized agents, each action cryptographically logged.
