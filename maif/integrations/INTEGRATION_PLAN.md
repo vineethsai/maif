@@ -9,8 +9,8 @@ This document provides detailed guidance for implementing MAIF integrations with
 3. [Implementation Checklist](#implementation-checklist)
 4. [Framework-Specific Guides](#framework-specific-guides)
    - [LangGraph](#langgraph-integration) (Implemented)
+   - [CrewAI](#crewai-integration) (Implemented)
    - [LangChain](#langchain-integration) (To implement)
-   - [CrewAI](#crewai-integration) (To implement)
    - [Strands SDK](#strands-sdk-integration) (To implement)
 5. [Testing Requirements](#testing-requirements)
 6. [Documentation Standards](#documentation-standards)
@@ -376,7 +376,7 @@ class MAIFCallbackHandler(BaseCallbackHandler):
 
 ### CrewAI Integration
 
-**Status**: To implement
+**Status**: Implemented
 
 **Files**:
 - `maif/integrations/crewai/callback.py` - MAIFCrewCallback

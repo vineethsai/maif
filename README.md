@@ -49,15 +49,44 @@ MAIF provides drop-in integrations for popular AI agent frameworks:
 | Framework | Status | Description |
 |-----------|--------|-------------|
 | LangGraph | Available | State checkpointer with provenance |
+| CrewAI | Available | Crew/Agent callbacks, Memory |
 | LangChain | Coming Soon | Callbacks, VectorStore, Memory |
-| CrewAI | Coming Soon | Crew/Agent callbacks, Memory |
 | AWS Strands | Coming Soon | Agent callbacks |
 
 ```bash
 pip install maif[integrations]
 ```
 
-See the [integrations documentation](docs/guide/integrations/) for details.
+### LangGraph
+
+```python
+from langgraph.graph import StateGraph
+from maif.integrations.langgraph import MAIFCheckpointer
+
+checkpointer = MAIFCheckpointer("state.maif")
+app = graph.compile(checkpointer=checkpointer)
+result = app.invoke(state, config)
+checkpointer.finalize()
+```
+
+### CrewAI
+
+```python
+from crewai import Crew
+from maif.integrations.crewai import MAIFCrewCallback
+
+callback = MAIFCrewCallback("crew.maif")
+crew = Crew(
+    agents=[...],
+    tasks=[...],
+    task_callback=callback.on_task_complete,
+    step_callback=callback.on_step,
+)
+result = crew.kickoff()
+callback.finalize()
+```
+
+See the [integrations documentation](docs/guide/integrations/) for full details.
 
 ---
 

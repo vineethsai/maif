@@ -7,8 +7,8 @@ MAIF provides drop-in integrations for popular AI agent frameworks, enabling cry
 | Framework | Status | Description |
 |-----------|--------|-------------|
 | [LangGraph](./langgraph.md) | Available | State checkpointer with provenance |
+| [CrewAI](./crewai.md) | Available | Crew/Agent callbacks, Memory |
 | [LangChain](./langchain.md) | Coming Soon | Callbacks, VectorStore, Memory |
-| [CrewAI](./crewai.md) | Coming Soon | Crew/Agent callbacks, Memory |
 | [Strands SDK](./strands.md) | Coming Soon | AWS Strands agent callbacks |
 
 ## Installation
@@ -59,19 +59,24 @@ llm.invoke("Hello", config={"callbacks": [handler]})
 handler.finalize()
 ```
 
-### CrewAI Example (Coming Soon)
+### CrewAI Example
 
 ```python
-from crewai import Crew
+from crewai import Crew, Agent, Task
 from maif.integrations.crewai import MAIFCrewCallback
 
 callback = MAIFCrewCallback("crew.maif")
+
 crew = Crew(
-    agents=[...],
-    tasks=[...],
+    agents=[researcher, writer],
+    tasks=[research_task, write_task],
     task_callback=callback.on_task_complete,
+    step_callback=callback.on_step,
 )
-crew.kickoff()
+
+callback.on_crew_start(crew_name="My Crew", agents=crew.agents, tasks=crew.tasks)
+result = crew.kickoff()
+callback.on_crew_end(result=result)
 callback.finalize()
 ```
 
