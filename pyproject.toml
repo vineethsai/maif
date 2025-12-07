@@ -27,7 +27,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -39,7 +38,7 @@ classifiers = [
     "Topic :: Software Development :: Version Control",
     "Topic :: System :: Distributed Computing",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.21.0",
     "cryptography>=3.4.8",
@@ -106,6 +105,14 @@ performance = ["xxhash>=3.0.0", "msgpack>=1.0.4", "psutil>=5.8.0", "numba>=0.56.
 ml = ["sentence-transformers>=2.2.0", "faiss-cpu>=1.7.0", "scipy>=1.7.0"]
 vision = ["opencv-python>=4.5.0", "pillow>=8.3.0"]
 monitoring = ["prometheus-client>=0.16.0"]
+integrations = [
+    "langgraph>=0.2.0",
+    "langgraph-checkpoint>=1.0.0",
+    "langchain-core>=0.3.0",
+    "langchain-google-genai>=2.0.0",
+    "crewai>=0.30.0",
+    "google-generativeai>=0.3.0",
+]
 
 [project.scripts]
 maif = "maif.cli:main"
@@ -130,7 +137,7 @@ maif = ["*.json", "*.yaml", "schemas/*.json", "templates/*.yaml", "templates/*.j
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -153,14 +160,16 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests (require API keys)",
     "aws: marks tests that require AWS services",
+    "asyncio: marks tests as async tests",
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
