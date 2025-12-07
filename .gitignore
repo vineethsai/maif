@@ -126,6 +126,10 @@ docs/.vitepress/dist/
 # Duplicated example data (nested)
 examples/langgraph/examples/
 
+# Integration demo generated files
+examples/integrations/langgraph_governance_demo/sessions/
+examples/integrations/langgraph_governance_demo/reports/
+
 # But keep example files for reference
 !examples/*/sample_*
 !tools/sample_maif_files/*.maif

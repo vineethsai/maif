@@ -133,6 +133,22 @@ The base classes in `maif.integrations` provide:
 - **BaseMAIFCallback**: Abstract base for framework callbacks
 - **Utility functions**: Safe serialization, timestamp formatting
 
+## Interactive Demo
+
+For a comprehensive demonstration of MAIF's governance features with LangGraph, run the interactive demo:
+
+```bash
+cd examples/integrations/langgraph_governance_demo
+python main.py
+```
+
+This demo showcases:
+- Multi-agent workflows with access control
+- Cryptographic provenance and tamper detection
+- Security verification
+- Compliance report generation
+- Role-based access control simulation
+
 ## Contributing
 
 To add support for a new framework, see the [Integration Plan](../../../maif/integrations/INTEGRATION_PLAN.md) for detailed implementation guidance.

@@ -327,9 +327,25 @@ is_valid, errors = decoder.verify_integrity()
 
 **Solution:** The integrity failure indicates tampering or corruption. Investigate the source and restore from backup if needed.
 
-## Example: RAG Agent with Provenance
+## Example: Enterprise AI Governance Demo
 
-See `examples/integrations/langgraph_quickstart.py` for a complete example of using MAIFCheckpointer with a retrieval-augmented generation agent.
+For a comprehensive example demonstrating MAIF's enterprise governance features with LangGraph, see the interactive governance demo:
+
+```bash
+cd examples/integrations/langgraph_governance_demo
+python main.py
+```
+
+**Features demonstrated:**
+
+- **Multi-agent workflow** with access control, routing, and compliance checking
+- **Provenance inspector** with timeline, block details, and hash chain visualization
+- **Security verification** of signatures and integrity
+- **Tamper detection** demonstration
+- **Compliance reports** in Markdown, JSON, and CSV formats
+- **Role-based access control** simulation (analyst, manager, admin, auditor roles)
+
+See [`examples/integrations/langgraph_governance_demo/README.md`](../../../examples/integrations/langgraph_governance_demo/README.md) for full documentation.
 
 ## Related
 

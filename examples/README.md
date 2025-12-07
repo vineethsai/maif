@@ -5,6 +5,26 @@ All examples use the **secure MAIF format** with:
 - Self-contained files (no external manifest)
 - Embedded provenance chain
 
+## Featured: Enterprise AI Governance Demo
+
+**Location:** `integrations/langgraph_governance_demo/`
+
+Interactive demonstration of MAIF's enterprise-grade governance features:
+- Cryptographic provenance (Ed25519 signatures, hash chains)
+- Tamper detection and data integrity verification
+- Role-based access control with audit logging
+- Multi-agent coordination with clear handoffs
+- Compliance report generation (Markdown, JSON, CSV)
+
+```bash
+cd integrations/langgraph_governance_demo
+python3 main.py
+```
+
+See `integrations/langgraph_governance_demo/README.md` for details.
+
+---
+
 ## Featured: LangGraph Multi-Agent RAG
 
 **Location:** `langgraph/`
@@ -25,6 +45,9 @@ See `langgraph/README.md` for details.
 ---
 
 ## Example Categories
+
+### `integrations/` - Framework Integrations
+- `langgraph_governance_demo/` - Enterprise governance demo (interactive)
 
 ### `basic/` - Getting Started
 - `basic_usage.py` - Simple MAIF operations
@@ -56,14 +79,20 @@ See `langgraph/README.md` for details.
    python3 basic/simple_api_demo.py
    ```
 
-2. **Multi-agent RAG:**
+2. **Enterprise governance demo:**
+   ```bash
+   cd integrations/langgraph_governance_demo
+   python3 main.py
+   ```
+
+3. **Multi-agent RAG:**
    ```bash
    cd langgraph
    python3 create_kb_enhanced.py
    python3 demo_enhanced.py
    ```
 
-3. **AWS integration:**
+4. **AWS integration:**
    ```bash
    python3 aws/bedrock_swarm_demo.py
    ```

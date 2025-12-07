@@ -42,6 +42,23 @@ MAIF is a file format and SDK designed for AI agents that need **trustworthy mem
 - **Research** - Reproducible experiments with complete data lineage
 - **Enterprise AI** - Secure, auditable AI workflows with access control
 
+## Framework Integrations
+
+MAIF provides drop-in integrations for popular AI agent frameworks:
+
+| Framework | Status | Description |
+|-----------|--------|-------------|
+| LangGraph | Available | State checkpointer with provenance |
+| LangChain | Coming Soon | Callbacks, VectorStore, Memory |
+| CrewAI | Coming Soon | Crew/Agent callbacks, Memory |
+| AWS Strands | Coming Soon | Agent callbacks |
+
+```bash
+pip install maif[integrations]
+```
+
+See the [integrations documentation](docs/guide/integrations/) for details.
+
 ---
 
 ## Quick Start
@@ -127,6 +144,26 @@ python3 demo_enhanced.py
 - Multi-turn conversation support
 
 See [`examples/langgraph/README.md`](examples/langgraph/README.md) for full documentation.
+
+---
+
+## NEW: Enterprise AI Governance Demo
+
+Interactive demonstration of MAIF's enterprise-grade governance features:
+
+```bash
+cd examples/integrations/langgraph_governance_demo
+python main.py
+```
+
+**Features demonstrated:**
+- Cryptographic provenance (Ed25519 signatures, hash chains)
+- Tamper detection and data integrity verification
+- Role-based access control with audit logging
+- Multi-agent coordination with clear handoffs
+- Compliance report generation (Markdown, JSON, CSV)
+
+See [`examples/integrations/langgraph_governance_demo/README.md`](examples/integrations/langgraph_governance_demo/README.md) for details.
 
 ---
 
@@ -232,14 +269,16 @@ maif/
 │   ├── core.py           # MAIFEncoder, MAIFDecoder
 │   ├── security.py       # Signing, verification
 │   ├── privacy.py        # Encryption, anonymization
+│   ├── integrations/     # Framework integrations (LangGraph, etc.)
 │   └── semantic*.py      # Embeddings, compression
 ├── maif_api.py           # High-level API
 ├── examples/
 │   ├── langgraph/        # Multi-agent RAG system
+│   ├── integrations/     # Framework integration demos
 │   ├── basic/            # Getting started
 │   ├── security/         # Privacy & encryption
 │   └── advanced/         # Agent framework, lifecycle
-├── tests/                # 431 tests
+├── tests/                # 450+ tests
 ├── docs/                 # VitePress documentation
 └── benchmarks/           # Performance tests
 ```
