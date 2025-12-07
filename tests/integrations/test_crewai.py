@@ -906,6 +906,10 @@ class TestInstrumentFunction:
     def test_instrument_mock_crew(self):
         """Test instrument() with a mock crew."""
         from maif.integrations.crewai import instrument
+        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
+        
+        if not CREWAI_AVAILABLE:
+            pytest.skip("CrewAI not installed")
         
         # Create a mock crew
         class MockCrew:
@@ -946,6 +950,10 @@ class TestInstrumentFunction:
     def test_instrument_auto_finalize(self):
         """Test instrument() auto-finalizes by default."""
         from maif.integrations.crewai import instrument
+        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
+        
+        if not CREWAI_AVAILABLE:
+            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Auto Finalize Test"
@@ -971,6 +979,10 @@ class TestInstrumentFunction:
     def test_instrument_no_auto_finalize(self):
         """Test instrument() with auto_finalize=False."""
         from maif.integrations.crewai import instrument
+        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
+        
+        if not CREWAI_AVAILABLE:
+            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Manual Finalize Test"
@@ -999,6 +1011,10 @@ class TestInstrumentFunction:
     def test_instrument_with_error(self):
         """Test instrument() handles errors in kickoff."""
         from maif.integrations.crewai import instrument
+        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
+        
+        if not CREWAI_AVAILABLE:
+            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Error Test"
