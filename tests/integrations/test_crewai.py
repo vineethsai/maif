@@ -791,6 +791,182 @@ class TestMAIFCrewAIIntegration:
         assert is_valid, f"Integrity check failed: {errors}"
 
 
+class TestMAIFCrewPatternsUnit:
+    """Unit tests for CrewAI pattern utilities."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.artifact_path = os.path.join(self.temp_dir, "pattern_test.maif")
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_context_manager_basic(self):
+        """Test MAIFCrew context manager."""
+        from maif.integrations.crewai import MAIFCrew
+        
+        with MAIFCrew(self.artifact_path) as callback:
+            assert callback is not None
+            callback.on_crew_start(crew_name="Context Manager Test")
+            callback.on_step(MockStepOutput())
+            callback.on_task_complete(MockTaskOutput())
+            callback.on_crew_end(result=None)
+        
+        # Verify artifact was finalized
+        from maif import MAIFDecoder
+        decoder = MAIFDecoder(self.artifact_path)
+        decoder.load()
+        
+        is_valid, _ = decoder.verify_integrity()
+        assert is_valid
+        assert len(decoder.blocks) >= 4
+    
+    def test_context_manager_with_error(self):
+        """Test context manager handles errors gracefully."""
+        from maif.integrations.crewai import MAIFCrew
+        
+        try:
+            with MAIFCrew(self.artifact_path) as callback:
+                callback.on_crew_start(crew_name="Error Test")
+                raise ValueError("Simulated error")
+        except ValueError:
+            pass
+        
+        # Artifact should still be finalized
+        assert os.path.exists(self.artifact_path)
+    
+    def test_finalize_crew_utility(self):
+        """Test finalize_crew utility function."""
+        from maif.integrations.crewai import (
+            MAIFCrewCallback,
+            finalize_crew,
+            get_artifact_path,
+            get_crew_statistics,
+        )
+        
+        # Create a mock crew-like object
+        class MockCrew:
+            pass
+        
+        crew = MockCrew()
+        callback = MAIFCrewCallback(self.artifact_path)
+        callback.on_crew_start(crew_name="Utility Test")
+        callback.on_step(MockStepOutput())
+        
+        crew._maif_callback = callback
+        
+        # Test get_artifact_path
+        assert get_artifact_path(crew) == self.artifact_path
+        
+        # Test get_crew_statistics
+        stats = get_crew_statistics(crew)
+        assert "steps_executed" in stats
+        assert stats["steps_executed"] == 1
+        
+        # Test finalize_crew
+        finalize_crew(crew)
+        
+        # Verify artifact was finalized
+        from maif import MAIFDecoder
+        decoder = MAIFDecoder(self.artifact_path)
+        decoder.load()
+        
+        is_valid, _ = decoder.verify_integrity()
+        assert is_valid
+    
+    def test_pattern_imports(self):
+        """Test that pattern functions can be imported."""
+        from maif.integrations.crewai.patterns import (
+            create_research_crew,
+            create_qa_crew,
+            create_code_review_crew,
+            MAIFCrew,
+        )
+        
+        assert callable(create_research_crew)
+        assert callable(create_qa_crew)
+        assert callable(create_code_review_crew)
+        assert MAIFCrew is not None
+
+
+class TestMAIFCrewCLI:
+    """Unit tests for CrewAI CLI."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.artifact_path = os.path.join(self.temp_dir, "cli_test.maif")
+        
+        # Create a test artifact
+        from maif.integrations.crewai import MAIFCrewCallback
+        
+        callback = MAIFCrewCallback(self.artifact_path)
+        callback.on_crew_start(crew_name="CLI Test Crew")
+        callback.on_step(MockStepOutput())
+        callback.on_task_complete(MockTaskOutput())
+        callback.on_crew_end(result=None)
+        callback.finalize()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_cli_import(self):
+        """Test CLI module can be imported."""
+        from maif.integrations.crewai import cli
+        assert hasattr(cli, "main")
+        assert hasattr(cli, "cmd_inspect")
+        assert hasattr(cli, "cmd_verify")
+        assert hasattr(cli, "cmd_export")
+    
+    def test_cmd_inspect_function(self):
+        """Test inspect command function directly."""
+        from maif.integrations.crewai.cli import cmd_inspect
+        
+        # Create args object
+        class Args:
+            artifact = None
+            tasks = False
+            steps = False
+            limit = 10
+        
+        args = Args()
+        args.artifact = self.artifact_path
+        
+        # Should not raise
+        cmd_inspect(args)
+    
+    def test_cmd_verify_function(self):
+        """Test verify command function directly."""
+        from maif.integrations.crewai.cli import cmd_verify
+        import sys
+        
+        class Args:
+            artifact = None
+            verbose = False
+        
+        args = Args()
+        args.artifact = self.artifact_path
+        
+        # Capture exit
+        original_exit = sys.exit
+        exit_code = [None]
+        
+        def mock_exit(code):
+            exit_code[0] = code
+        
+        sys.exit = mock_exit
+        try:
+            cmd_verify(args)
+        finally:
+            sys.exit = original_exit
+        
+        # Should exit with 0 (success)
+        assert exit_code[0] == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
