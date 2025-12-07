@@ -576,6 +576,432 @@ class TestMAIFCheckpointerIntegration:
         checkpointer.finalize()
 
 
+class TestMigrationHelper:
+    """Tests for the migration helper functions."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.sqlite_path = os.path.join(self.temp_dir, "checkpoints.db")
+        self.maif_path = os.path.join(self.temp_dir, "checkpoints.maif")
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_import_migration_functions(self):
+        """Test that migration functions can be imported."""
+        try:
+            from maif.integrations.langgraph import migrate_from_sqlite, compare_checkpointers
+            assert migrate_from_sqlite is not None
+            assert compare_checkpointers is not None
+        except ImportError as e:
+            if "langgraph" in str(e).lower():
+                pytest.skip("LangGraph not installed")
+            raise
+    
+    def test_migrate_from_sqlite_empty_db(self):
+        """Test migration from empty SQLite database."""
+        try:
+            from maif.integrations.langgraph import migrate_from_sqlite
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import sqlite3
+        
+        # Create empty checkpoints table
+        conn = sqlite3.connect(self.sqlite_path)
+        conn.execute("""
+            CREATE TABLE checkpoints (
+                thread_id TEXT,
+                checkpoint_ns TEXT,
+                checkpoint_id TEXT,
+                checkpoint BLOB,
+                metadata BLOB,
+                parent_checkpoint_id TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+        
+        # Migrate
+        stats = migrate_from_sqlite(self.sqlite_path, self.maif_path, verbose=False)
+        
+        assert stats["checkpoints_migrated"] == 0
+        assert stats["threads_migrated"] == []
+    
+    def test_migrate_from_sqlite_with_data(self):
+        """Test migration from SQLite database with checkpoints."""
+        try:
+            from maif.integrations.langgraph import migrate_from_sqlite
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import sqlite3
+        
+        # Create and populate checkpoints table
+        conn = sqlite3.connect(self.sqlite_path)
+        conn.execute("""
+            CREATE TABLE checkpoints (
+                thread_id TEXT,
+                checkpoint_ns TEXT,
+                checkpoint_id TEXT,
+                checkpoint BLOB,
+                metadata BLOB,
+                parent_checkpoint_id TEXT
+            )
+        """)
+        
+        # Insert test data
+        for i in range(3):
+            checkpoint_data = json.dumps({
+                "v": 1,
+                "id": f"cp-{i}",
+                "channel_values": {"step": i},
+                "channel_versions": {},
+                "versions_seen": {},
+            })
+            metadata_data = json.dumps({"source": "test", "step": i})
+            
+            conn.execute(
+                "INSERT INTO checkpoints VALUES (?, ?, ?, ?, ?, ?)",
+                ("test-thread", "", f"cp-{i}", checkpoint_data, metadata_data, None)
+            )
+        
+        conn.commit()
+        conn.close()
+        
+        # Migrate
+        stats = migrate_from_sqlite(self.sqlite_path, self.maif_path, verbose=False)
+        
+        assert stats["checkpoints_migrated"] == 3
+        assert "test-thread" in stats["threads_migrated"]
+        assert os.path.exists(self.maif_path)
+    
+    def test_migrate_file_not_found(self):
+        """Test migration with non-existent SQLite file."""
+        try:
+            from maif.integrations.langgraph import migrate_from_sqlite
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        with pytest.raises(FileNotFoundError):
+            migrate_from_sqlite("/nonexistent/path.db", self.maif_path)
+
+
+class TestCLI:
+    """Tests for the CLI tools."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.artifact_path = os.path.join(self.temp_dir, "cli_test.maif")
+        self._create_test_artifact()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def _create_test_artifact(self):
+        """Create a test artifact for CLI tests."""
+        try:
+            from maif.integrations.langgraph import MAIFCheckpointer
+        except ImportError:
+            return
+        
+        checkpointer = MAIFCheckpointer(self.artifact_path)
+        config = {"configurable": {"thread_id": "cli-test-thread", "checkpoint_ns": ""}}
+        
+        for i in range(3):
+            checkpoint = {
+                "v": 1,
+                "id": f"cli-cp-{i}",
+                "ts": f"2024-01-0{i+1}T00:00:00Z",
+                "channel_values": {"step": i},
+                "channel_versions": {},
+                "versions_seen": {},
+            }
+            checkpointer.put(config, checkpoint, {"source": "test", "step": i})
+        
+        checkpointer.finalize()
+    
+    def test_cli_import(self):
+        """Test that CLI module can be imported."""
+        try:
+            from maif.integrations.langgraph import cli
+            assert cli.main is not None
+        except ImportError as e:
+            if "langgraph" in str(e).lower():
+                pytest.skip("LangGraph not installed")
+            raise
+    
+    def test_cmd_inspect(self):
+        """Test the inspect command."""
+        try:
+            from maif.integrations.langgraph.cli import cmd_inspect
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import argparse
+        
+        # Create args namespace
+        args = argparse.Namespace(
+            artifact=self.artifact_path,
+            checkpoints=False,
+            thread=None,
+            limit=10
+        )
+        
+        # Should not raise
+        cmd_inspect(args)
+    
+    def test_cmd_verify(self):
+        """Test the verify command."""
+        try:
+            from maif.integrations.langgraph.cli import cmd_verify
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import argparse
+        
+        args = argparse.Namespace(
+            artifact=self.artifact_path,
+            verbose=False
+        )
+        
+        # Should exit with 0 for valid artifact
+        try:
+            cmd_verify(args)
+        except SystemExit as e:
+            assert e.code == 0
+    
+    def test_cmd_export_json(self):
+        """Test the export command with JSON format."""
+        try:
+            from maif.integrations.langgraph.cli import cmd_export
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import argparse
+        
+        output_path = os.path.join(self.temp_dir, "export.json")
+        args = argparse.Namespace(
+            artifact=self.artifact_path,
+            format="json",
+            output=output_path,
+            thread=None
+        )
+        
+        cmd_export(args)
+        
+        assert os.path.exists(output_path)
+        with open(output_path) as f:
+            data = json.load(f)
+        assert "events" in data
+        assert len(data["events"]) > 0
+    
+    def test_cmd_export_csv(self):
+        """Test the export command with CSV format."""
+        try:
+            from maif.integrations.langgraph.cli import cmd_export
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import argparse
+        
+        output_path = os.path.join(self.temp_dir, "export.csv")
+        args = argparse.Namespace(
+            artifact=self.artifact_path,
+            format="csv",
+            output=output_path,
+            thread=None
+        )
+        
+        cmd_export(args)
+        
+        assert os.path.exists(output_path)
+        with open(output_path) as f:
+            lines = f.readlines()
+        assert len(lines) > 1  # Header + data
+        assert "timestamp" in lines[0]
+    
+    def test_cmd_threads(self):
+        """Test the threads command."""
+        try:
+            from maif.integrations.langgraph.cli import cmd_threads
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        import argparse
+        
+        args = argparse.Namespace(artifact=self.artifact_path)
+        
+        # Should not raise
+        cmd_threads(args)
+
+
+class TestPatterns:
+    """Tests for the pre-built graph patterns."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.temp_dir = tempfile.mkdtemp()
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_import_patterns(self):
+        """Test that pattern functions can be imported."""
+        try:
+            from maif.integrations.langgraph import (
+                create_chat_graph,
+                create_rag_graph,
+                create_multi_agent_graph,
+                finalize_graph,
+                get_artifact_path,
+            )
+            assert create_chat_graph is not None
+            assert create_rag_graph is not None
+            assert create_multi_agent_graph is not None
+        except ImportError as e:
+            if "langgraph" in str(e).lower():
+                pytest.skip("LangGraph not installed")
+            raise
+    
+    def test_create_chat_graph(self):
+        """Test creating a chat graph."""
+        try:
+            from maif.integrations.langgraph import create_chat_graph, finalize_graph
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        artifact_path = os.path.join(self.temp_dir, "chat.maif")
+        
+        # Simple LLM function
+        def mock_llm(messages):
+            return "Hello! I'm a mock LLM."
+        
+        app = create_chat_graph(artifact_path, mock_llm)
+        
+        # Run the graph
+        result = app.invoke(
+            {"messages": [{"role": "user", "content": "Hi!"}]},
+            {"configurable": {"thread_id": "chat-test"}}
+        )
+        
+        assert len(result["messages"]) > 0
+        assert result["messages"][-1]["role"] == "assistant"
+        
+        finalize_graph(app)
+        assert os.path.exists(artifact_path)
+    
+    def test_create_rag_graph(self):
+        """Test creating a RAG graph."""
+        try:
+            from maif.integrations.langgraph import create_rag_graph, finalize_graph
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        artifact_path = os.path.join(self.temp_dir, "rag.maif")
+        
+        # Mock retriever
+        def mock_retriever(query):
+            return [
+                {"content": "Document 1 content", "source": "doc1.pdf"},
+                {"content": "Document 2 content", "source": "doc2.pdf"},
+            ]
+        
+        # Mock LLM
+        def mock_llm(query, contexts):
+            return f"Based on {len(contexts)} documents: Answer to '{query}'"
+        
+        app = create_rag_graph(artifact_path, mock_retriever, mock_llm)
+        
+        # Run the graph
+        result = app.invoke(
+            {
+                "messages": [],
+                "query": "What is the answer?",
+                "context": [],
+                "citations": [],
+            },
+            {"configurable": {"thread_id": "rag-test"}}
+        )
+        
+        assert len(result["messages"]) > 0
+        
+        finalize_graph(app)
+        assert os.path.exists(artifact_path)
+    
+    def test_create_multi_agent_graph(self):
+        """Test creating a multi-agent graph."""
+        try:
+            from maif.integrations.langgraph import create_multi_agent_graph, finalize_graph
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        artifact_path = os.path.join(self.temp_dir, "multi_agent.maif")
+        
+        # Mock agents
+        def researcher(state):
+            return {"research": "Research findings here"}
+        
+        def writer(state):
+            return {"draft": "Draft article here"}
+        
+        # Router
+        call_count = {"count": 0}
+        def router(state):
+            call_count["count"] += 1
+            outputs = state.get("agent_outputs", {})
+            if "researcher" not in outputs or not any("research" in v for k, v in outputs.items() if isinstance(v, dict)):
+                return "researcher"
+            if call_count["count"] >= 3:
+                return "FINISH"
+            return "writer"
+        
+        app = create_multi_agent_graph(
+            artifact_path,
+            {"researcher": researcher, "writer": writer},
+            router,
+            max_iterations=5
+        )
+        
+        # Run the graph
+        result = app.invoke(
+            {
+                "messages": [],
+                "current_agent": "",
+                "agent_outputs": {},
+                "task_complete": False,
+            },
+            {"configurable": {"thread_id": "multi-agent-test"}}
+        )
+        
+        assert result["task_complete"] is True
+        
+        finalize_graph(app)
+        assert os.path.exists(artifact_path)
+    
+    def test_get_artifact_path(self):
+        """Test getting artifact path from compiled graph."""
+        try:
+            from maif.integrations.langgraph import create_chat_graph, get_artifact_path
+        except ImportError:
+            pytest.skip("LangGraph not installed")
+        
+        artifact_path = os.path.join(self.temp_dir, "path_test.maif")
+        
+        def mock_llm(messages):
+            return "Response"
+        
+        app = create_chat_graph(artifact_path, mock_llm)
+        
+        retrieved_path = get_artifact_path(app)
+        assert retrieved_path == artifact_path
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
