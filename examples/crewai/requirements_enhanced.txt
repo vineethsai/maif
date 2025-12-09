@@ -1,0 +1,10 @@
+maif[integrations]
+crewai
+chromadb
+sentence-transformers
+google-generativeai
+python-dotenv
+tqdm
+requests
+
+
