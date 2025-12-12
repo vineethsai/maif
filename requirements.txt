@@ -32,7 +32,7 @@ lz4==4.4.5
 numba==0.60.0
 
 # Production monitoring
-prometheus-client==0.21.0
+prometheus-client==0.23.1
 
 # Development dependencies
 pytest==8.4.2
