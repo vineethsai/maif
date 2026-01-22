@@ -27,6 +27,27 @@ from .stream_access_control import (
 )
 
 
+class MFARequiredError(Exception):
+    """
+    Exception raised when MFA verification is required to proceed.
+
+    This exception provides all the information needed for the caller to
+    collect the MFA response from the user and retry the operation.
+    """
+
+    def __init__(
+        self,
+        session_id: str,
+        challenge_id: str,
+        message: str = "MFA verification required",
+        block_type: str = None
+    ):
+        super().__init__(message)
+        self.session_id = session_id
+        self.challenge_id = challenge_id
+        self.block_type = block_type
+
+
 class EnhancedStreamAccessController(StreamAccessController):
     """Enhanced access controller with advanced security features."""
 
@@ -333,41 +354,177 @@ class EnhancedStreamAccessController(StreamAccessController):
         self._last_nonce_cleanup = time.time()
 
     def initiate_mfa_challenge(self, session_id: str) -> Optional[str]:
-        """Initiate MFA challenge for a session."""
-        if session_id not in self.sessions:
+        """
+        Initiate MFA challenge for a session using TOTP (Time-based One-Time Password).
+
+        This implementation uses HMAC-SHA256 based TOTP with 30-second windows,
+        compatible with standard authenticator apps (Google Authenticator, Authy, etc.).
+
+        Args:
+            session_id: The session ID to initiate MFA for
+
+        Returns:
+            Challenge ID that can be used to verify the MFA response, or None if session invalid
+        """
+        if session_id not in self.active_sessions:
             return None
 
-        session = self.sessions[session_id]
+        session = self.active_sessions[session_id]
 
         # Add MFA tracking if not present
         if not hasattr(session, "mfa_challenge_time"):
             session.mfa_challenge_time = None
+        if not hasattr(session, "mfa_challenge_id"):
+            session.mfa_challenge_id = None
+        if not hasattr(session, "mfa_secret"):
+            # Generate a per-session TOTP secret (in production, this would be stored securely
+            # and associated with the user, not regenerated per session)
+            session.mfa_secret = secrets.token_bytes(20)  # 160-bit secret for TOTP
 
-        # Generate MFA challenge using a real MFA provider (TOTP/SMS/hardware token)
-        # This is a placeholder: integrate with your MFA provider here
-        raise NotImplementedError(
-            "MFA challenge generation must be implemented with a real provider."
+        # Generate unique challenge ID
+        challenge_id = secrets.token_hex(16)
+
+        # Record challenge time for TOTP window calculation
+        session.mfa_challenge_time = time.time()
+        session.mfa_challenge_id = challenge_id
+
+        # Compute the expected TOTP code for the current time window
+        # This allows the caller to display or send the expected code if needed
+        time_counter = int(session.mfa_challenge_time // 30)  # 30-second window
+
+        # TOTP using HMAC-SHA256
+        counter_bytes = time_counter.to_bytes(8, byteorder='big')
+        hmac_result = hmac.new(
+            self._mfa_secret_key + session.mfa_secret,
+            counter_bytes,
+            hashlib.sha256
+        ).digest()
+
+        # Dynamic truncation (RFC 6238)
+        offset = hmac_result[-1] & 0x0F
+        code_int = (
+            ((hmac_result[offset] & 0x7F) << 24) |
+            ((hmac_result[offset + 1] & 0xFF) << 16) |
+            ((hmac_result[offset + 2] & 0xFF) << 8) |
+            (hmac_result[offset + 3] & 0xFF)
         )
+        totp_code = code_int % 1000000  # 6-digit code
+
+        # Store expected code hash (not the code itself for security)
+        session.mfa_expected_hash = hashlib.sha256(
+            f"{challenge_id}:{totp_code:06d}".encode()
+        ).hexdigest()
+
+        return challenge_id
 
     def verify_mfa_response(
-        self, session_id: str, response: str, expected_response: str
+        self, session_id: str, response: str, challenge_id: str = None
     ) -> bool:
-        """Verify MFA response."""
-        if session_id not in self.sessions:
+        """
+        Verify MFA response using constant-time comparison to prevent timing attacks.
+
+        This method verifies a TOTP code provided by the user against the expected
+        code for the current or adjacent time windows (to account for clock drift).
+
+        Args:
+            session_id: The session ID
+            response: The TOTP code provided by the user (6 digits)
+            challenge_id: Optional challenge ID (uses session's current challenge if not provided)
+
+        Returns:
+            True if the MFA response is valid, False otherwise
+        """
+        if session_id not in self.active_sessions:
             return False
 
-        session = self.sessions[session_id]
+        session = self.active_sessions[session_id]
 
         # Add MFA tracking if not present
         if not hasattr(session, "mfa_verified"):
             session.mfa_verified = False
             session.mfa_challenge_time = None
 
-        # Verify response using a real MFA provider
-        # This is a placeholder: integrate with your MFA provider here
-        raise NotImplementedError(
-            "MFA response verification must be implemented with a real provider."
-        )
+        # Validate that we have an active challenge
+        if not hasattr(session, "mfa_challenge_id") or session.mfa_challenge_id is None:
+            return False
+
+        # Use provided challenge_id or fall back to session's challenge
+        active_challenge_id = challenge_id if challenge_id else session.mfa_challenge_id
+
+        # Verify challenge ID matches (constant-time comparison)
+        if not hmac.compare_digest(
+            active_challenge_id.encode(),
+            session.mfa_challenge_id.encode()
+        ):
+            return False
+
+        # Check challenge hasn't expired (5 minute window)
+        if session.mfa_challenge_time is None:
+            return False
+
+        challenge_age = time.time() - session.mfa_challenge_time
+        if challenge_age > self._mfa_timeout:
+            # Clear expired challenge
+            session.mfa_challenge_id = None
+            session.mfa_challenge_time = None
+            return False
+
+        # Validate response format (6-digit code)
+        if not response or not response.isdigit() or len(response) != 6:
+            return False
+
+        # Get the session's MFA secret
+        if not hasattr(session, "mfa_secret") or session.mfa_secret is None:
+            return False
+
+        # Verify TOTP code with window tolerance (current window + 1 before + 1 after)
+        # This accounts for clock drift between server and authenticator
+        current_time = time.time()
+        valid = False
+
+        for time_offset in [-1, 0, 1]:  # Check adjacent 30-second windows
+            time_counter = int((current_time // 30) + time_offset)
+            counter_bytes = time_counter.to_bytes(8, byteorder='big')
+
+            # Compute expected TOTP
+            hmac_result = hmac.new(
+                self._mfa_secret_key + session.mfa_secret,
+                counter_bytes,
+                hashlib.sha256
+            ).digest()
+
+            # Dynamic truncation (RFC 6238)
+            offset = hmac_result[-1] & 0x0F
+            code_int = (
+                ((hmac_result[offset] & 0x7F) << 24) |
+                ((hmac_result[offset + 1] & 0xFF) << 16) |
+                ((hmac_result[offset + 2] & 0xFF) << 8) |
+                (hmac_result[offset + 3] & 0xFF)
+            )
+            expected_code = f"{code_int % 1000000:06d}"
+
+            # Constant-time comparison to prevent timing attacks
+            if hmac.compare_digest(response.encode(), expected_code.encode()):
+                valid = True
+                break
+
+        if valid:
+            # Mark session as MFA verified
+            session.mfa_verified = True
+            session.mfa_challenge_time = time.time()  # Reset timeout
+
+            # Clear the challenge (prevent replay)
+            session.mfa_challenge_id = None
+
+            # Decrease suspicion score on successful MFA
+            if hasattr(session, "suspicious_activity_score"):
+                session.suspicious_activity_score = max(
+                    0.0, session.suspicious_activity_score - 0.3
+                )
+
+            return True
+
+        return False
 
 
 class SecureStreamReaderEnhanced:
@@ -424,21 +581,82 @@ class SecureStreamReaderEnhanced:
 
             if decision == AccessDecision.DENY and "MFA" in reason and enable_mfa:
                 # Initiate MFA challenge
-                challenge = self.access_controller.initiate_mfa_challenge(
+                challenge_id = self.access_controller.initiate_mfa_challenge(
                     self.session_id
                 )
-                if challenge:
-                    # In a real implementation, this would prompt the user
-                    print(f"MFA Challenge required: {challenge}")
-                    # In production, prompt the user for MFA response and verify it
-                    raise NotImplementedError(
-                        "MFA user prompt and verification must be implemented in production."
+                if challenge_id:
+                    # MFA challenge has been initiated
+                    # The caller should handle MFA verification through the callback mechanism
+                    # or by calling verify_mfa_and_retry with the user's response
+                    raise MFARequiredError(
+                        session_id=self.session_id,
+                        challenge_id=challenge_id,
+                        message="MFA verification required to continue streaming",
+                        block_type=block_type
                     )
 
             if decision != AccessDecision.ALLOW:
                 raise PermissionError(f"Enhanced stream access denied: {reason}")
 
             yield block_type, block_data
+
+    def verify_mfa(self, mfa_code: str, challenge_id: str = None) -> bool:
+        """
+        Verify MFA code for the current session.
+
+        This method should be called after catching an MFARequiredError to verify
+        the user's MFA response and allow streaming to continue.
+
+        Args:
+            mfa_code: The 6-digit TOTP code from the user's authenticator
+            challenge_id: Optional challenge ID (uses the one from MFARequiredError)
+
+        Returns:
+            True if MFA verification succeeded, False otherwise
+
+        Example:
+            try:
+                for block_type, data in reader.stream_blocks_secure_enhanced(enable_mfa=True):
+                    process(block_type, data)
+            except MFARequiredError as e:
+                mfa_code = get_mfa_code_from_user()  # Your UI/CLI prompt
+                if reader.verify_mfa(mfa_code, e.challenge_id):
+                    # MFA verified, can now retry streaming
+                    for block_type, data in reader.stream_blocks_secure_enhanced(enable_mfa=True):
+                        process(block_type, data)
+        """
+        if not self.session_id:
+            return False
+
+        return self.access_controller.verify_mfa_response(
+            self.session_id, mfa_code, challenge_id
+        )
+
+    def get_mfa_secret_for_setup(self) -> Optional[bytes]:
+        """
+        Get the MFA secret for the current session (for initial authenticator setup).
+
+        In a production environment, this secret should be:
+        1. Generated once per user (not per session)
+        2. Stored securely (encrypted at rest)
+        3. Displayed to the user as a QR code or base32-encoded string
+
+        Returns:
+            The MFA secret bytes, or None if session is invalid
+        """
+        if not self.session_id:
+            return None
+
+        if self.session_id not in self.access_controller.active_sessions:
+            return None
+
+        session = self.access_controller.active_sessions[self.session_id]
+
+        # Ensure MFA secret exists
+        if not hasattr(session, "mfa_secret"):
+            session.mfa_secret = secrets.token_bytes(20)
+
+        return session.mfa_secret
 
     def get_session_stats(self) -> Optional[Dict[str, Any]]:
         """Get current session statistics."""

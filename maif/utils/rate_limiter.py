@@ -7,6 +7,7 @@ Provides rate limiting capabilities to prevent abuse and manage costs.
 
 import time
 import asyncio
+import concurrent.futures
 from typing import Dict, Optional, Callable
 from collections import defaultdict, deque
 from dataclasses import dataclass
@@ -269,9 +270,44 @@ def rate_limited(operation: str = "default", key_func: Optional[Callable] = None
             return await func(*args, **kwargs)
 
         def sync_wrapper(*args, **kwargs):
-            raise NotImplementedError(
-                "Sync rate limiting not supported. Use async functions."
-            )
+            limiter = get_rate_limiter()
+
+            # Determine key
+            if key_func:
+                key = key_func(*args, **kwargs)
+            else:
+                key = "default"
+
+            # Get cost for the operation
+            if isinstance(limiter, CostBasedRateLimiter):
+                cost = limiter.get_operation_cost(operation)
+            else:
+                cost = 1
+
+            # For sync functions, we need to run the async rate limit check
+            # Try to get existing event loop, create new one if needed
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're in an async context, we can't use run_until_complete
+                # Use thread-safe approach with run_coroutine_threadsafe
+                future = asyncio.run_coroutine_threadsafe(
+                    limiter.check_rate_limit(key, cost), loop
+                )
+                allowed = future.result(timeout=5.0)
+            except RuntimeError:
+                # No running event loop, create a new one
+                loop = asyncio.new_event_loop()
+                try:
+                    allowed = loop.run_until_complete(
+                        limiter.check_rate_limit(key, cost)
+                    )
+                finally:
+                    loop.close()
+
+            if not allowed:
+                raise RateLimitExceeded(f"Rate limit exceeded for {operation}")
+
+            return func(*args, **kwargs)
 
         if asyncio.iscoroutinefunction(func):
             return async_wrapper

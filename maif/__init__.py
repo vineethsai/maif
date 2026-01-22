@@ -525,7 +525,7 @@ except ImportError:
 # Module Info
 # =============================================================================
 
-__version__ = "3.0.0"
+__version__ = "1.0.2"
 __author__ = "MAIF Development Team"
 __license__ = "MIT"
 

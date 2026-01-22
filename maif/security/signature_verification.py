@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import time
 import base64
+from abc import ABC, abstractmethod
 from typing import Dict, List, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 from enum import Enum
@@ -452,47 +453,6 @@ class SignatureVerifier:
             "algorithms": {alg.value: 0 for alg in SignatureAlgorithm},
         }
 
-
-# Helper functions for easy integration
-def create_default_verifier() -> SignatureVerifier:
-    """Create default signature verifier with basic keys."""
-    key_store = KeyStore()
-
-    # Add a default key for testing
-    default_key = secrets.token_bytes(32)
-    key_store.add_key(
-        key_id="default",
-        key_data=default_key,
-        algorithm=SignatureAlgorithm.HMAC_SHA256,
-        issuer="self",
-    )
-
-    return SignatureVerifier(key_store)
-
-
-def sign_block_data(
-    verifier: SignatureVerifier, block_data: bytes, key_id: str = "default"
-) -> Dict[str, Any]:
-    """Sign block data and return signature metadata."""
-    signature_info = verifier.generate_signature_info(data=block_data, key_id=key_id)
-
-    if not signature_info:
-        raise ValueError(f"Failed to generate signature with key {key_id}")
-
-    return signature_info.to_dict()
-
-
-def verify_block_signature(
-    verifier: SignatureVerifier, block_data: bytes, signature_metadata: Dict[str, Any]
-) -> bool:
-    """Verify block signature from metadata."""
-    try:
-        signature_info = SignatureInfo.from_dict(signature_metadata)
-        result = verifier.verify_signature(block_data, signature_info)
-        return result == VerificationResult.VALID
-    except Exception:
-        return False
-
     def _retrieve_private_key(
         self, key_id: str, algorithm: SignatureAlgorithm
     ) -> Optional[Any]:
@@ -559,20 +519,90 @@ def verify_block_signature(
             return None
 
 
-class KeyStoreBackend:
-    """Abstract base class for key storage backends."""
+# Helper functions for easy integration
+def create_default_verifier() -> SignatureVerifier:
+    """Create default signature verifier with basic keys."""
+    key_store = KeyStore()
 
+    # Add a default key for testing
+    default_key = secrets.token_bytes(32)
+    key_store.add_key(
+        key_id="default",
+        key_data=default_key,
+        algorithm=SignatureAlgorithm.HMAC_SHA256,
+        issuer="self",
+    )
+
+    return SignatureVerifier(key_store)
+
+
+def sign_block_data(
+    verifier: SignatureVerifier, block_data: bytes, key_id: str = "default"
+) -> Dict[str, Any]:
+    """Sign block data and return signature metadata."""
+    signature_info = verifier.generate_signature_info(data=block_data, key_id=key_id)
+
+    if not signature_info:
+        raise ValueError(f"Failed to generate signature with key {key_id}")
+
+    return signature_info.to_dict()
+
+
+def verify_block_signature(
+    verifier: SignatureVerifier, block_data: bytes, signature_metadata: Dict[str, Any]
+) -> bool:
+    """Verify block signature from metadata."""
+    try:
+        signature_info = SignatureInfo.from_dict(signature_metadata)
+        result = verifier.verify_signature(block_data, signature_info)
+        return result == VerificationResult.VALID
+    except Exception:
+        return False
+
+
+class KeyStoreBackend(ABC):
+    """Abstract base class for key storage backends.
+
+    Subclasses must implement store_key, retrieve_key, and delete_key methods.
+    See FileKeyStore for a reference implementation.
+    """
+
+    @abstractmethod
     def store_key(self, key_id: str, key_data: bytes) -> bool:
-        """Store a key."""
-        raise NotImplementedError
+        """Store a key.
 
+        Args:
+            key_id: Unique identifier for the key
+            key_data: Raw key bytes to store
+
+        Returns:
+            True if storage succeeded, False otherwise
+        """
+        pass
+
+    @abstractmethod
     def retrieve_key(self, key_id: str) -> Optional[bytes]:
-        """Retrieve a key."""
-        raise NotImplementedError
+        """Retrieve a key.
 
+        Args:
+            key_id: Unique identifier for the key
+
+        Returns:
+            Key bytes if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
     def delete_key(self, key_id: str) -> bool:
-        """Delete a key."""
-        raise NotImplementedError
+        """Delete a key.
+
+        Args:
+            key_id: Unique identifier for the key
+
+        Returns:
+            True if deletion succeeded, False otherwise
+        """
+        pass
 
 
 class FileKeyStore(KeyStoreBackend):
