@@ -1837,10 +1837,10 @@ class HierarchicalSemanticCompression:
         Returns:
             Dictionary with clusters, centroids, and metrics.
         """
-        if not embeddings:
-            return {"clusters": [], "centroids": []}
-
         embeddings_array = np.array(embeddings)
+
+        if len(embeddings_array) == 0:
+            return {"clusters": [], "centroids": []}
         n_samples = len(embeddings_array)
 
         if n_clusters is None:

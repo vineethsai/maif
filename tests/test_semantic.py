@@ -61,20 +61,19 @@ class TestSemanticEmbedder:
 
     def setup_method(self):
         """Set up test fixtures."""
-        # Mock the sentence transformer to avoid dependency issues
-        with patch("sentence_transformers.SentenceTransformer"):
-            self.embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
+        # SemanticEmbedder now uses lightweight TF-IDF (no sentence-transformers needed)
+        self.embedder = SemanticEmbedder(max_features=384)
 
     def test_embedder_initialization(self):
         """Test SemanticEmbedder initialization."""
-        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
+        embedder = SemanticEmbedder(max_features=384)
 
-        assert embedder.model_name == "all-MiniLM-L6-v2"
+        assert embedder.model_name == "tfidf-384"
         assert embedder.embeddings == []
 
     def test_embed_text(self):
         """Test text embedding generation."""
-        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
+        embedder = SemanticEmbedder(max_features=384)
 
         text = "Hello, semantic world!"
         metadata = {"source": "test"}
@@ -82,24 +81,18 @@ class TestSemanticEmbedder:
         embedding = embedder.embed_text(text, metadata)
 
         assert isinstance(embedding, SemanticEmbedding)
-        # Embedding dimension depends on the model (384 for MiniLM)
-        assert len(embedding.vector) > 0
+        # TF-IDF embedding dimension is max_features (384)
+        assert len(embedding.vector) == 384
         assert embedding.metadata["source"] == "test"
 
         # Check that embedding was stored
         assert len(embedder.embeddings) == 1
         assert embedder.embeddings[0] == embedding
 
-    @patch("sentence_transformers.SentenceTransformer")
-    def test_embed_texts_batch(self, mock_transformer):
+    def test_embed_texts_batch(self):
         """Test batch text embedding."""
-        # Mock the model
-        mock_model = Mock()
-        # Create 384-dimensional embeddings as expected
-        mock_model.encode.return_value = np.random.rand(3, 384)
-        mock_transformer.return_value = mock_model
-
-        embedder = SemanticEmbedder(model_name="all-MiniLM-L6-v2")
+        # TF-IDF embedder now handles batch embeddings
+        embedder = SemanticEmbedder(max_features=384)
 
         texts = ["Text 1", "Text 2", "Text 3"]
         metadata_list = [{"id": 1}, {"id": 2}, {"id": 3}]
@@ -109,7 +102,7 @@ class TestSemanticEmbedder:
         assert len(embeddings) == 3
         for i, embedding in enumerate(embeddings):
             assert isinstance(embedding, SemanticEmbedding)
-            assert len(embedding.vector) == 384
+            assert len(embedding.vector) == 384  # TF-IDF uses max_features dimension
             assert embedding.metadata["id"] == i + 1
             assert embedding.metadata["text"] == texts[i]
 
@@ -610,28 +603,28 @@ class TestSemanticIntegration:
 
     def setup_method(self):
         """Set up test fixtures."""
-        with patch("sentence_transformers.SentenceTransformer"):
-            self.embedder = SemanticEmbedder()
+        # SemanticEmbedder now uses lightweight TF-IDF (no sentence-transformers needed)
+        self.embedder = SemanticEmbedder()
         self.kg_builder = KnowledgeGraphBuilder()
         self.attention = CrossModalAttention()
 
     def test_end_to_end_semantic_workflow(self):
         """Test complete semantic processing workflow."""
-        # 1. Create embeddings
-        with patch.object(self.embedder, "model") as mock_model:
-            mock_model.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-
-            embedding = self.embedder.embed_text(
-                "John Smith works at ACME Corporation",
-                metadata={"source": "hr_document"},
-            )
+        # 1. Create embeddings using TF-IDF
+        embedding = self.embedder.embed_text(
+            "John Smith works at ACME Corporation",
+            metadata={"source": "hr_document"},
+        )
 
         # 2. Build knowledge graph
         self.kg_builder.add_triple("John Smith", "works_at", "ACME Corporation")
         self.kg_builder.add_triple("ACME Corporation", "type", "Company")
 
         # 3. Test cross-modal attention
-        embeddings = {"text": embedding.vector, "knowledge": [0.2, 0.3, 0.4, 0.5, 0.6]}
+        # Pad knowledge graph embedding to match text embedding size
+        text_embedding_vec = embedding.vector
+        knowledge_embedding = [0.2] * len(text_embedding_vec)
+        embeddings = {"text": text_embedding_vec, "knowledge": knowledge_embedding}
 
         weights = self.attention.compute_attention_weights(embeddings, "text")
 

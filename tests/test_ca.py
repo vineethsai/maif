@@ -77,7 +77,7 @@ class TestMAIFRootCA:
         ca.create_root()
 
         # Create agent identity and get public key
-        agent = AgentIdentity("test-agent", identity_dir=f"{temp_ca_dir}/identity")
+        agent = AgentIdentity("test-agent", identity_dir=f"{temp_ca_dir}/identity", use_did_key=False)
         agent.generate_keypair()
 
         # Issue certificate
@@ -97,7 +97,7 @@ class TestMAIFRootCA:
         ca = MAIFRootCA(ca_dir=temp_ca_dir)
         ca.create_root()
 
-        agent = AgentIdentity("my-special-agent", identity_dir=f"{temp_ca_dir}/identity")
+        agent = AgentIdentity("my-special-agent", identity_dir=f"{temp_ca_dir}/identity", use_did_key=False)
         agent.generate_keypair()
 
         cert = ca.issue_agent_certificate(
@@ -114,7 +114,7 @@ class TestMAIFRootCA:
         ca = MAIFRootCA(ca_dir=temp_ca_dir)
         ca.create_root()
 
-        agent = AgentIdentity("revoke-test", identity_dir=f"{temp_ca_dir}/identity")
+        agent = AgentIdentity("revoke-test", identity_dir=f"{temp_ca_dir}/identity", use_did_key=False)
         agent.generate_keypair()
 
         cert = ca.issue_agent_certificate(
@@ -139,7 +139,7 @@ class TestMAIFRootCA:
         ca = MAIFRootCA(ca_dir=temp_ca_dir)
         ca.create_root()
 
-        agent = AgentIdentity("verify-revoked", identity_dir=f"{temp_ca_dir}/identity")
+        agent = AgentIdentity("verify-revoked", identity_dir=f"{temp_ca_dir}/identity", use_did_key=False)
         agent.generate_keypair()
 
         cert = ca.issue_agent_certificate(
@@ -172,7 +172,7 @@ class TestAgentIdentity:
 
     def test_generate_ed25519_keypair(self, temp_dir):
         """Test Ed25519 keypair generation."""
-        agent = AgentIdentity("keypair-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("keypair-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         private_bytes, public_bytes = agent.generate_keypair()
 
         assert len(private_bytes) == 32  # Ed25519 private key
@@ -184,7 +184,7 @@ class TestAgentIdentity:
         ca = MAIFRootCA(ca_dir=f"{temp_dir}/ca")
         ca.create_root()
 
-        agent = AgentIdentity("request-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("request-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent.generate_keypair()
         cert = agent.request_certificate(ca)
 
@@ -197,7 +197,7 @@ class TestAgentIdentity:
         ca = MAIFRootCA(ca_dir=f"{temp_dir}/ca")
         ca.create_root()
 
-        agent = AgentIdentity("sign-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("sign-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent.generate_keypair()
         agent.request_certificate(ca)
 
@@ -213,7 +213,7 @@ class TestAgentIdentity:
         ca = MAIFRootCA(ca_dir=f"{temp_dir}/ca")
         ca.create_root()
 
-        agent = AgentIdentity("chain-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("chain-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent.generate_keypair()
         agent.request_certificate(ca)
 
@@ -228,13 +228,13 @@ class TestAgentIdentity:
         ca.create_root()
 
         # Create and save identity
-        agent1 = AgentIdentity("persist-test", identity_dir=f"{temp_dir}/identity")
+        agent1 = AgentIdentity("persist-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent1.generate_keypair()
         agent1.request_certificate(ca)
         original_pubkey = agent1.public_key_hex
 
         # Load identity
-        agent2 = AgentIdentity("persist-test", identity_dir=f"{temp_dir}/identity")
+        agent2 = AgentIdentity("persist-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
 
         assert agent2.public_key_hex == original_pubkey
         assert agent2.certificate is not None
@@ -251,7 +251,7 @@ class TestCertificateIntegration:
         ca = MAIFRootCA(ca_dir=f"{temp_dir}/ca")
         ca.create_root()
 
-        agent = AgentIdentity("integration-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("integration-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent.generate_keypair()
         agent.request_certificate(ca)
 
@@ -331,7 +331,7 @@ class TestCertificateIntegration:
         ca, agent1, temp_dir = ca_and_agent
 
         # Create second agent
-        agent2 = AgentIdentity("attacker", identity_dir=f"{temp_dir}/attacker")
+        agent2 = AgentIdentity("attacker", identity_dir=f"{temp_dir}/attacker", use_did_key=False)
         agent2.generate_keypair()
         agent2.request_certificate(ca)
 
@@ -428,7 +428,7 @@ class TestCertificateVerifier:
         ca = MAIFRootCA(ca_dir=f"{temp_dir}/ca")
         ca.create_root()
 
-        agent = AgentIdentity("verifier-test", identity_dir=f"{temp_dir}/identity")
+        agent = AgentIdentity("verifier-test", identity_dir=f"{temp_dir}/identity", use_did_key=False)
         agent.generate_keypair()
         cert = ca.issue_agent_certificate(agent.agent_did, agent.public_key_bytes)
 
