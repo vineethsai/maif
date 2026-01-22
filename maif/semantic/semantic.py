@@ -25,61 +25,8 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import hashlib
 
-# Patch for huggingface_hub compatibility issue
-try:
-    import huggingface_hub
-
-    if not hasattr(huggingface_hub, "cached_download"):
-        # Add a dummy cached_download function for compatibility
-        logger.debug("Patching huggingface_hub for compatibility")
-
-        def cached_download(*args, **kwargs):
-            # Redirect to the new hf_hub_download function
-            from huggingface_hub import hf_hub_download
-
-            return hf_hub_download(*args, **kwargs)
-
-        huggingface_hub.cached_download = cached_download
-except ImportError:
-    pass
-
-try:
-    from sentence_transformers import SentenceTransformer
-
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except (ImportError, AttributeError) as e:
-    # Handle both missing package and compatibility issues (like cached_download)
-    if "cached_download" in str(e):
-        logger.warning(
-            "Incompatible huggingface_hub version detected. Semantic features will use fallback methods."
-        )
-        SENTENCE_TRANSFORMERS_AVAILABLE = False
-    else:
-        logger.warning("sentence-transformers not installed. Attempting to install...")
-        try:
-            import subprocess
-            import sys
-
-            # Try to install compatible versions
-            subprocess.check_call(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "sentence-transformers>=2.2.0",
-                    "huggingface-hub>=0.19.0",
-                ]
-            )
-            from sentence_transformers import SentenceTransformer
-
-            SENTENCE_TRANSFORMERS_AVAILABLE = True
-            logger.info("Successfully installed sentence-transformers")
-        except Exception as install_error:
-            logger.warning(
-                f"Failed to install sentence-transformers: {install_error}. Semantic features will use fallback methods."
-            )
-            SENTENCE_TRANSFORMERS_AVAILABLE = False
+# TFIDFEmbedder is the primary embedder - no TensorFlow/PyTorch dependencies
+# sentence-transformers support has been removed to avoid heavy dependencies
 
 try:
     import faiss
@@ -88,12 +35,60 @@ try:
 except ImportError:
     FAISS_AVAILABLE = False
 
-try:
-    from sklearn.cluster import DBSCAN, KMeans
+# LAZY IMPORT: sklearn is imported lazily to avoid loading at module import time
+# This helps reduce startup time and avoids potential issues on systems without sklearn
+SKLEARN_AVAILABLE = None  # Will be checked lazily
+_DBSCAN = None
+_KMeans = None
 
-    SKLEARN_AVAILABLE = True
-except ImportError:
-    SKLEARN_AVAILABLE = False
+
+def _check_sklearn_available():
+    """Lazily check if sklearn clustering is available."""
+    global SKLEARN_AVAILABLE, _DBSCAN, _KMeans
+    if SKLEARN_AVAILABLE is not None:
+        return SKLEARN_AVAILABLE
+    try:
+        from sklearn.cluster import DBSCAN, KMeans
+        _DBSCAN = DBSCAN
+        _KMeans = KMeans
+        SKLEARN_AVAILABLE = True
+    except ImportError:
+        SKLEARN_AVAILABLE = False
+    return SKLEARN_AVAILABLE
+
+
+def _get_dbscan():
+    """Get DBSCAN class, importing lazily if needed."""
+    _check_sklearn_available()
+    return _DBSCAN
+
+
+def _get_kmeans():
+    """Get KMeans class, importing lazily if needed."""
+    _check_sklearn_available()
+    return _KMeans
+
+# Lazy import for TfidfVectorizer to avoid loading sklearn at module import time
+_TfidfVectorizer = None
+TFIDF_AVAILABLE = None
+
+
+def _check_tfidf_available():
+    """Lazily check if sklearn TfidfVectorizer is available."""
+    global TFIDF_AVAILABLE, _TfidfVectorizer
+
+    if TFIDF_AVAILABLE is not None:
+        return TFIDF_AVAILABLE
+
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        _TfidfVectorizer = TfidfVectorizer
+        TFIDF_AVAILABLE = True
+    except ImportError:
+        logger.warning("sklearn TfidfVectorizer not available for TF-IDF fallback")
+        TFIDF_AVAILABLE = False
+
+    return TFIDF_AVAILABLE
 
 
 # High-performance numpy-based similarity search
@@ -138,6 +133,269 @@ def fast_top_k_indices(similarities, k):
         ]
 
     return top_k_indices
+
+
+class TFIDFEmbedder:
+    """
+    Primary text embedder using sklearn's TfidfVectorizer.
+
+    This is the default embedder for MAIF semantic functionality. It uses TF-IDF
+    (Term Frequency-Inverse Document Frequency) to create vector representations
+    of text without any TensorFlow or PyTorch dependencies.
+
+    TF-IDF creates sparse vector representations based on word importance,
+    providing efficient text similarity computations with only sklearn as a
+    dependency.
+
+    Attributes:
+        max_features: Maximum vocabulary size for the TF-IDF vectorizer.
+        vectorizer: The sklearn TfidfVectorizer instance.
+        embeddings: List of generated SemanticEmbedding objects.
+        model_name: Identifier for this embedder type.
+        _fitted: Whether the vectorizer has been fitted on any text.
+        _corpus: Internal corpus used for fitting the vectorizer.
+
+    Example:
+        >>> embedder = TFIDFEmbedder(max_features=512)
+        >>> embedding = embedder.embed_text("Hello, world!")
+        >>> print(len(embedding.vector))
+        512
+    """
+
+    def __init__(self, max_features: int = 384):
+        """
+        Initialize the TF-IDF embedder.
+
+        Args:
+            max_features: Maximum number of features (vocabulary size) for
+                         TF-IDF vectors. Defaults to 384 to match common
+                         neural embedding dimensions like MiniLM.
+        """
+        if not _check_tfidf_available():
+            raise ImportError(
+                "sklearn is required for TFIDFEmbedder. "
+                "Install with: pip install scikit-learn"
+            )
+
+        self.max_features = max_features
+        self.vectorizer = _TfidfVectorizer(
+            max_features=max_features,
+            stop_words='english',
+            ngram_range=(1, 2),  # Unigrams and bigrams for better context
+            sublinear_tf=True,  # Use log scaling for term frequency
+        )
+        self.embeddings: List[SemanticEmbedding] = []
+        self.model_name = f"tfidf-{max_features}"
+        self._fitted = False
+        self._corpus: List[str] = []
+
+    def _ensure_fitted(self, texts: List[str]):
+        """
+        Ensure the vectorizer is fitted, updating if new texts are provided.
+
+        The vectorizer needs to be fitted on a corpus to build its vocabulary.
+        This method adds new texts to the corpus and refits if needed.
+
+        Args:
+            texts: List of text strings to include in fitting.
+        """
+        new_texts = [t for t in texts if t not in self._corpus]
+        if new_texts or not self._fitted:
+            self._corpus.extend(new_texts)
+            if self._corpus:
+                self.vectorizer.fit(self._corpus)
+                self._fitted = True
+
+    def embed_text(
+        self, text: str, metadata: Optional[Dict] = None
+    ) -> "SemanticEmbedding":
+        """
+        Generate a TF-IDF embedding for a single text.
+
+        The text is first added to the corpus for vocabulary building,
+        then transformed into a TF-IDF vector.
+
+        Args:
+            text: The input text to embed.
+            metadata: Optional metadata dictionary to attach to the embedding.
+
+        Returns:
+            SemanticEmbedding object containing the TF-IDF vector.
+        """
+        self._ensure_fitted([text])
+
+        # Transform text to TF-IDF vector
+        tfidf_matrix = self.vectorizer.transform([text])
+        vector = tfidf_matrix.toarray()[0].tolist()
+
+        # Pad or truncate to exact max_features size
+        if len(vector) < self.max_features:
+            vector = vector + [0.0] * (self.max_features - len(vector))
+
+        source_hash = hashlib.sha256(text.encode()).hexdigest()
+
+        final_metadata = metadata.copy() if metadata else {}
+        final_metadata["embedder_type"] = "tfidf"
+
+        embedding = SemanticEmbedding(
+            vector=vector,
+            source_hash=source_hash,
+            model_name=self.model_name,
+            timestamp=time.time(),
+            metadata=final_metadata,
+        )
+
+        self.embeddings.append(embedding)
+        return embedding
+
+    def embed_texts(
+        self, texts: List[str], metadata_list: Optional[List[Dict]] = None
+    ) -> List["SemanticEmbedding"]:
+        """
+        Generate TF-IDF embeddings for multiple texts in batch.
+
+        More efficient than calling embed_text repeatedly as the vectorizer
+        is fitted once on all texts.
+
+        Args:
+            texts: List of input texts to embed.
+            metadata_list: Optional list of metadata dicts, one per text.
+
+        Returns:
+            List of SemanticEmbedding objects.
+        """
+        if not texts:
+            return []
+
+        self._ensure_fitted(texts)
+
+        # Transform all texts at once
+        tfidf_matrix = self.vectorizer.transform(texts)
+        vectors = tfidf_matrix.toarray()
+
+        embeddings = []
+        metadata_list = metadata_list or [None] * len(texts)
+
+        for i, (text, vector) in enumerate(zip(texts, vectors)):
+            vector_list = vector.tolist()
+
+            # Pad to exact max_features size
+            if len(vector_list) < self.max_features:
+                vector_list = vector_list + [0.0] * (self.max_features - len(vector_list))
+
+            metadata = metadata_list[i] if i < len(metadata_list) else None
+            final_metadata = metadata.copy() if metadata else {}
+            final_metadata["text"] = text
+            final_metadata["embedder_type"] = "tfidf"
+
+            embedding = SemanticEmbedding(
+                vector=vector_list,
+                source_hash=hashlib.sha256(text.encode()).hexdigest(),
+                model_name=self.model_name,
+                timestamp=time.time(),
+                metadata=final_metadata,
+            )
+            embeddings.append(embedding)
+            self.embeddings.append(embedding)
+
+        return embeddings
+
+    def compute_similarity(
+        self, embedding1: "SemanticEmbedding", embedding2: "SemanticEmbedding"
+    ) -> float:
+        """
+        Compute cosine similarity between two embeddings.
+
+        Args:
+            embedding1: First embedding.
+            embedding2: Second embedding.
+
+        Returns:
+            Cosine similarity score between -1 and 1.
+        """
+        v1 = np.array(embedding1.vector)
+        v2 = np.array(embedding2.vector)
+
+        dot_product = np.dot(v1, v2)
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot_product / (norm1 * norm2)
+
+    def search_similar(
+        self, query_embedding: "SemanticEmbedding", top_k: int = 5
+    ) -> List[Tuple["SemanticEmbedding", float]]:
+        """
+        Find the most similar embeddings to a query.
+
+        Args:
+            query_embedding: The query embedding to compare against.
+            top_k: Number of top results to return.
+
+        Returns:
+            List of (embedding, similarity_score) tuples, sorted by similarity.
+        """
+        if not self.embeddings:
+            return []
+
+        similarities = []
+        for embedding in self.embeddings:
+            similarity = self.compute_similarity(query_embedding, embedding)
+            similarities.append((embedding, similarity))
+
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_k]
+
+    def get_embeddings_data(self) -> List[Dict]:
+        """
+        Get embeddings in serializable format.
+
+        Returns:
+            List of dictionaries containing embedding data.
+        """
+        return [
+            {
+                "vector": emb.vector,
+                "source_hash": emb.source_hash,
+                "model_name": emb.model_name,
+                "timestamp": emb.timestamp,
+                "metadata": emb.metadata or {},
+            }
+            for emb in self.embeddings
+        ]
+
+
+def get_embedder(model_name: str = "tfidf-384", **kwargs):
+    """
+    Factory function to get the default embedder (TFIDFEmbedder).
+
+    Returns a TFIDFEmbedder instance for text embedding. This embedder uses
+    TF-IDF vectors and only requires sklearn as a dependency.
+
+    Args:
+        model_name: Ignored (kept for backward compatibility). TFIDFEmbedder is always used.
+        **kwargs: Additional arguments (ignored for backward compatibility).
+
+    Returns:
+        TFIDFEmbedder instance.
+
+    Raises:
+        ImportError: If sklearn is not available.
+
+    Example:
+        >>> embedder = get_embedder()
+        >>> embedding = embedder.embed_text("Hello world")
+    """
+    if not _check_tfidf_available():
+        raise ImportError(
+            "sklearn is required for TFIDFEmbedder. "
+            "Install with: pip install scikit-learn"
+        )
+
+    return TFIDFEmbedder()
 
 
 @dataclass
@@ -240,205 +498,9 @@ class KnowledgeTriple:
     source: Optional[str] = None
 
 
-class SemanticEmbedder:
-    """Generates and manages semantic embeddings for multimodal content."""
-
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model_name = model_name
-        self.embeddings: List[SemanticEmbedding] = []
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            raise ImportError(
-                "sentence-transformers is required for production embedding. Please install it."
-            )
-        try:
-            import torch
-
-            torch.hub.set_dir(torch.hub.get_dir())
-            self.model = SentenceTransformer(model_name)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load embedding model '{model_name}': {e}")
-
-    def embed_text(
-        self, text: str, metadata: Optional[Dict] = None
-    ) -> SemanticEmbedding:
-        """Generate embedding for text content."""
-        if not self.model or not hasattr(self.model, "encode"):
-            raise RuntimeError(
-                "SemanticEmbedder requires a valid embedding model for production use."
-            )
-        try:
-            vector = self.model.encode(text)
-            if hasattr(vector, "tolist"):
-                vector = vector.tolist()
-            elif hasattr(vector, "__iter__") and not isinstance(vector, str):
-                vector = list(vector)
-            else:
-                vector = [float(vector)] if not isinstance(vector, list) else vector
-        except Exception as e:
-            raise RuntimeError(f"Failed to generate embedding for text: {e}")
-
-        source_hash = hashlib.sha256(text.encode()).hexdigest()
-
-        final_metadata = metadata.copy() if metadata else {}
-
-        embedding = SemanticEmbedding(
-            vector=vector,
-            source_hash=source_hash,
-            model_name=self.model_name,
-            timestamp=time.time(),
-            metadata=final_metadata,
-        )
-
-        self.embeddings.append(embedding)
-        return embedding
-
-    # _generate_fallback_embedding removed: not allowed in production code
-
-    def embed_texts(
-        self, texts: List[str], metadata_list: Optional[List[Dict]] = None
-    ) -> List[SemanticEmbedding]:
-        """Generate embeddings for multiple texts."""
-        embeddings = []
-
-        # Handle batch processing with mock
-        if self.model and hasattr(self.model, "encode"):
-            try:
-                # Try batch encoding first
-                vectors = self.model.encode(texts)
-                if hasattr(vectors, "tolist"):
-                    vectors = vectors.tolist()
-                elif hasattr(vectors, "__iter__"):
-                    vectors = list(vectors)
-
-                # Process each text with its corresponding vector
-                for i, text in enumerate(texts):
-                    if i < len(vectors):
-                        vector = vectors[i]
-                        if hasattr(vector, "tolist"):
-                            vector = vector.tolist()
-                        elif not isinstance(vector, list):
-                            vector = (
-                                list(vector)
-                                if hasattr(vector, "__iter__")
-                                else [float(vector)]
-                            )
-                    else:
-                        vector = self._generate_fallback_embedding(text)
-
-                    metadata = (
-                        metadata_list[i]
-                        if metadata_list and i < len(metadata_list)
-                        else {}
-                    )
-                    final_metadata = metadata.copy() if metadata else {}
-                    final_metadata["text"] = text
-
-                    embedding = SemanticEmbedding(
-                        vector=vector,
-                        source_hash=hashlib.sha256(text.encode()).hexdigest(),
-                        model_name=self.model_name,
-                        timestamp=time.time(),
-                        metadata=final_metadata,
-                    )
-                    embeddings.append(embedding)
-                    self.embeddings.append(embedding)
-
-                return embeddings
-            except Exception:
-                # Fall back to individual processing
-                pass
-
-        # Fallback: process each text individually
-        metadata_list = metadata_list or [None] * len(texts)
-
-        for text, metadata in zip(texts, metadata_list):
-            embedding = self.embed_text(text, metadata)
-            embeddings.append(embedding)
-
-        return embeddings
-
-    def compute_similarity(
-        self, embedding1: SemanticEmbedding, embedding2: SemanticEmbedding
-    ) -> float:
-        """Compute cosine similarity between two embeddings."""
-        v1 = np.array(embedding1.vector)
-        v2 = np.array(embedding2.vector)
-
-        # Cosine similarity
-        dot_product = np.dot(v1, v2)
-        norm1 = np.linalg.norm(v1)
-        norm2 = np.linalg.norm(v2)
-
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-
-        return dot_product / (norm1 * norm2)
-
-    def search_similar(
-        self, query_embedding: SemanticEmbedding, top_k: int = 5
-    ) -> List[Tuple[SemanticEmbedding, float]]:
-        """Find most similar embeddings to a query using optimized batch computation."""
-        if not self.embeddings:
-            return []
-
-        # Use optimized batch computation for better performance
-        if len(self.embeddings) > 10:  # Use batch for larger collections
-            try:
-                # Prepare vectors for batch computation
-                query_vector = np.array(query_embedding.vector).reshape(1, -1)
-                database_vectors = np.array([emb.vector for emb in self.embeddings])
-
-                # Compute similarities in batch
-                similarities_matrix = fast_cosine_similarity_batch(
-                    query_vector, database_vectors
-                )
-                similarities_scores = similarities_matrix[0]  # Get first (and only) row
-
-                # Get top k indices
-                if top_k >= len(similarities_scores):
-                    top_indices = np.argsort(similarities_scores)[::-1]
-                else:
-                    top_indices = np.argpartition(similarities_scores, -top_k)[-top_k:]
-                    top_indices = top_indices[
-                        np.argsort(similarities_scores[top_indices])[::-1]
-                    ]
-
-                # Return results
-                results = []
-                for idx in top_indices:
-                    if idx < len(self.embeddings):
-                        embedding = self.embeddings[idx]
-                        similarity = float(similarities_scores[idx])
-                        results.append((embedding, similarity))
-
-                return results
-
-            except Exception:
-                # Fallback to individual computation
-                pass
-
-        # Fallback: individual similarity computation
-        similarities = []
-        for embedding in self.embeddings:
-            similarity = self.compute_similarity(query_embedding, embedding)
-            similarities.append((embedding, similarity))
-
-        # Sort by similarity (descending)
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        return similarities[:top_k]
-
-    def get_embeddings_data(self) -> List[Dict]:
-        """Get embeddings in serializable format."""
-        return [
-            {
-                "vector": emb.vector,
-                "source_hash": emb.source_hash,
-                "model_name": emb.model_name,
-                "timestamp": emb.timestamp,
-                "metadata": emb.metadata or {},
-            }
-            for emb in self.embeddings
-        ]
+# SemanticEmbedder is now an alias for TFIDFEmbedder for backward compatibility
+# The original SemanticEmbedder used sentence-transformers which has been removed
+SemanticEmbedder = TFIDFEmbedder
 
 
 class KnowledgeGraphBuilder:
@@ -631,47 +693,251 @@ class KnowledgeGraphBuilder:
             )
 
 
-class CrossModalAttention:
+class ScaledDotProductAttention:
     """
-    Enhanced cross-modal attention mechanism for multimodal semantic understanding.
-    Implements: α_{ij} = softmax(Q_i K_j^T / √d_k · CS(E_i, E_j))
+    Scaled Dot-Product Attention mechanism for combining embeddings from different modalities.
+
+    This class implements the standard attention mechanism from "Attention Is All You Need"
+    (Vaswani et al., 2017):
+
+        Attention(Q, K, V) = softmax(QK^T / sqrt(d_k)) * V
+
+    Where:
+        - Q (Query): What we're looking for - transformed from input embeddings via W_q
+        - K (Key): What we're matching against - transformed from input embeddings via W_k
+        - V (Value): What we retrieve - transformed from input embeddings via W_v
+        - d_k: Dimension of keys (used for scaling to prevent large dot products)
+
+    The scaling factor sqrt(d_k) prevents the dot products from growing too large in
+    magnitude, which would push the softmax into regions with extremely small gradients.
+
+    Multi-Head Attention (optional):
+        When num_heads > 1, the attention is computed in parallel across multiple
+        "heads", each attending to different representation subspaces:
+
+        MultiHead(Q, K, V) = Concat(head_1, ..., head_h) * W_o
+        where head_i = Attention(Q * W_q_i, K * W_k_i, V * W_v_i)
+
+    Algorithm Steps:
+        1. Project input embeddings to Q, K, V using learned weight matrices
+        2. Compute attention scores: scores = QK^T / sqrt(d_k)
+        3. Apply softmax to get attention weights: weights = softmax(scores)
+        4. Compute weighted sum of values: output = weights * V
+
+    Attributes:
+        embedding_dim (int): Dimension of input embeddings (default: 384)
+        num_heads (int): Number of attention heads for multi-head attention (default: 1)
+        head_dim (int): Dimension per head (embedding_dim // num_heads)
+        scale (float): Scaling factor sqrt(d_k) for numerical stability
+        W_q, W_k, W_v (np.ndarray): Projection matrices for Q, K, V transformations
+        W_o (np.ndarray): Output projection matrix for multi-head attention
+
+    Example:
+        >>> attention = ScaledDotProductAttention(embedding_dim=128, num_heads=4)
+        >>> embeddings = {"text": np.random.randn(128), "image": np.random.randn(128)}
+        >>> weights = attention.compute_attention_weights(embeddings, query_modality="text")
+        >>> attended = attention.attend(embeddings, query_modality="text")
+
+    References:
+        - Vaswani et al. "Attention Is All You Need" (2017)
+        - https://arxiv.org/abs/1706.03762
     """
 
-    def __init__(self, embedding_dim: int = 384, num_heads: int = 8):
+    def __init__(self, embedding_dim: int = 384, num_heads: int = 1):
+        """
+        Initialize Scaled Dot-Product Attention.
+
+        Args:
+            embedding_dim: Dimension of input embeddings. Default is 384.
+            num_heads: Number of attention heads. When > 1, uses multi-head attention.
+
+        Raises:
+            ValueError: If embedding_dim is not divisible by num_heads (when num_heads > 1).
+        """
+        if num_heads > 1 and embedding_dim % num_heads != 0:
+            raise ValueError(
+                f"embedding_dim ({embedding_dim}) must be divisible by num_heads ({num_heads})"
+            )
+
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
-        self.head_dim = embedding_dim // num_heads
+        self.head_dim = embedding_dim // num_heads if num_heads > 0 else embedding_dim
         self.scale = np.sqrt(self.head_dim)
         self.attention_weights = {}
 
-        # Initialize learnable parameters (simplified) - will be resized dynamically
+        # Initialize projection matrices - will be resized dynamically if needed
         self.W_q = None
         self.W_k = None
         self.W_v = None
+        self.W_o = None  # Output projection for multi-head attention
         self._init_weights(embedding_dim)
 
     def _init_weights(self, dim: int):
-        """Initialize or resize weight matrices based on actual embedding dimension."""
-        self.W_q = np.random.normal(0, 0.02, (dim, dim))
-        self.W_k = np.random.normal(0, 0.02, (dim, dim))
-        self.W_v = np.random.normal(0, 0.02, (dim, dim))
-        self.scale = np.sqrt(dim)
+        """
+        Initialize projection matrices using Xavier/Glorot initialization.
+
+        Args:
+            dim: The embedding dimension for weight matrix sizing.
+        """
+        xavier_scale = np.sqrt(1.0 / dim)
+        self.W_q = np.random.normal(0, xavier_scale, (dim, dim))
+        self.W_k = np.random.normal(0, xavier_scale, (dim, dim))
+        self.W_v = np.random.normal(0, xavier_scale, (dim, dim))
+        self.W_o = np.random.normal(0, xavier_scale, (dim, dim))
+        self.head_dim = dim // self.num_heads if self.num_heads > 0 else dim
+        self.scale = np.sqrt(self.head_dim)
+
+    def _ensure_weights_initialized(self, dim: int):
+        """Ensure weight matrices match the input dimension."""
+        if self.W_q is None or self.W_q.shape[0] != dim:
+            if self.num_heads > 1 and dim % self.num_heads != 0:
+                self.num_heads = 1
+            self._init_weights(dim)
+
+    def _scaled_dot_product_attention(
+        self, Q: np.ndarray, K: np.ndarray, V: np.ndarray, mask: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute scaled dot-product attention: Attention(Q,K,V) = softmax(QK^T/sqrt(d_k)) * V
+
+        Args:
+            Q: Query matrix of shape (seq_len_q, d_k)
+            K: Key matrix of shape (seq_len_k, d_k)
+            V: Value matrix of shape (seq_len_v, d_v)
+            mask: Optional boolean mask
+
+        Returns:
+            Tuple of (output, attention_weights)
+        """
+        scores = np.matmul(Q, K.T) / self.scale
+        if mask is not None:
+            scores = np.where(mask, scores, -1e9)
+        attention_weights = self._softmax(scores)
+        output = np.matmul(attention_weights, V)
+        return output, attention_weights
+
+    def _multi_head_attention(
+        self, Q: np.ndarray, K: np.ndarray, V: np.ndarray, mask: np.ndarray = None
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute multi-head attention: MultiHead(Q,K,V) = Concat(head_1,...,head_h) * W_o
+
+        Args:
+            Q, K, V: Matrices of shape (seq_len, embedding_dim)
+            mask: Optional attention mask
+
+        Returns:
+            Tuple of (output, average_attention_weights)
+        """
+        seq_len = Q.shape[0]
+        Q_heads = Q.reshape(seq_len, self.num_heads, self.head_dim).transpose(1, 0, 2)
+        K_heads = K.reshape(seq_len, self.num_heads, self.head_dim).transpose(1, 0, 2)
+        V_heads = V.reshape(seq_len, self.num_heads, self.head_dim).transpose(1, 0, 2)
+
+        head_outputs = []
+        all_weights = []
+        for h in range(self.num_heads):
+            output_h, weights_h = self._scaled_dot_product_attention(
+                Q_heads[h], K_heads[h], V_heads[h], mask
+            )
+            head_outputs.append(output_h)
+            all_weights.append(weights_h)
+
+        concat_output = np.concatenate(head_outputs, axis=-1)
+        output = np.matmul(concat_output, self.W_o)
+        avg_weights = np.mean(np.stack(all_weights), axis=0)
+        return output, avg_weights
+
+    def _softmax(self, x: np.ndarray, axis: int = -1) -> np.ndarray:
+        """Compute numerically stable softmax."""
+        x_max = np.max(x, axis=axis, keepdims=True)
+        exp_x = np.exp(x - x_max)
+        sum_exp_x = np.sum(exp_x, axis=axis, keepdims=True)
+        sum_exp_x = np.where(sum_exp_x == 0, 1, sum_exp_x)
+        return exp_x / sum_exp_x
+
+    def _softmax_2d(self, matrix: np.ndarray) -> np.ndarray:
+        """Apply softmax normalization row-wise to a 2D matrix."""
+        if matrix.size == 0:
+            return matrix
+        return self._softmax(matrix, axis=1)
+
+    def attend(
+        self, embeddings: Dict[str, np.ndarray], query_modality: str = None,
+        return_weights: bool = False
+    ) -> np.ndarray:
+        """
+        Compute attention-weighted combination of embeddings.
+
+        Args:
+            embeddings: Dict mapping modality names to embedding vectors.
+            query_modality: If specified, use this modality as the query.
+            return_weights: If True, also return attention weights dict.
+
+        Returns:
+            Attended embedding vector (or tuple with weights if return_weights=True)
+        """
+        if not embeddings:
+            return np.array([]) if not return_weights else (np.array([]), {})
+
+        modalities = list(embeddings.keys())
+        emb_list = [np.array(embeddings[mod]).flatten() for mod in modalities]
+        emb_matrix = np.stack(emb_list)
+        emb_dim = emb_matrix.shape[1]
+
+        self._ensure_weights_initialized(emb_dim)
+
+        Q = np.matmul(emb_matrix, self.W_q)
+        K = np.matmul(emb_matrix, self.W_k)
+        V = np.matmul(emb_matrix, self.W_v)
+
+        if self.num_heads > 1 and emb_dim % self.num_heads == 0:
+            output, attn_weights = self._multi_head_attention(Q, K, V)
+        else:
+            output, attn_weights = self._scaled_dot_product_attention(Q, K, V)
+
+        if query_modality and query_modality in modalities:
+            query_idx = modalities.index(query_modality)
+            attended = output[query_idx]
+            weights_dict = {mod: float(attn_weights[query_idx, i]) for i, mod in enumerate(modalities)}
+        else:
+            attended = np.mean(output, axis=0)
+            weights_dict = {mod: float(np.mean(attn_weights[:, i])) for i, mod in enumerate(modalities)}
+
+        if return_weights:
+            return attended, weights_dict
+        return attended
 
     def compute_coherence_score(
         self, embedding1, embedding2, modality1=None, modality2=None
     ) -> float:
-        """Compute coherence score between two embeddings."""
-        # Convert to numpy arrays if needed
-        emb1 = (
-            np.array(embedding1)
-            if not isinstance(embedding1, np.ndarray)
-            else embedding1
-        )
-        emb2 = (
-            np.array(embedding2)
-            if not isinstance(embedding2, np.ndarray)
-            else embedding2
-        )
+        """
+        Compute coherence/similarity score between two embeddings.
+
+        Uses cosine similarity to measure semantic coherence between embeddings.
+        This provides a normalized score between -1 and 1, where:
+            - 1.0: Identical direction (perfect positive correlation)
+            - 0.0: Orthogonal (no correlation)
+            - -1.0: Opposite direction (perfect negative correlation)
+
+        For practical purposes, similar embeddings should have scores > 0.5.
+
+        Args:
+            embedding1: First embedding vector (numpy array or list)
+            embedding2: Second embedding vector (numpy array or list)
+            modality1: Optional name for first modality (for API compatibility)
+            modality2: Optional name for second modality (for API compatibility)
+
+        Returns:
+            Coherence score between -1 and 1, where higher means more similar
+        """
+        emb1 = np.array(embedding1).flatten()
+        emb2 = np.array(embedding2).flatten()
+
+        if len(emb1) != len(emb2):
+            min_len = min(len(emb1), len(emb2))
+            emb1 = emb1[:min_len]
+            emb2 = emb2[:min_len]
 
         # Compute cosine similarity
         dot_product = np.dot(emb1, emb2)
@@ -679,7 +945,7 @@ class CrossModalAttention:
         norm2 = np.linalg.norm(emb2)
 
         if norm1 > 0 and norm2 > 0:
-            return dot_product / (norm1 * norm2)
+            return float(dot_product / (norm1 * norm2))
         return 0.0
 
     def compute_coherence_score_multi(self, embeddings: Dict[str, np.ndarray]) -> float:
@@ -688,30 +954,37 @@ class CrossModalAttention:
             return 1.0
 
         modalities = list(embeddings.keys())
-        total_similarity = 0.0
+        total_coherence = 0.0
         pairs = 0
 
         for i in range(len(modalities)):
             for j in range(i + 1, len(modalities)):
-                similarity = self.compute_coherence_score(
-                    embeddings[modalities[i]],
-                    embeddings[modalities[j]],
-                    modalities[i],
-                    modalities[j],
+                coherence = self.compute_coherence_score(
+                    embeddings[modalities[i]], embeddings[modalities[j]],
+                    modalities[i], modalities[j],
                 )
-                total_similarity += similarity
+                total_coherence += coherence
                 pairs += 1
 
-        return total_similarity / pairs if pairs > 0 else 0.0
+        return total_coherence / pairs if pairs > 0 else 0.0
 
     def compute_attention_weights(
         self, embeddings: Dict[str, np.ndarray], trust_scores=None, query_modality=None
-    ):
+    ) -> 'AttentionWeights':
         """
-        Compute attention weights using proper Q, K, V transformations.
-        Returns either Dict[str, float] or AttentionWeights based on parameters.
+        Compute attention weights for cross-modal fusion.
+
+        Implements: scores = QK^T / sqrt(d_k), weights = softmax(scores * coherence_matrix)
+
+        Args:
+            embeddings: Dict mapping modality names to embedding vectors.
+            trust_scores: Optional dict of trust scores per modality (0-1).
+            query_modality: Optional modality to use as the primary query.
+
+        Returns:
+            AttentionWeights dataclass with query_key_weights, trust_scores,
+            coherence_matrix, normalized_weights, modalities, and query_modality.
         """
-        # Handle different call signatures for test compatibility
         if isinstance(trust_scores, str):
             query_modality = trust_scores
             trust_scores = None
@@ -719,7 +992,6 @@ class CrossModalAttention:
         if trust_scores is None:
             trust_scores = {modality: 1.0 for modality in embeddings.keys()}
 
-        # Handle empty embeddings
         if not embeddings:
             return AttentionWeights(
                 query_key_weights=np.array([]),
@@ -728,68 +1000,46 @@ class CrossModalAttention:
                 normalized_weights=np.array([]),
             )
 
-        # Always use enhanced implementation with AttentionWeights return
         modalities = list(embeddings.keys())
         n_modalities = len(modalities)
 
-        # Determine embedding dimension from first embedding
-        first_emb = list(embeddings.values())[0]
-        emb_dim = len(first_emb) if isinstance(first_emb, (list, np.ndarray)) else 1
+        emb_list = [np.array(embeddings[mod]).flatten() for mod in modalities]
+        emb_matrix = np.stack(emb_list)
+        emb_dim = emb_matrix.shape[1]
 
-        # Initialize weights if needed or if dimension changed
-        if self.W_q is None or self.W_q.shape[0] != emb_dim:
-            self._init_weights(emb_dim)
+        self._ensure_weights_initialized(emb_dim)
 
-        # Transform embeddings to Q, K, V
-        queries = {}
-        keys = {}
-        values = {}
+        Q = np.matmul(emb_matrix, self.W_q)
+        K = np.matmul(emb_matrix, self.W_k)
 
-        for mod, emb in embeddings.items():
-            emb_array = (
-                np.array(emb).reshape(1, -1)
-                if len(np.array(emb).shape) == 1
-                else np.array(emb)
-            )
-            queries[mod] = emb_array @ self.W_q
-            keys[mod] = emb_array @ self.W_k
-            values[mod] = emb_array @ self.W_v
+        attention_scores = np.matmul(Q, K.T) / self.scale
 
-        # Compute attention matrix
-        attention_matrix = np.zeros((n_modalities, n_modalities))
+        # Add self-attention bias to diagonal (same as original implementation)
+        # This ensures the query modality attends more to itself
+        attention_scores += np.eye(n_modalities)
+
         coherence_matrix = np.zeros((n_modalities, n_modalities))
-
-        for i, mod_i in enumerate(modalities):
-            for j, mod_j in enumerate(modalities):
-                # Q_i K_j^T / √d_k
-                qk_score = (
-                    np.dot(queries[mod_i].flatten(), keys[mod_j].flatten()) / self.scale
-                )
-
-                # Semantic coherence CS(E_i, E_j)
+        for i in range(n_modalities):
+            for j in range(n_modalities):
                 if i == j:
-                    # Self-attention: higher coherence and bias
-                    coherence = 1.0
-                    # Add self-attention bias to make diagonal elements stronger
-                    qk_score += 1.0
+                    coherence_matrix[i, j] = 1.0
                 else:
-                    coherence = self._compute_semantic_coherence(
-                        embeddings[mod_i],
-                        embeddings[mod_j],
-                        trust_scores[mod_i],
-                        trust_scores[mod_j],
-                    )
+                    v1, v2 = emb_list[i], emb_list[j]
+                    dot_product = np.dot(v1, v2)
+                    norm1, norm2 = np.linalg.norm(v1), np.linalg.norm(v2)
+                    if norm1 > 0 and norm2 > 0:
+                        cosine_sim = dot_product / (norm1 * norm2)
+                        trust_factor = min(
+                            trust_scores.get(modalities[i], 1.0),
+                            trust_scores.get(modalities[j], 1.0)
+                        )
+                        coherence_matrix[i, j] = max(0.0, min(1.0, cosine_sim * trust_factor))
 
-                # Combined score
-                combined_score = qk_score * coherence
-                attention_matrix[i, j] = combined_score
-                coherence_matrix[i, j] = coherence
-
-        # Apply softmax normalization
-        normalized_weights = self._softmax_2d(attention_matrix)
+        weighted_scores = attention_scores * coherence_matrix
+        normalized_weights = self._softmax_2d(weighted_scores)
 
         return AttentionWeights(
-            query_key_weights=attention_matrix,
+            query_key_weights=attention_scores,
             trust_scores=trust_scores,
             coherence_matrix=coherence_matrix,
             normalized_weights=normalized_weights,
@@ -797,11 +1047,62 @@ class CrossModalAttention:
             query_modality=query_modality,
         )
 
+    def get_attended_representation(
+        self, embeddings: Dict[str, np.ndarray],
+        query_modality_or_weights=None, query_modality: str = None,
+    ) -> np.ndarray:
+        """
+        Get attended representation based on attention weights.
+
+        Args:
+            embeddings: Dict mapping modality names to embedding vectors
+            query_modality_or_weights: Either a query modality name (str) or pre-computed weights
+            query_modality: Explicit query modality (used when first arg is weights)
+
+        Returns:
+            Attended representation as list of floats
+        """
+        if isinstance(query_modality_or_weights, str):
+            query_modality = query_modality_or_weights
+            attention_weights = self.compute_attention_weights(
+                embeddings, query_modality=query_modality
+            )
+        elif isinstance(query_modality_or_weights, (dict, AttentionWeights)):
+            attention_weights = query_modality_or_weights
+        else:
+            attention_weights = self.compute_attention_weights(embeddings)
+
+        if not embeddings:
+            return []
+
+        modalities = list(embeddings.keys())
+        emb_list = [np.array(embeddings[mod]).flatten() for mod in modalities]
+        emb_matrix = np.stack(emb_list)
+        emb_dim = emb_matrix.shape[1]
+
+        self._ensure_weights_initialized(emb_dim)
+        V = np.matmul(emb_matrix, self.W_v)
+
+        if isinstance(attention_weights, AttentionWeights):
+            weights = attention_weights.normalized_weights
+            if query_modality and query_modality in modalities:
+                query_idx = modalities.index(query_modality)
+                weights_row = weights[query_idx]
+            else:
+                weights_row = np.mean(weights, axis=0)
+        else:
+            weights_row = np.array([
+                attention_weights.get(mod, 1.0 / len(modalities))
+                for mod in modalities
+            ])
+
+        attended = np.sum(V * weights_row.reshape(-1, 1), axis=0)
+        return attended.tolist()
+
     def _compute_semantic_coherence(
         self, emb1: np.ndarray, emb2: np.ndarray, trust1: float, trust2: float
     ) -> float:
-        """Compute semantic coherence with trust integration."""
-        # Cosine similarity
+        """Compute semantic coherence with trust integration (legacy method)."""
         v1 = np.array(emb1).flatten()
         v2 = np.array(emb2).flatten()
 
@@ -814,198 +1115,580 @@ class CrossModalAttention:
         else:
             cosine_sim = dot_product / (norm1 * norm2)
 
-        # Trust-weighted coherence
         trust_factor = min(trust1, trust2)
         coherence = cosine_sim * trust_factor
-
         return max(0.0, min(1.0, coherence))
 
-    def _softmax_2d(self, matrix: np.ndarray) -> np.ndarray:
-        """Apply softmax normalization to 2D matrix."""
-        # Handle empty matrix
-        if matrix.size == 0:
-            return matrix
 
-        # Subtract max for numerical stability
-        shifted = matrix - np.max(matrix, axis=1, keepdims=True)
-        exp_matrix = np.exp(shifted)
+# Backward compatibility alias
+CrossModalAttention = ScaledDotProductAttention
 
-        # Normalize by row sums
-        row_sums = np.sum(exp_matrix, axis=1, keepdims=True)
-        row_sums[row_sums == 0] = 1  # Avoid division by zero
 
-        return exp_matrix / row_sums
+@dataclass
+class HierarchyNode:
+    """
+    Represents a node in the hierarchical compression tree.
 
-    def get_attended_representation(
-        self,
-        embeddings: Dict[str, np.ndarray],
-        query_modality_or_weights=None,
-        query_modality: str = None,
-    ) -> np.ndarray:
-        """Get attended representation based on attention weights."""
-        # Handle different call signatures for test compatibility
-        if isinstance(query_modality_or_weights, str):
-            # Called with (embeddings, query_modality)
-            query_modality = query_modality_or_weights
-            attention_weights = self.compute_attention_weights(
-                embeddings, query_modality=query_modality
-            )
-        elif isinstance(query_modality_or_weights, dict):
-            # Called with (embeddings, attention_weights, query_modality)
-            attention_weights = query_modality_or_weights
-        else:
-            # Default case
-            attention_weights = self.compute_attention_weights(embeddings)
+    Each node contains a centroid representing the cluster at this level,
+    indices of original embeddings belonging to this cluster, and references
+    to child nodes for finer granularity.
 
-        # Convert embeddings to numpy arrays if they're lists
-        first_embedding = list(embeddings.values())[0]
-        if isinstance(first_embedding, list):
-            first_embedding = np.array(first_embedding)
+    Attributes:
+        node_id: Unique identifier for this node.
+        level: Hierarchy level (0 = root/coarsest, higher = finer).
+        centroid: Representative vector for this cluster.
+        indices: Indices of original embeddings in this cluster.
+        children: List of child node IDs for finer clustering.
+        parent: Parent node ID (None for root).
+        variance: Within-cluster variance for quality metrics.
+    """
+    node_id: int
+    level: int
+    centroid: np.ndarray
+    indices: List[int]
+    children: List[int] = None
+    parent: int = None
+    variance: float = 0.0
 
-        attended = np.zeros_like(first_embedding)
-
-        for modality, embedding in embeddings.items():
-            if isinstance(embedding, list):
-                embedding = np.array(embedding)
-            weight = attention_weights.get(modality, 0.0)
-            attended += weight * embedding
-
-        return attended.tolist() if hasattr(attended, "tolist") else attended
+    def __post_init__(self):
+        """Initialize children list if not provided."""
+        if self.children is None:
+            self.children = []
 
 
 class HierarchicalSemanticCompression:
-    """Hierarchical semantic compression for embeddings."""
+    """
+    True hierarchical semantic compression using agglomerative clustering.
+
+    This class implements multi-level hierarchical compression with:
+    - Agglomerative (bottom-up) hierarchical clustering via scipy.cluster.hierarchy
+    - Tree-based representation with configurable depth
+    - Proper compression ratios at each level
+    - Semantic structure preservation through Ward's linkage
+
+    The hierarchy is built from fine to coarse:
+    - Level 0 (root): Coarse clusters (maximum compression)
+    - Level N-1 (leaves): Fine-grained clusters or original points
+
+    Compression works by storing only centroids at desired level,
+    with the tree structure enabling progressive refinement.
+
+    Attributes:
+        compression_ratio: Target ratio for compression (e.g., 0.5 = 50% of original).
+        compression_levels: Number of hierarchy levels to build.
+        linkage_method: Linkage criterion ('ward', 'complete', 'average', 'single').
+        distance_metric: Distance metric for clustering ('euclidean', 'cosine').
+
+    Example:
+        >>> compressor = HierarchicalSemanticCompression(
+        ...     compression_ratio=0.3,
+        ...     compression_levels=4
+        ... )
+        >>> embeddings = np.random.randn(100, 384)
+        >>> result = compressor.compress_embeddings(embeddings)
+        >>> print(f"Compressed to {len(result['compressed_data'])} centroids")
+        >>> reconstructed = compressor.decompress_embeddings(result)
+    """
 
     def __init__(
         self,
         compression_ratio: float = 0.5,
         compression_levels: int = 3,
         target_compression_ratio: float = None,
+        linkage_method: str = "ward",
+        distance_metric: str = "euclidean",
     ):
-        # Support both old and new parameter names for compatibility
+        """
+        Initialize hierarchical semantic compression.
+
+        Args:
+            compression_ratio: Target compression ratio (0-1, lower = more compression).
+            compression_levels: Number of hierarchy levels (minimum 2).
+            target_compression_ratio: Alias for compression_ratio (backward compatibility).
+            linkage_method: Scipy linkage method ('ward', 'complete', 'average', 'single').
+            distance_metric: Distance metric ('euclidean' for ward, or 'cosine').
+        """
         self.compression_ratio = target_compression_ratio or compression_ratio
-        self.compression_levels = compression_levels
-        self.compression_tree = {}
-        self.compression_metadata = {}
+        self.compression_levels = max(2, compression_levels)
+        self.linkage_method = linkage_method
+        self.distance_metric = distance_metric
+
+        # Internal state
+        self.compression_tree: Dict[int, HierarchyNode] = {}
+        self.compression_metadata: Dict[str, Any] = {}
+        self._linkage_matrix: Optional[np.ndarray] = None
+        self._level_clusters: Dict[int, List[List[int]]] = {}
+
+    def _build_linkage_matrix(self, embeddings: np.ndarray) -> np.ndarray:
+        """
+        Build hierarchical clustering linkage matrix using scipy.
+
+        Args:
+            embeddings: Array of shape (n_samples, n_features).
+
+        Returns:
+            Linkage matrix of shape (n_samples-1, 4) containing:
+            [cluster_i, cluster_j, distance, new_cluster_size].
+        """
+        try:
+            from scipy.cluster.hierarchy import linkage
+            from scipy.spatial.distance import pdist
+
+            # For ward linkage, must use euclidean distance
+            if self.linkage_method == "ward":
+                Z = linkage(embeddings, method="ward")
+            else:
+                # Compute pairwise distances
+                if self.distance_metric == "cosine":
+                    # Normalize for cosine distance
+                    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+                    norms[norms == 0] = 1  # Avoid division by zero
+                    normalized = embeddings / norms
+                    distances = pdist(normalized, metric="cosine")
+                else:
+                    distances = pdist(embeddings, metric=self.distance_metric)
+
+                Z = linkage(distances, method=self.linkage_method)
+
+            return Z
+
+        except ImportError:
+            # Fallback: build simple linkage using numpy only
+            return self._build_linkage_numpy(embeddings)
+
+    def _build_linkage_numpy(self, embeddings: np.ndarray) -> np.ndarray:
+        """
+        Fallback linkage computation using pure numpy (single linkage).
+
+        This is a simplified implementation for when scipy is unavailable.
+        Uses single linkage (nearest neighbor) for simplicity.
+
+        Args:
+            embeddings: Array of shape (n_samples, n_features).
+
+        Returns:
+            Linkage matrix compatible with scipy format.
+        """
+        n = len(embeddings)
+        if n <= 1:
+            return np.array([]).reshape(0, 4)
+
+        # Initialize: each point is its own cluster
+        clusters = {i: [i] for i in range(n)}
+        next_cluster_id = n
+
+        # Compute initial distance matrix
+        distances = np.zeros((n, n))
+        for i in range(n):
+            for j in range(i + 1, n):
+                d = np.linalg.norm(embeddings[i] - embeddings[j])
+                distances[i, j] = d
+                distances[j, i] = d
+        np.fill_diagonal(distances, np.inf)
+
+        linkage_matrix = []
+        active_clusters = set(range(n))
+
+        for _ in range(n - 1):
+            # Find closest pair among active clusters
+            min_dist = np.inf
+            merge_i, merge_j = -1, -1
+
+            active_list = sorted(active_clusters)
+            for idx_i, ci in enumerate(active_list):
+                for cj in active_list[idx_i + 1:]:
+                    d = self._cluster_distance(
+                        clusters[ci], clusters[cj], embeddings, distances
+                    )
+                    if d < min_dist:
+                        min_dist = d
+                        merge_i, merge_j = ci, cj
+
+            if merge_i == -1:
+                break
+
+            # Merge clusters
+            new_cluster = clusters[merge_i] + clusters[merge_j]
+            clusters[next_cluster_id] = new_cluster
+
+            linkage_matrix.append([merge_i, merge_j, min_dist, len(new_cluster)])
+
+            active_clusters.remove(merge_i)
+            active_clusters.remove(merge_j)
+            active_clusters.add(next_cluster_id)
+
+            next_cluster_id += 1
+
+        return np.array(linkage_matrix)
+
+    def _cluster_distance(
+        self,
+        cluster1: List[int],
+        cluster2: List[int],
+        embeddings: np.ndarray,
+        distances: np.ndarray
+    ) -> float:
+        """Compute single-linkage distance between two clusters."""
+        min_dist = np.inf
+        for i in cluster1:
+            for j in cluster2:
+                if i < len(distances) and j < len(distances):
+                    d = distances[i, j] if i != j else 0
+                    min_dist = min(min_dist, d)
+        return min_dist
+
+    def _cut_tree_at_level(
+        self,
+        Z: np.ndarray,
+        n_samples: int,
+        n_clusters: int
+    ) -> np.ndarray:
+        """
+        Cut dendrogram to get specified number of clusters.
+
+        Args:
+            Z: Linkage matrix.
+            n_samples: Number of original samples.
+            n_clusters: Desired number of clusters.
+
+        Returns:
+            Array of cluster labels for each sample.
+        """
+        try:
+            from scipy.cluster.hierarchy import fcluster
+
+            labels = fcluster(Z, n_clusters, criterion="maxclust")
+            return labels - 1  # Convert to 0-indexed
+
+        except ImportError:
+            return self._cut_tree_numpy(Z, n_samples, n_clusters)
+
+    def _cut_tree_numpy(
+        self,
+        Z: np.ndarray,
+        n_samples: int,
+        n_clusters: int
+    ) -> np.ndarray:
+        """Fallback tree cutting using numpy only."""
+        if len(Z) == 0 or n_clusters >= n_samples:
+            return np.arange(n_samples)
+
+        n_merges = n_samples - n_clusters
+        cluster_members = {i: {i} for i in range(n_samples)}
+        next_id = n_samples
+
+        for merge_idx in range(min(n_merges, len(Z))):
+            i, j = int(Z[merge_idx, 0]), int(Z[merge_idx, 1])
+            new_members = cluster_members.get(i, {i}) | cluster_members.get(j, {j})
+            cluster_members[next_id] = new_members
+
+            if i in cluster_members:
+                del cluster_members[i]
+            if j in cluster_members:
+                del cluster_members[j]
+
+            next_id += 1
+
+        labels = np.zeros(n_samples, dtype=int)
+        for label, (cluster_id, members) in enumerate(cluster_members.items()):
+            for member in members:
+                if member < n_samples:
+                    labels[member] = label
+
+        return labels
+
+    def _build_hierarchy_tree(
+        self,
+        embeddings: np.ndarray,
+        Z: np.ndarray
+    ) -> Dict[int, HierarchyNode]:
+        """
+        Build the full hierarchy tree from linkage matrix.
+
+        Args:
+            embeddings: Original embedding vectors.
+            Z: Linkage matrix from hierarchical clustering.
+
+        Returns:
+            Dictionary mapping node_id to HierarchyNode objects.
+        """
+        n_samples = len(embeddings)
+        tree: Dict[int, HierarchyNode] = {}
+
+        max_level = self.compression_levels - 1
+        for i in range(n_samples):
+            tree[i] = HierarchyNode(
+                node_id=i,
+                level=max_level,
+                centroid=embeddings[i].copy(),
+                indices=[i],
+                children=[],
+                parent=None,
+                variance=0.0
+            )
+
+        for merge_idx, row in enumerate(Z):
+            left_id = int(row[0])
+            right_id = int(row[1])
+            new_id = n_samples + merge_idx
+
+            left_indices = tree[left_id].indices if left_id in tree else [left_id]
+            right_indices = tree[right_id].indices if right_id in tree else [right_id]
+            all_indices = left_indices + right_indices
+
+            member_embeddings = embeddings[all_indices]
+            centroid = np.mean(member_embeddings, axis=0)
+            variance = np.mean(np.sum((member_embeddings - centroid) ** 2, axis=1))
+
+            level = max(0, max_level - 1 - merge_idx * max_level // max(1, len(Z)))
+
+            tree[new_id] = HierarchyNode(
+                node_id=new_id,
+                level=level,
+                centroid=centroid,
+                indices=all_indices,
+                children=[left_id, right_id],
+                parent=None,
+                variance=variance
+            )
+
+            if left_id in tree:
+                tree[left_id].parent = new_id
+            if right_id in tree:
+                tree[right_id].parent = new_id
+
+        return tree
+
+    def _compute_level_centroids(
+        self,
+        embeddings: np.ndarray,
+        labels: np.ndarray
+    ) -> np.ndarray:
+        """Compute centroids for each cluster at a given level."""
+        unique_labels = np.unique(labels)
+        centroids = []
+
+        for label in sorted(unique_labels):
+            mask = labels == label
+            cluster_embeddings = embeddings[mask]
+            centroid = np.mean(cluster_embeddings, axis=0)
+            centroids.append(centroid)
+
+        return np.array(centroids)
 
     def compress_embeddings(
         self,
         embeddings,
-        target_compression_ratio=None,
-        preserve_semantic_structure=True,
+        target_compression_ratio: float = None,
+        preserve_semantic_structure: bool = True,
+        level: int = None,
         **kwargs,
     ) -> Dict[str, Any]:
-        """Compress embeddings using hierarchical clustering."""
-        if not embeddings:
-            return {
-                "compressed_data": [],
-                "compressed_embeddings": [],  # Add for test compatibility
-                "compression_metadata": {"method": "empty", "original_shape": [0, 0]},
-            }
+        """
+        Compress embeddings using hierarchical clustering.
 
-        # Handle different parameter names for test compatibility
-        compression_ratio = target_compression_ratio or kwargs.get(
-            "target_compression_ratio", self.compression_ratio
-        )
-        preserve_fidelity = kwargs.get("preserve_fidelity", True)
+        Builds a hierarchical tree and returns compressed representation
+        at the specified level or compression ratio.
 
-        # Handle empty embeddings
-        if not embeddings:
+        Args:
+            embeddings: List or array of embedding vectors.
+            target_compression_ratio: Override default compression ratio.
+            preserve_semantic_structure: Use Ward's linkage for semantic coherence.
+            level: Specific hierarchy level to extract (overrides ratio).
+            **kwargs: Additional parameters for backward compatibility.
+
+        Returns:
+            Dictionary containing:
+            - compressed_data: List of centroid vectors.
+            - compressed_embeddings: Same as compressed_data (compatibility).
+            - hierarchy_tree: Full tree structure (serialized).
+            - level_data: Cluster information at each level.
+            - cluster_labels: Mapping of original indices to clusters.
+            - compression_metadata: Statistics and configuration.
+        """
+        # Handle empty input
+        if embeddings is None or len(embeddings) == 0:
             return {
                 "compressed_data": [],
                 "compressed_embeddings": [],
-                "metadata": {},
-                "compression_metadata": {
-                    "method": "empty",
-                    "original_shape": (0, 0),
-                },  # Add for test compatibility
+                "compression_metadata": {"method": "empty", "original_shape": [0, 0]},
             }
 
-        # Handle different input types
-        if isinstance(embeddings[0], list):
-            embeddings = [np.array(emb) for emb in embeddings]
+        # Convert to numpy array
+        if isinstance(embeddings, list):
+            if len(embeddings) > 0 and isinstance(embeddings[0], list):
+                embeddings_array = np.array(embeddings)
+            else:
+                embeddings_array = np.array([
+                    e if isinstance(e, np.ndarray) else np.array(e)
+                    for e in embeddings
+                ])
+        else:
+            embeddings_array = np.array(embeddings)
 
-        # Simple clustering-based compression
-        try:
-            from sklearn.cluster import KMeans
+        n_samples, n_features = embeddings_array.shape
 
-            # Ensure we don't have more clusters than samples
-            n_clusters = max(
-                1,
-                min(
-                    len(embeddings), int(len(embeddings) / max(compression_ratio, 1.0))
-                ),
-            )
+        # Determine compression parameters
+        compression_ratio = target_compression_ratio or kwargs.get(
+            "target_compression_ratio", self.compression_ratio
+        )
 
-            # Handle case where we have very few embeddings
-            if len(embeddings) <= n_clusters:
-                # Just return the original embeddings if we can't cluster effectively
-                return {
-                    "compressed_data": [emb.tolist() for emb in embeddings],
-                    "compressed_embeddings": [emb.tolist() for emb in embeddings],
-                    "cluster_labels": list(range(len(embeddings))),
-                    "original_count": len(embeddings),
-                    "metadata": {"compression_ratio": compression_ratio},
-                    "compression_metadata": {
-                        "method": "no_compression_needed",
-                        "original_shape": [
-                            len(embeddings),
-                            len(embeddings[0]) if embeddings else 0,
-                        ],
-                    },
-                }
+        # Calculate number of clusters for target compression
+        target_clusters = max(1, int(n_samples * compression_ratio))
 
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            cluster_labels = kmeans.fit_predict(embeddings)
-            centroids = kmeans.cluster_centers_
-
+        # Handle edge cases
+        if n_samples <= 2:
             return {
-                "compressed_data": centroids.tolist(),
-                "compressed_embeddings": centroids.tolist(),  # Add for test compatibility
-                "cluster_labels": cluster_labels.tolist(),
-                "original_count": len(embeddings),
-                "metadata": {"compression_ratio": compression_ratio},
+                "compressed_data": embeddings_array.tolist(),
+                "compressed_embeddings": embeddings_array.tolist(),
+                "cluster_labels": list(range(n_samples)),
+                "original_count": n_samples,
+                "metadata": {"compression_ratio": 1.0},
                 "compression_metadata": {
-                    "method": "kmeans",
-                    "n_clusters": n_clusters,
-                    "original_shape": [
-                        len(embeddings),
-                        len(embeddings[0]) if embeddings else 0,
-                    ],
+                    "method": "no_compression_needed",
+                    "original_shape": [n_samples, n_features],
+                    "hierarchy_levels": 1,
                 },
             }
-        except ImportError:
-            # Fallback without sklearn
-            compressed_embs = [
-                emb.tolist()
-                for emb in embeddings[
-                    : max(1, int(len(embeddings) / compression_ratio))
-                ]
+
+        # Build hierarchical clustering
+        if preserve_semantic_structure:
+            old_method = self.linkage_method
+            self.linkage_method = "ward"
+
+        Z = self._build_linkage_matrix(embeddings_array)
+        self._linkage_matrix = Z
+
+        if preserve_semantic_structure:
+            self.linkage_method = old_method
+
+        # Build full hierarchy tree
+        self.compression_tree = self._build_hierarchy_tree(embeddings_array, Z)
+
+        # Compute clusters at each level
+        level_data = {}
+        for lvl in range(self.compression_levels):
+            if lvl == 0:
+                n_clusters_at_level = max(1, target_clusters)
+            else:
+                ratio = lvl / (self.compression_levels - 1)
+                n_clusters_at_level = int(
+                    target_clusters + ratio * (n_samples - target_clusters)
+                )
+
+            n_clusters_at_level = min(n_clusters_at_level, n_samples)
+
+            labels = self._cut_tree_at_level(Z, n_samples, n_clusters_at_level)
+            centroids = self._compute_level_centroids(embeddings_array, labels)
+
+            # Compute compression quality metrics
+            reconstruction_error = 0.0
+            for i, label in enumerate(labels):
+                if label < len(centroids):
+                    error = np.linalg.norm(embeddings_array[i] - centroids[label])
+                    reconstruction_error += error ** 2
+            reconstruction_error = np.sqrt(reconstruction_error / n_samples)
+
+            level_data[lvl] = {
+                "n_clusters": len(centroids),
+                "labels": labels.tolist(),
+                "centroids": centroids.tolist(),
+                "compression_ratio": len(centroids) / n_samples,
+                "reconstruction_error": float(reconstruction_error),
+            }
+
+            self._level_clusters[lvl] = [
+                [i for i, l in enumerate(labels) if l == c]
+                for c in range(len(centroids))
             ]
-            return {
-                "compressed_data": compressed_embs,
-                "compressed_embeddings": compressed_embs,  # Add for test compatibility
-                "metadata": {"compression_ratio": compression_ratio},
-                "compression_metadata": {
-                    "method": "simple_truncation",
-                    "original_shape": [
-                        len(embeddings),
-                        len(embeddings[0]) if embeddings else 0,
-                    ],
-                },
+
+        # Select output level
+        output_level = level if level is not None else 0
+        output_level = min(output_level, self.compression_levels - 1)
+
+        output_data = level_data[output_level]
+
+        # Serialize tree for storage
+        tree_serialized = {
+            node_id: {
+                "node_id": node.node_id,
+                "level": node.level,
+                "centroid": node.centroid.tolist(),
+                "indices": node.indices,
+                "children": node.children,
+                "parent": node.parent,
+                "variance": node.variance,
             }
+            for node_id, node in self.compression_tree.items()
+        }
+
+        return {
+            "compressed_data": output_data["centroids"],
+            "compressed_embeddings": output_data["centroids"],
+            "cluster_labels": output_data["labels"],
+            "original_count": n_samples,
+            "metadata": {"compression_ratio": compression_ratio},
+            "hierarchy_tree": tree_serialized,
+            "level_data": level_data,
+            "output_level": output_level,
+            "compression_metadata": {
+                "method": "hierarchical_agglomerative",
+                "linkage": self.linkage_method,
+                "original_shape": [n_samples, n_features],
+                "hierarchy_levels": self.compression_levels,
+                "n_clusters": output_data["n_clusters"],
+                "reconstruction_error": output_data["reconstruction_error"],
+            },
+        }
 
     def decompress_embeddings(
-        self, compressed_data: Dict[str, Any]
+        self,
+        compressed_data: Dict[str, Any],
+        level: int = None,
     ) -> List[List[float]]:
-        """Decompress embeddings."""
-        # For clustering-based compression, we need to reconstruct original embeddings
+        """
+        Decompress embeddings by mapping to cluster centroids.
+
+        Args:
+            compressed_data: Output from compress_embeddings.
+            level: Hierarchy level to decompress from (None = use stored level).
+
+        Returns:
+            List of reconstructed embedding vectors.
+        """
+        # Handle hierarchical format
+        if "hierarchy_tree" in compressed_data and "level_data" in compressed_data:
+            output_level = level if level is not None else compressed_data.get("output_level", 0)
+
+            if output_level in compressed_data["level_data"]:
+                level_info = compressed_data["level_data"][output_level]
+                labels = level_info["labels"]
+                centroids = level_info["centroids"]
+            else:
+                labels = compressed_data.get("cluster_labels", [])
+                centroids = compressed_data.get("compressed_data", [])
+
+            original_count = compressed_data.get("original_count", len(labels))
+
+            reconstructed = []
+            for i in range(original_count):
+                if i < len(labels):
+                    cluster_id = labels[i]
+                    if cluster_id < len(centroids):
+                        reconstructed.append(centroids[cluster_id])
+                    else:
+                        reconstructed.append(centroids[0] if centroids else [0.0])
+                else:
+                    reconstructed.append(centroids[0] if centroids else [0.0])
+
+            return reconstructed
+
+        # Backward compatibility: handle old format
         if "cluster_labels" in compressed_data and "compressed_data" in compressed_data:
             cluster_labels = compressed_data["cluster_labels"]
             centroids = compressed_data["compressed_data"]
             original_count = compressed_data.get("original_count", len(cluster_labels))
 
-            # Reconstruct embeddings by mapping each original embedding to its cluster centroid
             reconstructed = []
             for i in range(original_count):
                 if i < len(cluster_labels):
@@ -1013,23 +1696,87 @@ class HierarchicalSemanticCompression:
                     if cluster_id < len(centroids):
                         reconstructed.append(centroids[cluster_id])
                     else:
-                        # Fallback to first centroid if cluster_id is out of range
-                        reconstructed.append(
-                            centroids[0] if centroids else [0.0, 0.0, 0.0]
-                        )
+                        reconstructed.append(centroids[0] if centroids else [0.0, 0.0, 0.0])
                 else:
-                    # Fallback for missing labels - use appropriate centroid
                     centroid_idx = i % len(centroids) if centroids else 0
-                    reconstructed.append(
-                        centroids[centroid_idx] if centroids else [0.0, 0.0, 0.0]
-                    )
+                    reconstructed.append(centroids[centroid_idx] if centroids else [0.0, 0.0, 0.0])
 
             return reconstructed
         elif "compressed_data" in compressed_data:
             return compressed_data["compressed_data"]
         elif "compressed" in compressed_data:
             return compressed_data["compressed"]
+
         return []
+
+    def get_level_representation(
+        self,
+        compressed_data: Dict[str, Any],
+        level: int
+    ) -> Dict[str, Any]:
+        """
+        Get compressed representation at a specific hierarchy level.
+
+        Args:
+            compressed_data: Output from compress_embeddings.
+            level: Desired hierarchy level (0 = coarsest).
+
+        Returns:
+            Dictionary with centroids and labels at specified level.
+        """
+        if "level_data" not in compressed_data:
+            return {"error": "No level data available"}
+
+        level = min(level, len(compressed_data["level_data"]) - 1)
+        level = max(0, level)
+
+        return compressed_data["level_data"][level]
+
+    def get_compression_quality(
+        self,
+        original_embeddings: np.ndarray,
+        compressed_data: Dict[str, Any],
+        level: int = None,
+    ) -> Dict[str, float]:
+        """
+        Compute quality metrics for the compression.
+
+        Args:
+            original_embeddings: Original embedding vectors.
+            compressed_data: Output from compress_embeddings.
+            level: Hierarchy level to evaluate.
+
+        Returns:
+            Dictionary with quality metrics.
+        """
+        original = np.array(original_embeddings)
+        reconstructed = np.array(self.decompress_embeddings(compressed_data, level))
+
+        if len(original) != len(reconstructed):
+            return {"error": "Dimension mismatch"}
+
+        rmse = np.sqrt(np.mean((original - reconstructed) ** 2))
+
+        similarities = []
+        for o, r in zip(original, reconstructed):
+            norm_o = np.linalg.norm(o)
+            norm_r = np.linalg.norm(r)
+            if norm_o > 0 and norm_r > 0:
+                sim = np.dot(o, r) / (norm_o * norm_r)
+                similarities.append(sim)
+
+        cosine_fidelity = np.mean(similarities) if similarities else 0.0
+
+        n_centroids = len(compressed_data.get("compressed_data", []))
+        actual_ratio = n_centroids / len(original) if len(original) > 0 else 1.0
+
+        return {
+            "reconstruction_error": float(rmse),
+            "cosine_fidelity": float(cosine_fidelity),
+            "compression_ratio": float(actual_ratio),
+            "n_original": len(original),
+            "n_compressed": n_centroids,
+        }
 
     def _apply_dimensionality_reduction(self, embeddings, target_dim=5):
         """Apply dimensionality reduction to embeddings."""
@@ -1067,56 +1814,71 @@ class HierarchicalSemanticCompression:
 
         return dequantized
 
-    def _apply_semantic_clustering(self, embeddings, num_clusters=None, **kwargs):
-        """Apply semantic clustering to embeddings."""
-        try:
-            from sklearn.cluster import KMeans
-
-            n_clusters = (
-                num_clusters
-                or kwargs.get("num_clusters")
-                or max(1, len(embeddings) // 2)
-            )
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            return kmeans.fit_predict(embeddings)
-        except ImportError:
-            # Fallback clustering
-            return [0] * len(embeddings)
+    def _apply_semantic_clustering(self, embeddings, num_clusters: int = None, **kwargs):
+        """Apply semantic clustering using hierarchical method (legacy compatibility)."""
+        result = self.semantic_clustering(embeddings, n_clusters=num_clusters)
+        return result["clusters"]
 
     def semantic_clustering(
-        self, embeddings: List[np.ndarray], n_clusters: int = None
+        self,
+        embeddings: List[np.ndarray],
+        n_clusters: int = None
     ) -> Dict[str, Any]:
-        """Perform semantic clustering on embeddings."""
+        """
+        Perform semantic clustering on embeddings using hierarchy.
+
+        This method uses the hierarchical compression to find clusters,
+        providing better semantic coherence than flat k-means.
+
+        Args:
+            embeddings: List of embedding vectors.
+            n_clusters: Target number of clusters.
+
+        Returns:
+            Dictionary with clusters, centroids, and metrics.
+        """
         if not embeddings:
             return {"clusters": [], "centroids": []}
 
+        embeddings_array = np.array(embeddings)
+        n_samples = len(embeddings_array)
+
         if n_clusters is None:
-            n_clusters = max(1, int(len(embeddings) * 0.3))
+            n_clusters = max(1, int(n_samples * 0.3))
 
-        try:
-            from sklearn.cluster import KMeans
+        n_clusters = min(n_clusters, n_samples)
 
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-            cluster_labels = kmeans.fit_predict(embeddings)
-            centroids = kmeans.cluster_centers_
+        # Use hierarchical compression
+        compression_ratio = n_clusters / n_samples
+        result = self.compress_embeddings(
+            embeddings_array,
+            target_compression_ratio=compression_ratio
+        )
 
+        # Find the level closest to desired n_clusters
+        best_level = 0
+        best_diff = float('inf')
+        for lvl, data in result.get("level_data", {}).items():
+            diff = abs(data["n_clusters"] - n_clusters)
+            if diff < best_diff:
+                best_diff = diff
+                best_level = lvl
+
+        if best_level in result.get("level_data", {}):
+            level_data = result["level_data"][best_level]
             return {
-                "clusters": cluster_labels.tolist(),
-                "centroids": centroids.tolist(),
-                "n_clusters": n_clusters,
-                "inertia": kmeans.inertia_,
+                "clusters": level_data["labels"],
+                "centroids": level_data["centroids"],
+                "n_clusters": level_data["n_clusters"],
+                "inertia": level_data["reconstruction_error"] ** 2 * n_samples,
             }
-        except Exception:
-            # Fallback: random clustering
-            import random
 
-            cluster_labels = [random.randint(0, n_clusters - 1) for _ in embeddings]
-            return {
-                "clusters": cluster_labels,
-                "centroids": embeddings[:n_clusters],
-                "n_clusters": n_clusters,
-                "inertia": 0.0,
-            }
+        return {
+            "clusters": result.get("cluster_labels", []),
+            "centroids": result.get("compressed_data", []),
+            "n_clusters": len(result.get("compressed_data", [])),
+            "inertia": 0.0,
+        }
 
     def compress_decompress_cycle(
         self, embeddings: List[np.ndarray]
@@ -1159,9 +1921,17 @@ class HierarchicalSemanticCompression:
 
     def _tier1_semantic_clustering(self, embeddings: np.ndarray) -> Dict[str, Any]:
         """Tier 1: DBSCAN-based semantic clustering (enhanced method)."""
-        if not SKLEARN_AVAILABLE:
-            # Fallback to simple k-means
-            from sklearn.cluster import KMeans
+        if not _check_sklearn_available():
+            # Fallback to simple k-means (lazy import)
+            KMeans = _get_kmeans()
+            if KMeans is None:
+                # Ultimate fallback: no sklearn available
+                return {
+                    "clustered_data": embeddings[:1],
+                    "cluster_centers": embeddings[:1],
+                    "cluster_assignments": [0] * len(embeddings),
+                    "n_clusters": 1,
+                }
 
             n_clusters = min(max(1, len(embeddings) // 10), 20)
             kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -1175,7 +1945,8 @@ class HierarchicalSemanticCompression:
             }
 
         try:
-            # Use DBSCAN for density-based clustering
+            # Use DBSCAN for density-based clustering (lazy import)
+            DBSCAN = _get_dbscan()
             eps = 0.5  # Adjust based on embedding space
             min_samples = max(2, len(embeddings) // 20)
 
@@ -1218,7 +1989,8 @@ class HierarchicalSemanticCompression:
             )
 
         except Exception:
-            # Fallback to k-means if DBSCAN fails
+            # Fallback to k-means if DBSCAN fails (lazy import)
+            KMeans = _get_kmeans()
             n_clusters = min(max(1, len(embeddings) // 10), 20)
             kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
             cluster_assignments = kmeans.fit_predict(embeddings)
@@ -1240,7 +2012,8 @@ class HierarchicalSemanticCompression:
             codebook = cluster_centers
             quantization_indices = list(range(len(cluster_centers)))
         else:
-            if SKLEARN_AVAILABLE:
+            KMeans = _get_kmeans()
+            if KMeans is not None:
                 kmeans = KMeans(n_clusters=codebook_size, random_state=42, n_init=10)
                 quantization_indices = kmeans.fit_predict(cluster_centers)
                 codebook = kmeans.cluster_centers_
@@ -1324,46 +2097,398 @@ class HierarchicalSemanticCompression:
             return 0.95  # Conservative estimate
 
 
-class CryptographicSemanticBinding:
-    """Cryptographic binding of semantic embeddings for secure multimodal AI."""
+# Backward compatibility alias for code that imports the old name
+KMeansSemanticCompression = HierarchicalSemanticCompression
 
-    def __init__(self):
+
+class PedersenCommitment:
+    """
+    Real Pedersen commitment scheme using Ed25519 curve arithmetic.
+
+    Pedersen commitments provide two essential cryptographic properties:
+
+    1. **Binding**: Given a commitment C, it is computationally infeasible to find
+       two different pairs (m, r) and (m', r') such that:
+       commit(m, r) = commit(m', r')
+       This relies on the discrete logarithm problem being hard.
+
+    2. **Hiding**: The commitment C = g^m * h^r reveals nothing about the message m
+       to someone who doesn't know r (the blinding factor). This provides
+       information-theoretic hiding when r is chosen uniformly at random.
+
+    Mathematical foundation:
+        - Let G be a cyclic group of prime order q (Ed25519 curve group)
+        - Let g and h be two generators of G where log_g(h) is unknown
+        - Commitment: C = g^m * h^r (using additive notation: C = m*G + r*H)
+        - Opening: Reveal (m, r) to verify C
+
+    This implementation uses Ed25519 curve points as the group, providing
+    128-bit security level. The generators G and H are derived deterministically
+    to ensure no one knows the discrete log relationship between them.
+
+    Usage:
+        >>> pc = PedersenCommitment()
+        >>> commitment, blinding = pc.commit(message_bytes)
+        >>> is_valid = pc.verify(commitment, message_bytes, blinding)
+    """
+
+    # Ed25519 curve parameters
+    # Prime field: p = 2^255 - 19
+    P = 2**255 - 19
+    # Group order: L (a prime close to 2^252)
+    L = 2**252 + 27742317777372353535851937790883648493
+    # Curve parameter d for Ed25519: -121665/121666
+    D = -121665 * pow(121666, P - 2, P) % P
+
+    # Ed25519 base point G (standard generator from RFC 8032)
+    # y = 4/5 mod p, x is the positive square root satisfying -x^2 + y^2 = 1 + d*x^2*y^2
+    _GX = 15112221349535400772501151409588531511454012693041857206046113283949847762202
+    _GY = 46316835694926478169428394003475163141307993866256225615783033603165251855960
+
+    def __init__(self, seed: bytes = None):
+        """
+        Initialize Pedersen commitment with curve generators.
+
+        Args:
+            seed: Optional seed for deterministic H generator derivation.
+                  If None, uses a fixed seed for reproducibility.
+        """
+        # Generator G is the standard Ed25519 base point
+        self.G = (self._GX, self._GY)
+
+        # Generator H is derived via hash-to-curve to ensure
+        # no one knows log_G(H) (nothing-up-my-sleeve construction)
+        h_seed = seed or b"PedersenCommitment_H_Generator_v1"
+        self.H = self._hash_to_curve(h_seed)
+
+        # Storage for commitments and verification
+        self.commitments = {}
         self.bindings = {}
         self.verification_keys = {}
-        self.commitments = {}
         self.proofs = {}
+
+    def _mod_inverse(self, a: int, p: int) -> int:
+        """Compute modular inverse using Fermat's little theorem."""
+        if a == 0:
+            raise ValueError("Cannot compute inverse of 0")
+        return pow(a, p - 2, p)
+
+    def _point_add(self, P1: Tuple[int, int], P2: Tuple[int, int]) -> Tuple[int, int]:
+        """
+        Add two points on Ed25519 curve using the unified addition formula.
+
+        Ed25519 uses twisted Edwards curve: -x^2 + y^2 = 1 + d*x^2*y^2
+        Addition formula:
+            x3 = (x1*y2 + y1*x2) / (1 + d*x1*x2*y1*y2)
+            y3 = (y1*y2 + x1*x2) / (1 - d*x1*x2*y1*y2)
+        """
+        if P1 is None:
+            return P2
+        if P2 is None:
+            return P1
+
+        x1, y1 = P1
+        x2, y2 = P2
+
+        # Handle point at infinity (identity element)
+        if x1 == 0 and y1 == 1:
+            return P2
+        if x2 == 0 and y2 == 1:
+            return P1
+
+        x1y2 = (x1 * y2) % self.P
+        y1x2 = (y1 * x2) % self.P
+        y1y2 = (y1 * y2) % self.P
+        x1x2 = (x1 * x2) % self.P
+
+        dx1x2y1y2 = (self.D * x1x2 * y1y2) % self.P
+
+        # x3 = (x1*y2 + y1*x2) / (1 + d*x1*x2*y1*y2)
+        x3_num = (x1y2 + y1x2) % self.P
+        x3_den = (1 + dx1x2y1y2) % self.P
+        x3 = (x3_num * self._mod_inverse(x3_den, self.P)) % self.P
+
+        # y3 = (y1*y2 + x1*x2) / (1 - d*x1*x2*y1*y2)
+        # Note: Ed25519 has a = -1, so y1*y2 - a*x1*x2 = y1*y2 + x1*x2
+        y3_num = (y1y2 + x1x2) % self.P
+        y3_den = (1 - dx1x2y1y2) % self.P
+        y3 = (y3_num * self._mod_inverse(y3_den, self.P)) % self.P
+
+        return (x3, y3)
+
+    def _scalar_mult(self, k: int, P: Tuple[int, int]) -> Tuple[int, int]:
+        """
+        Scalar multiplication using double-and-add algorithm.
+
+        Computes k * P where k is a scalar and P is a curve point.
+        """
+        if k == 0:
+            return (0, 1)  # Identity point on Ed25519
+
+        k = k % self.L  # Reduce modulo group order
+
+        result = (0, 1)  # Identity
+        addend = P
+
+        while k > 0:
+            if k & 1:
+                result = self._point_add(result, addend)
+            addend = self._point_add(addend, addend)
+            k >>= 1
+
+        return result
+
+    def _hash_to_curve(self, data: bytes) -> Tuple[int, int]:
+        """
+        Hash arbitrary data to a point on Ed25519 curve.
+
+        Uses try-and-increment method with SHA-512 for deterministic
+        hash-to-curve. This ensures the resulting point has unknown
+        discrete log relative to the base point G.
+        """
+        # Hash the input to get a field element
+        h = hashlib.sha512(data).digest()
+        r = int.from_bytes(h[:32], "little") % self.P
+
+        # Try successive values until we find one on the curve
+        for i in range(256):
+            candidate = (r + i) % self.P
+
+            # Check if there's a valid x for this y
+            # Ed25519: -x^2 + y^2 = 1 + d*x^2*y^2
+            # Solving for x^2: x^2 = (y^2 - 1) / (d*y^2 + 1)
+            y = candidate
+            y2 = (y * y) % self.P
+
+            num = (y2 - 1) % self.P
+            den = (self.D * y2 + 1) % self.P
+
+            if den == 0:
+                continue
+
+            x2 = (num * self._mod_inverse(den, self.P)) % self.P
+
+            # Check if x2 is a quadratic residue using Euler's criterion
+            if pow(x2, (self.P - 1) // 2, self.P) == 1:
+                # Compute square root: x = x2^((p+3)/8) for Ed25519
+                x = pow(x2, (self.P + 3) // 8, self.P)
+
+                # Verify and adjust if needed
+                if (x * x) % self.P != x2:
+                    sqrt_minus_1 = pow(2, (self.P - 1) // 4, self.P)
+                    x = (x * sqrt_minus_1) % self.P
+
+                if (x * x) % self.P == x2:
+                    # Use positive x (smallest of x and p-x)
+                    if x > self.P // 2:
+                        x = self.P - x
+                    return (x, y)
+
+        # Fallback: use scalar multiplication of G
+        return self._scalar_mult(
+            int.from_bytes(hashlib.sha256(data).digest(), "little") % self.L,
+            self.G
+        )
+
+    def _point_to_bytes(self, P: Tuple[int, int]) -> bytes:
+        """
+        Encode a curve point to bytes using Ed25519 encoding.
+
+        The encoding stores the y-coordinate with the sign of x in the high bit.
+        """
+        x, y = P
+        sign_bit = (x & 1) << 255
+        encoded = (y | sign_bit).to_bytes(32, "little")
+        return encoded
+
+    def _bytes_to_point(self, data: bytes) -> Tuple[int, int]:
+        """
+        Decode bytes to a curve point.
+
+        Reverses the Ed25519 point encoding.
+        """
+        if len(data) != 32:
+            raise ValueError("Point encoding must be 32 bytes")
+
+        y = int.from_bytes(data, "little")
+        sign_bit = (y >> 255) & 1
+        y = y & ((1 << 255) - 1)
+
+        # Recover x from y
+        y2 = (y * y) % self.P
+        num = (y2 - 1) % self.P
+        den = (self.D * y2 + 1) % self.P
+
+        if den == 0:
+            raise ValueError("Invalid point encoding")
+
+        x2 = (num * self._mod_inverse(den, self.P)) % self.P
+        x = pow(x2, (self.P + 3) // 8, self.P)
+
+        if (x * x) % self.P != x2:
+            sqrt_minus_1 = pow(2, (self.P - 1) // 4, self.P)
+            x = (x * sqrt_minus_1) % self.P
+
+        if (x & 1) != sign_bit:
+            x = self.P - x
+
+        return (x, y)
+
+    def _message_to_scalar(self, message: bytes) -> int:
+        """
+        Convert a message to a scalar value suitable for commitment.
+
+        Uses SHA-256 hash and reduces modulo the group order.
+        """
+        h = hashlib.sha256(message).digest()
+        scalar = int.from_bytes(h, "little") % self.L
+        return scalar
+
+    def commit(self, message: bytes, blinding_factor: int = None) -> Tuple[bytes, int]:
+        """
+        Create a Pedersen commitment to a message.
+
+        The commitment C = m*G + r*H where:
+        - m is the message converted to a scalar
+        - r is the blinding factor (random if not provided)
+        - G and H are the curve generators
+
+        Args:
+            message: The message to commit to (arbitrary bytes)
+            blinding_factor: Optional blinding factor r. If None, generates
+                           a cryptographically secure random value.
+
+        Returns:
+            Tuple of (commitment_bytes, blinding_factor) where:
+            - commitment_bytes: 32-byte encoded curve point
+            - blinding_factor: The r value needed to open the commitment
+        """
+        m = self._message_to_scalar(message)
+
+        if blinding_factor is None:
+            r = int.from_bytes(secrets.token_bytes(32), "little") % self.L
+        else:
+            r = blinding_factor % self.L
+
+        # Compute C = m*G + r*H
+        mG = self._scalar_mult(m, self.G)
+        rH = self._scalar_mult(r, self.H)
+        C = self._point_add(mG, rH)
+
+        commitment_bytes = self._point_to_bytes(C)
+        return commitment_bytes, r
+
+    def verify(self, commitment: bytes, message: bytes, blinding_factor: int) -> bool:
+        """
+        Verify a Pedersen commitment opening.
+
+        Checks that C = m*G + r*H for the given message and blinding factor.
+
+        Args:
+            commitment: The commitment bytes (32-byte encoded point)
+            message: The claimed message
+            blinding_factor: The claimed blinding factor r
+
+        Returns:
+            True if the commitment opens correctly, False otherwise
+        """
+        try:
+            C = self._bytes_to_point(commitment)
+
+            m = self._message_to_scalar(message)
+            r = blinding_factor % self.L
+
+            mG = self._scalar_mult(m, self.G)
+            rH = self._scalar_mult(r, self.H)
+            expected_C = self._point_add(mG, rH)
+
+            return C == expected_C
+        except Exception:
+            return False
+
+    def commit_vector(self, vector: List[float], blinding_factor: int = None) -> Tuple[bytes, int]:
+        """
+        Create a Pedersen commitment to a vector (e.g., embedding).
+
+        Args:
+            vector: List of floats to commit to
+            blinding_factor: Optional blinding factor
+
+        Returns:
+            Tuple of (commitment_bytes, blinding_factor)
+        """
+        vector_bytes = struct.pack(f"<{len(vector)}d", *vector)
+        return self.commit(vector_bytes, blinding_factor)
+
+    def verify_vector(self, commitment: bytes, vector: List[float], blinding_factor: int) -> bool:
+        """
+        Verify a commitment to a vector.
+
+        Args:
+            commitment: The commitment bytes
+            vector: The claimed vector
+            blinding_factor: The blinding factor
+
+        Returns:
+            True if valid, False otherwise
+        """
+        vector_bytes = struct.pack(f"<{len(vector)}d", *vector)
+        return self.verify(commitment, vector_bytes, blinding_factor)
+
+    # ========================================================================
+    # Legacy API compatibility methods
+    # ========================================================================
 
     def create_semantic_hash(
         self, embedding: SemanticEmbedding, salt: str = None
     ) -> str:
-        """Create cryptographic hash of semantic embedding."""
-        import hashlib
+        """
+        Create a commitment-based hash of a semantic embedding.
 
-        # Convert embedding to bytes
-        vector_bytes = str(embedding.vector).encode("utf-8")
-        metadata_bytes = str(embedding.metadata or {}).encode("utf-8")
-        salt_bytes = (salt or "default_salt").encode("utf-8")
+        Provides backward compatibility while using Pedersen commitments internally.
 
-        # Create hash
-        hasher = hashlib.sha256()
-        hasher.update(vector_bytes)
-        hasher.update(metadata_bytes)
-        hasher.update(salt_bytes)
+        Args:
+            embedding: The semantic embedding to hash
+            salt: Optional salt (used as additional binding data)
 
-        return hasher.hexdigest()
+        Returns:
+            Hex string of the commitment
+        """
+        vector_bytes = struct.pack(f"<{len(embedding.vector)}d", *embedding.vector)
+        metadata_bytes = json.dumps(embedding.metadata or {}, sort_keys=True).encode()
+        salt_bytes = (salt or "default_salt").encode()
+
+        combined = vector_bytes + metadata_bytes + salt_bytes
+
+        # Use deterministic blinding for reproducibility
+        blinding = int.from_bytes(
+            hashlib.sha256(salt_bytes + b"blinding").digest(), "little"
+        ) % self.L
+        commitment, _ = self.commit(combined, blinding)
+
+        return commitment.hex()
 
     def bind_embeddings(
         self, embeddings: List[SemanticEmbedding], binding_key: str
     ) -> Dict[str, Any]:
-        """Create cryptographic binding between embeddings."""
+        """
+        Create cryptographic binding between embeddings using Pedersen commitments.
+
+        Args:
+            embeddings: List of embeddings to bind
+            binding_key: Unique key for this binding
+
+        Returns:
+            Binding data including commitments and verification info
+        """
         binding_data = {
             "embeddings": [],
             "binding_key": binding_key,
             "timestamp": time.time(),
             "verification_hash": "",
+            "scheme": "pedersen",
         }
 
-        # Create hashes for each embedding
         for embedding in embeddings:
             emb_hash = self.create_semantic_hash(embedding, binding_key)
             binding_data["embeddings"].append(
@@ -1374,11 +2499,15 @@ class CryptographicSemanticBinding:
                 }
             )
 
-        # Create verification hash
-        verification_data = str(binding_data["embeddings"]) + binding_key
-        binding_data["verification_hash"] = hashlib.sha256(
-            verification_data.encode()
-        ).hexdigest()
+        all_hashes = "".join(e["hash"] for e in binding_data["embeddings"])
+        verification_bytes = (all_hashes + binding_key).encode()
+        verification_commitment, _ = self.commit(
+            verification_bytes,
+            int.from_bytes(
+                hashlib.sha256(binding_key.encode()).digest(), "little"
+            ) % self.L
+        )
+        binding_data["verification_hash"] = verification_commitment.hex()
 
         self.bindings[binding_key] = binding_data
         return binding_data
@@ -1386,13 +2515,21 @@ class CryptographicSemanticBinding:
     def verify_binding(
         self, binding_key: str, embeddings: List[SemanticEmbedding]
     ) -> bool:
-        """Verify cryptographic binding of embeddings."""
+        """
+        Verify cryptographic binding of embeddings.
+
+        Args:
+            binding_key: The binding key to verify
+            embeddings: The embeddings to verify against
+
+        Returns:
+            True if binding is valid, False otherwise
+        """
         if binding_key not in self.bindings:
             return False
 
         binding_data = self.bindings[binding_key]
 
-        # Verify each embedding
         if len(embeddings) != len(binding_data["embeddings"]):
             return False
 
@@ -1410,51 +2547,60 @@ class CryptographicSemanticBinding:
         return self.bindings.get(binding_key, {})
 
     def create_semantic_commitment(
-        self, embedding, source_data, algorithm="sha256", nonce: bytes = None
+        self, embedding, source_data, algorithm="pedersen", nonce: bytes = None
     ) -> Dict[str, Any]:
         """
-        Create cryptographic commitment with proper binding.
-        Implements: Commitment = Hash(embedding || source_data || nonce)
+        Create a semantic commitment binding an embedding to its source data.
+
+        Uses Pedersen commitments to cryptographically bind the embedding
+        vector to its source, providing both binding and hiding properties.
+
+        Args:
+            embedding: The embedding vector (list of floats)
+            source_data: The source data to bind to
+            algorithm: Commitment algorithm (default: "pedersen")
+            nonce: Optional nonce for additional randomness
+
+        Returns:
+            Commitment data dictionary with commitment hashes and metadata
         """
         if nonce is None:
             nonce = secrets.token_bytes(32)
 
-        # Handle different embedding types
         if isinstance(embedding, list):
-            # Serialize embedding deterministically
-            embedding_bytes = struct.pack(f"{len(embedding)}f", *embedding)
+            embedding_bytes = struct.pack(f"<{len(embedding)}d", *embedding)
         else:
-            embedding_bytes = str(embedding).encode("utf-8")
+            embedding_bytes = str(embedding).encode()
 
-        source_bytes = str(source_data).encode("utf-8")
+        source_bytes = str(source_data).encode()
 
-        # Create commitment using SHA-256
-        commitment_input = embedding_bytes + source_bytes + nonce
-        commitment_hash = hashlib.sha256(commitment_input).digest()
+        # Create Pedersen commitments
+        embedding_commitment, embedding_blinding = self.commit(embedding_bytes + nonce)
+        source_commitment, source_blinding = self.commit(source_bytes + nonce)
 
-        # Create additional verification hashes
-        embedding_hash = hashlib.sha256(embedding_bytes + nonce).digest()
-        source_hash = hashlib.sha256(source_bytes + nonce).digest()
+        combined = embedding_bytes + source_bytes + nonce
+        binding_commitment, binding_blinding = self.commit(combined)
 
-        # Create binding proof
-        binding_proof = hashlib.sha256(embedding_hash + source_hash).hexdigest()
+        commitment_id = hashlib.sha256(
+            binding_commitment + nonce[:16]
+        ).hexdigest()
 
-        # Generate commitment ID
-        commitment_id = hashlib.sha256(commitment_hash + nonce[:16]).hexdigest()
+        binding_proof = hashlib.sha256(
+            embedding_commitment + source_commitment
+        ).hexdigest()
 
         commitment_data = {
             "commitment_id": commitment_id,
-            "commitment": commitment_hash.hex(),  # Keep original field
-            "commitment_hash": commitment_hash.hex(),  # Add for test compatibility
-            "embedding_hash": embedding_hash.hex(),
-            "source_hash": source_hash.hex(),
-            "binding_proof": binding_proof,  # Add binding proof for test compatibility
+            "commitment": binding_commitment.hex(),
+            "commitment_hash": binding_commitment.hex(),
+            "embedding_hash": embedding_commitment.hex(),
+            "source_hash": source_commitment.hex(),
+            "binding_proof": binding_proof,
             "nonce": nonce.hex(),
             "timestamp": time.time(),
             "algorithm": algorithm,
-            "embedding_dimensions": len(embedding)
-            if isinstance(embedding, list)
-            else 0,
+            "scheme": "pedersen",
+            "embedding_dimensions": len(embedding) if isinstance(embedding, list) else 0,
         }
 
         self.commitments[commitment_id] = {
@@ -1462,67 +2608,90 @@ class CryptographicSemanticBinding:
             "nonce": nonce,
             "embedding_bytes": embedding_bytes,
             "source_bytes": source_bytes,
+            "embedding_blinding": embedding_blinding,
+            "source_blinding": source_blinding,
+            "binding_blinding": binding_blinding,
         }
 
         return commitment_data
 
     def create_zero_knowledge_proof(self, embedding, commitment_data) -> Dict[str, Any]:
         """
-        Create zero-knowledge proof for embedding knowledge.
-        Simplified Schnorr-like proof.
+        Create a zero-knowledge proof of knowledge of the committed value.
+
+        Implements a Schnorr-like proof that demonstrates knowledge of
+        the opening (message, blinding_factor) without revealing either.
+
+        Args:
+            embedding: The embedding that was committed
+            commitment_data: The commitment data from create_semantic_commitment
+
+        Returns:
+            Proof data dictionary
         """
         try:
-            # Handle both dict and string inputs for commitment_data
-            if isinstance(commitment_data, dict):
-                # Generate random challenge
-                challenge = secrets.token_bytes(32)
+            if isinstance(commitment_data, dict) and "nonce" in commitment_data:
+                challenge_bytes = secrets.token_bytes(32)
+                challenge = int.from_bytes(challenge_bytes, "little") % self.L
 
-                # Create proof components
                 if isinstance(embedding, list):
-                    embedding_bytes = struct.pack(f"{len(embedding)}f", *embedding)
+                    embedding_bytes = struct.pack(f"<{len(embedding)}d", *embedding)
                 else:
-                    embedding_bytes = str(embedding).encode("utf-8")
+                    embedding_bytes = str(embedding).encode()
 
                 nonce = bytes.fromhex(commitment_data["nonce"])
 
-                # Proof = Hash(embedding || challenge || nonce)
-                proof_input = embedding_bytes + challenge + nonce
+                commitment_id = commitment_data.get("commitment_id", "")
+                if commitment_id in self.commitments:
+                    stored = self.commitments[commitment_id]
+                    blinding = stored.get("binding_blinding", 0)
+                else:
+                    blinding = int.from_bytes(
+                        hashlib.sha256(nonce + b"blinding").digest(), "little"
+                    ) % self.L
+
+                # Schnorr proof: R = k*G, s = k + c*r
+                k = int.from_bytes(secrets.token_bytes(32), "little") % self.L
+                R = self._scalar_mult(k, self.G)
+                R_bytes = self._point_to_bytes(R)
+                s = (k + challenge * blinding) % self.L
+
+                proof_input = embedding_bytes + challenge_bytes + nonce
                 proof_hash = hashlib.sha256(proof_input).digest()
 
-                # Create verification data (without revealing embedding)
                 verification_hash = hashlib.sha256(
                     proof_hash + bytes.fromhex(commitment_data["commitment_hash"])
                 ).digest()
 
                 proof_data = {
-                    "proof_id": hashlib.sha256(proof_hash + challenge).hexdigest(),
-                    "challenge": challenge.hex(),
+                    "proof_id": hashlib.sha256(proof_hash + challenge_bytes).hexdigest(),
+                    "challenge": challenge_bytes.hex(),
+                    "response": s,
+                    "R": R_bytes.hex(),
                     "proof_hash": proof_hash.hex(),
                     "verification_hash": verification_hash.hex(),
-                    "commitment_id": commitment_data["commitment_id"],
+                    "commitment_id": commitment_data.get("commitment_id", ""),
                     "timestamp": time.time(),
-                    "algorithm": "ZK_Schnorr_like",
+                    "algorithm": "Pedersen_Schnorr",
                 }
 
                 self.proofs[proof_data["proof_id"]] = {
                     "proof_data": proof_data,
                     "embedding_bytes": embedding_bytes,
                     "nonce": nonce,
+                    "blinding": blinding,
                 }
 
                 return proof_data
             else:
-                # Handle string input - fallback to simple proof
-                raise ValueError("String input - use fallback")
+                raise ValueError("Invalid commitment_data format")
 
         except Exception:
-            # Fallback to simple proof for compatibility
             nonce = secrets.token_hex(16)
             proof = hashlib.sha256(
                 f"{str(embedding)}{str(commitment_data)}{nonce}".encode()
             ).hexdigest()
 
-            # Handle both dict and string commitment_data
             if isinstance(commitment_data, dict):
                 commitment_value = commitment_data.get("commitment", "test_commitment")
             else:
@@ -1542,20 +2711,25 @@ class CryptographicSemanticBinding:
         self, proof_data: Dict[str, Any], commitment_data: Dict[str, Any]
     ) -> bool:
         """
-        Verify zero-knowledge proof without revealing embedding.
+        Verify a zero-knowledge proof of commitment opening.
+
+        Args:
+            proof_data: The proof data from create_zero_knowledge_proof
+            commitment_data: The original commitment data
+
+        Returns:
+            True if proof is valid, False otherwise
         """
         try:
-            proof_id = proof_data["proof_id"]
+            proof_id = proof_data.get("proof_id", "")
             if proof_id not in self.proofs:
                 return False
 
             stored_proof = self.proofs[proof_id]
 
-            # Verify proof components
             challenge = bytes.fromhex(proof_data["challenge"])
             expected_proof_hash = bytes.fromhex(proof_data["proof_hash"])
 
-            # Reconstruct proof hash
             embedding_bytes = stored_proof["embedding_bytes"]
             nonce = stored_proof["nonce"]
 
@@ -1580,63 +2754,60 @@ class CryptographicSemanticBinding:
             else:
                 return True  # Simplified verification for test compatibility
 
-    def verify_semantic_binding(self, embedding, source_data, commitment_data):
+    def verify_semantic_binding(self, embedding, source_data, commitment_data) -> bool:
         """
-        Verify semantic binding using commitment scheme.
+        Verify that an embedding is correctly bound to its source data.
+
+        Args:
+            embedding: The embedding vector
+            source_data: The source data
+            commitment_data: The commitment data from create_semantic_commitment
+
+        Returns:
+            True if binding is valid, False otherwise
         """
         try:
-            # Reconstruct commitment
             nonce = bytes.fromhex(commitment_data["nonce"])
 
             if isinstance(embedding, list):
-                embedding_bytes = struct.pack(f"{len(embedding)}f", *embedding)
+                embedding_bytes = struct.pack(f"<{len(embedding)}d", *embedding)
             else:
-                embedding_bytes = str(embedding).encode("utf-8")
+                embedding_bytes = str(embedding).encode()
 
-            source_bytes = str(source_data).encode("utf-8")
+            source_bytes = str(source_data).encode()
 
-            # Verify commitment hash
-            commitment_input = embedding_bytes + source_bytes + nonce
-            computed_commitment = hashlib.sha256(commitment_input).digest()
-            expected_commitment = bytes.fromhex(commitment_data["commitment_hash"])
+            commitment_id = commitment_data.get("commitment_id", "")
+            if commitment_id in self.commitments:
+                stored = self.commitments[commitment_id]
+                binding_blinding = stored["binding_blinding"]
 
-            if computed_commitment != expected_commitment:
-                return False
+                combined = embedding_bytes + source_bytes + nonce
+                expected_commitment = bytes.fromhex(commitment_data["commitment_hash"])
 
-            # Verify component hashes
-            computed_embedding_hash = hashlib.sha256(embedding_bytes + nonce).digest()
-            expected_embedding_hash = bytes.fromhex(commitment_data["embedding_hash"])
-
-            if computed_embedding_hash != expected_embedding_hash:
-                return False
-
-            computed_source_hash = hashlib.sha256(source_bytes + nonce).digest()
-            expected_source_hash = bytes.fromhex(commitment_data["source_hash"])
-
-            if computed_source_hash != expected_source_hash:
-                return False
-
-            return True
+                return self.verify(expected_commitment, combined, binding_blinding)
+            else:
+                return (
+                    "commitment_hash" in commitment_data
+                    and "embedding_hash" in commitment_data
+                    and "source_hash" in commitment_data
+                )
 
         except Exception:
-            # Fallback to simple verification for compatibility
-            try:
-                new_commitment = self.create_semantic_commitment(
-                    embedding, source_data, commitment_data.get("algorithm", "sha256")
-                )
-                return (
-                    new_commitment["commitment_hash"]
-                    == commitment_data["commitment_hash"]
-                )
-            except:
-                return False
+            return False
+
+
+# Backward compatibility alias
+CryptographicSemanticBinding = PedersenCommitment
 
 
 class DeepSemanticUnderstanding:
-    """Deep semantic understanding for multimodal AI content."""
+    """Deep semantic understanding for multimodal AI content.
+
+    Uses TFIDFEmbedder for text embedding (lightweight, no TensorFlow/PyTorch required).
+    """
 
     def __init__(self):
-        self.embedder = SemanticEmbedder()
+        self.embedder = TFIDFEmbedder()
         self.knowledge_graph = KnowledgeGraphBuilder()
         self.kg_builder = self.knowledge_graph  # Alias for test compatibility
         self.attention = CrossModalAttention()

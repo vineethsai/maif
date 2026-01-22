@@ -618,16 +618,48 @@ class SecureMAIFWriter:
         return self.add_block(data, block_type, metadata)
 
     def _calculate_merkle_root(self) -> bytes:
-        """Calculate Merkle root of all block content hashes."""
+        """
+        Calculate the Merkle root hash of all block content hashes.
+
+        A Merkle tree is a binary hash tree that provides efficient verification
+        of data integrity. This implementation:
+
+        Algorithm:
+            1. Start with leaf nodes: the SHA-256 content hash of each block
+            2. If the number of nodes at a level is odd, duplicate the last node
+            3. Pair adjacent nodes and hash each pair: SHA256(left || right)
+            4. Repeat steps 2-3 until only one node remains (the root)
+
+        Example with 5 blocks (A, B, C, D, E):
+            Level 0 (leaves): [A, B, C, D, E, E']  (E duplicated for odd count)
+            Level 1:          [H(A||B), H(C||D), H(E||E')]
+                              [AB, CD, EE, EE']   (EE duplicated for odd count)
+            Level 2:          [H(AB||CD), H(EE||EE')]
+                              [ABCD, EEEE]
+            Level 3 (root):   H(ABCD||EEEE)
+
+        Properties:
+            - Any change to any block changes the Merkle root
+            - Provides O(log n) proof of inclusion for any block
+            - Uses SHA-256 for cryptographic security (256-bit output)
+
+        Returns:
+            bytes: 32-byte SHA-256 Merkle root hash, or 32 zero bytes if no blocks
+
+        Time Complexity: O(n) where n is the number of blocks
+        Space Complexity: O(n) for storing intermediate hashes
+        """
         if not self.blocks:
             return b"\x00" * 32
 
         hashes = [block.header.content_hash for block in self.blocks]
 
         while len(hashes) > 1:
+            # Duplicate last hash if odd number of nodes (standard Merkle tree approach)
             if len(hashes) % 2 == 1:
                 hashes.append(hashes[-1])
 
+            # Combine pairs: hash(left || right)
             new_hashes = []
             for i in range(0, len(hashes), 2):
                 combined = hashlib.sha256(hashes[i] + hashes[i + 1]).digest()
@@ -964,16 +996,48 @@ class SecureMAIFReader:
         return len(errors) == 0, errors
 
     def _calculate_merkle_root(self) -> bytes:
-        """Calculate Merkle root from block hashes."""
+        """
+        Calculate the Merkle root hash from block content hashes.
+
+        A Merkle tree is a binary hash tree that provides efficient verification
+        of data integrity. This implementation:
+
+        Algorithm:
+            1. Start with leaf nodes: the SHA-256 content hash of each block
+            2. If the number of nodes at a level is odd, duplicate the last node
+            3. Pair adjacent nodes and hash each pair: SHA256(left || right)
+            4. Repeat steps 2-3 until only one node remains (the root)
+
+        Example with 5 blocks (A, B, C, D, E):
+            Level 0 (leaves): [A, B, C, D, E, E']  (E duplicated for odd count)
+            Level 1:          [H(A||B), H(C||D), H(E||E')]
+                              [AB, CD, EE, EE']   (EE duplicated for odd count)
+            Level 2:          [H(AB||CD), H(EE||EE')]
+                              [ABCD, EEEE]
+            Level 3 (root):   H(ABCD||EEEE)
+
+        Properties:
+            - Any change to any block changes the Merkle root
+            - Provides O(log n) proof of inclusion for any block
+            - Uses SHA-256 for cryptographic security (256-bit output)
+
+        Returns:
+            bytes: 32-byte SHA-256 Merkle root hash, or 32 zero bytes if no blocks
+
+        Time Complexity: O(n) where n is the number of blocks
+        Space Complexity: O(n) for storing intermediate hashes
+        """
         if not self.blocks:
             return b"\x00" * 32
 
         hashes = [block.header.content_hash for block in self.blocks]
 
         while len(hashes) > 1:
+            # Duplicate last hash if odd number of nodes (standard Merkle tree approach)
             if len(hashes) % 2 == 1:
                 hashes.append(hashes[-1])
 
+            # Combine pairs: hash(left || right)
             new_hashes = []
             for i in range(0, len(hashes), 2):
                 combined = hashlib.sha256(hashes[i] + hashes[i + 1]).digest()

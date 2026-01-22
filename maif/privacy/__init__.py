@@ -5,7 +5,9 @@ Contains privacy features:
 - Encryption (AES-GCM, ChaCha20)
 - PII detection and anonymization
 - Access control policies
-- Differential privacy
+- Differential privacy (Laplace mechanism)
+- Schnorr Zero-Knowledge Proofs (real ZKP)
+- Shamir Secret Sharing (real threshold MPC)
 """
 
 try:
@@ -16,8 +18,13 @@ try:
         EncryptionMode,
         AccessRule,
         DifferentialPrivacy,
-        SecureMultipartyComputation,
-        ZeroKnowledgeProof,
+        # Real implementations
+        SchnorrZKP,
+        ShamirSecretSharing,
+        SchnorrProof,
+        # Backward compatibility aliases
+        SecureMultipartyComputation,  # -> ShamirSecretSharing
+        ZeroKnowledgeProof,  # -> SchnorrZKP
     )
 except (ImportError, AttributeError) as e:
     PrivacyEngine = None
@@ -26,6 +33,9 @@ except (ImportError, AttributeError) as e:
     EncryptionMode = None
     AccessRule = None
     DifferentialPrivacy = None
+    SchnorrZKP = None
+    ShamirSecretSharing = None
+    SchnorrProof = None
     SecureMultipartyComputation = None
     ZeroKnowledgeProof = None
 
@@ -36,6 +46,11 @@ __all__ = [
     "EncryptionMode",
     "AccessRule",
     "DifferentialPrivacy",
+    # Real implementations
+    "SchnorrZKP",
+    "ShamirSecretSharing",
+    "SchnorrProof",
+    # Backward compatibility aliases
     "SecureMultipartyComputation",
     "ZeroKnowledgeProof",
 ]

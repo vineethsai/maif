@@ -5,6 +5,7 @@ Comprehensive data protection with encryption, anonymization, and access control
 
 import hashlib
 import json
+import math
 import time
 import secrets
 import base64
@@ -1090,58 +1091,413 @@ class PrivacyEngine:
 
 
 class DifferentialPrivacy:
-    """Differential privacy implementation for MAIF."""
+    """Differential privacy implementation for MAIF using the Laplace mechanism.
+
+    This class provides epsilon-differential privacy guarantees by adding
+    calibrated Laplace noise to query results. Differential privacy ensures
+    that the inclusion or exclusion of any single individual's data in a
+    dataset has a bounded effect on the output of queries.
+
+    The Laplace mechanism adds noise drawn from a Laplace distribution with
+    scale parameter b = sensitivity / epsilon, where:
+    - sensitivity: the maximum change in the query output when one record changes
+    - epsilon: the privacy parameter (smaller = more privacy, more noise)
+
+    A mechanism M satisfies epsilon-differential privacy if for all datasets
+    D1 and D2 differing in at most one element, and all outputs S:
+        Pr[M(D1) in S] <= exp(epsilon) * Pr[M(D2) in S]
+
+    Attributes:
+        epsilon: Privacy budget parameter. Smaller values provide stronger
+            privacy guarantees but add more noise. Typical values range
+            from 0.1 (strong privacy) to 10.0 (weak privacy).
+    """
 
     def __init__(self, epsilon: float = 1.0):
+        """Initialize the differential privacy mechanism.
+
+        Args:
+            epsilon: Privacy budget parameter. Must be positive.
+                Smaller values provide stronger privacy guarantees.
+
+        Raises:
+            ValueError: If epsilon is not positive.
+        """
         if epsilon <= 0:
             raise ValueError("Epsilon must be positive")
         self.epsilon = epsilon  # Privacy budget
 
     def add_noise(self, value: float, sensitivity: float = 1.0) -> float:
-        """Add Laplace noise for differential privacy."""
+        """Add Laplace noise to a value for epsilon-differential privacy.
+
+        The noise is drawn from a Laplace distribution centered at 0 with
+        scale parameter b = sensitivity / epsilon. This provides epsilon-DP
+        guarantees for queries with the specified sensitivity.
+
+        Args:
+            value: The true value to which noise will be added.
+            sensitivity: The L1 sensitivity of the query (maximum change
+                in output when one record is added/removed). Defaults to 1.0.
+
+        Returns:
+            The noisy value (value + Laplace noise).
+        """
         scale = sensitivity / self.epsilon
-        noise = secrets.SystemRandom().gauss(0, scale)
+        # Generate Laplace noise using inverse transform sampling
+        # Laplace(0, b) can be sampled as: -b * sign(u) * ln(1 - 2|u|)
+        # where u is uniform on (-0.5, 0.5), or equivalently:
+        # b * (ln(u1) - ln(u2)) where u1, u2 are uniform on (0, 1)
+        rng = secrets.SystemRandom()
+        u1 = rng.random()
+        u2 = rng.random()
+        # Avoid log(0) by ensuring u1, u2 are not exactly 0
+        while u1 == 0:
+            u1 = rng.random()
+        while u2 == 0:
+            u2 = rng.random()
+        noise = scale * (math.log(u1) - math.log(u2))
         return value + noise
 
     def add_noise_to_vector(
         self, vector: List[float], sensitivity: float = 1.0
     ) -> List[float]:
-        """Add noise to a vector while preserving differential privacy."""
+        """Add Laplace noise to each element of a vector.
+
+        Note: This applies noise independently to each element with the given
+        per-element sensitivity. For vector-valued queries, consider whether
+        the sensitivity should be the L1 or L2 norm of the change.
+
+        Args:
+            vector: List of values to add noise to.
+            sensitivity: The sensitivity per element. Defaults to 1.0.
+
+        Returns:
+            A new list with Laplace noise added to each element.
+        """
         return [self.add_noise(v, sensitivity) for v in vector]
 
 
-class SecureMultipartyComputation:
-    """Secure multiparty computation for collaborative AI."""
+class ShamirSecretSharing:
+    """
+    Shamir's Secret Sharing implementation for (t,n) threshold secret sharing.
 
-    def __init__(self):
-        self.shares: Dict[str, List[int]] = {}
+    This implements Shamir's Secret Sharing scheme where:
+    - A secret is split into n shares
+    - Any t (threshold) or more shares can reconstruct the secret
+    - Fewer than t shares reveal NO information about the secret (information-theoretic security)
+
+    The scheme works by:
+    1. Treating the secret as the constant term of a random polynomial of degree t-1
+    2. Generating shares as points (x, f(x)) on this polynomial
+    3. Using Lagrange interpolation to recover f(0) = secret from any t points
+
+    Mathematical foundation:
+    - Polynomial: f(x) = secret + a1*x + a2*x^2 + ... + a(t-1)*x^(t-1) mod p
+    - Share i: (i, f(i)) for i = 1, 2, ..., n
+    - Reconstruction: Lagrange interpolation at x=0 using t or more shares
+
+    All arithmetic is performed over a prime field GF(p) to ensure:
+    - Unique polynomial interpolation
+    - Information-theoretic security
+    - Proper modular arithmetic
+
+    Attributes:
+        PRIME: A large prime for the finite field (2^256 - 189, a 256-bit prime)
+
+    Example:
+        >>> sss = ShamirSecretSharing()
+        >>> secret = 12345
+        >>> shares = sss.split(secret, n=5, t=3)  # 5 shares, need 3 to reconstruct
+        >>> recovered = sss.reconstruct(shares[:3])  # Use only 3 shares
+        >>> assert recovered == secret
+    """
+
+    # A large 256-bit prime for the finite field
+    # This is 2^256 - 189, which is prime
+    PRIME = 2**256 - 189
+
+    def __init__(self, prime: Optional[int] = None):
+        """
+        Initialize Shamir's Secret Sharing.
+
+        Args:
+            prime: Optional custom prime for the finite field.
+                   If not provided, uses a 256-bit prime (2^256 - 189).
+                   The prime must be larger than the largest secret you plan to share.
+        """
+        if prime is not None:
+            if prime < 2:
+                raise ValueError("Prime must be at least 2")
+            self.PRIME = prime
         self._lock = threading.RLock()
 
-    def secret_share(self, value: int, num_parties: int = 3) -> List[int]:
-        """Create secret shares of a value."""
-        if num_parties < 2:
-            raise ValueError("Number of parties must be at least 2")
+    def _mod_inverse(self, a: int, p: int) -> int:
+        """
+        Compute the modular multiplicative inverse of a modulo p.
+
+        Uses the extended Euclidean algorithm to find x such that:
+        a * x = 1 (mod p)
+
+        Args:
+            a: The number to invert
+            p: The prime modulus
+
+        Returns:
+            The modular inverse of a modulo p
+
+        Raises:
+            ValueError: If a and p are not coprime (no inverse exists)
+        """
+        if a == 0:
+            raise ValueError("Cannot compute inverse of 0")
+
+        # Extended Euclidean Algorithm
+        def extended_gcd(a: int, b: int) -> Tuple[int, int, int]:
+            """Returns (gcd, x, y) such that a*x + b*y = gcd"""
+            if a == 0:
+                return b, 0, 1
+            gcd, x1, y1 = extended_gcd(b % a, a)
+            x = y1 - (b // a) * x1
+            y = x1
+            return gcd, x, y
+
+        gcd, x, _ = extended_gcd(a % p, p)
+        if gcd != 1:
+            raise ValueError(f"Modular inverse does not exist for {a} mod {p}")
+        return x % p
+
+    def _evaluate_polynomial(self, coefficients: List[int], x: int) -> int:
+        """
+        Evaluate a polynomial at point x using Horner's method.
+
+        The polynomial is represented as:
+        f(x) = coefficients[0] + coefficients[1]*x + coefficients[2]*x^2 + ...
+
+        Args:
+            coefficients: List of polynomial coefficients [a0, a1, a2, ...]
+            x: The point at which to evaluate
+
+        Returns:
+            f(x) mod PRIME
+        """
+        # Horner's method: f(x) = a0 + x*(a1 + x*(a2 + ...))
+        result = 0
+        for coeff in reversed(coefficients):
+            result = (result * x + coeff) % self.PRIME
+        return result
+
+    def split(self, secret: int, n: int, t: int) -> List[Tuple[int, int]]:
+        """
+        Split a secret into n shares with threshold t.
+
+        Creates n shares such that any t or more shares can reconstruct
+        the secret, but fewer than t shares reveal nothing about it.
+
+        The secret is encoded as the constant term of a random polynomial
+        of degree t-1. Each share is a point (x, f(x)) on this polynomial.
+
+        Args:
+            secret: The secret integer to share (must be in range [0, PRIME))
+            n: Total number of shares to generate (must be >= t)
+            t: Threshold - minimum shares needed for reconstruction (must be >= 1)
+
+        Returns:
+            List of n shares, each as a tuple (x, y) where:
+            - x is the share index (1 to n)
+            - y is the polynomial evaluation f(x)
+
+        Raises:
+            ValueError: If parameters are invalid (n < t, t < 1, secret out of range)
+
+        Example:
+            >>> sss = ShamirSecretSharing()
+            >>> shares = sss.split(42, n=5, t=3)
+            >>> len(shares)
+            5
+            >>> all(isinstance(s, tuple) and len(s) == 2 for s in shares)
+            True
+        """
+        if t < 1:
+            raise ValueError("Threshold t must be at least 1")
+        if n < t:
+            raise ValueError(f"Number of shares n ({n}) must be >= threshold t ({t})")
+        if secret < 0:
+            raise ValueError("Secret must be non-negative")
+        if secret >= self.PRIME:
+            raise ValueError(f"Secret must be less than prime ({self.PRIME})")
 
         with self._lock:
-            shares = [secrets.randbelow(2**32) for _ in range(num_parties - 1)]
-            last_share = value - sum(shares)
-            shares.append(last_share)
+            # Create polynomial coefficients: f(x) = secret + a1*x + a2*x^2 + ... + a(t-1)*x^(t-1)
+            # The secret is the constant term (coefficient of x^0)
+            coefficients = [secret]
+
+            # Generate t-1 random coefficients for the polynomial
+            for _ in range(t - 1):
+                coefficients.append(secrets.randbelow(self.PRIME))
+
+            # Generate n shares by evaluating the polynomial at x = 1, 2, ..., n
+            shares = []
+            for x in range(1, n + 1):
+                y = self._evaluate_polynomial(coefficients, x)
+                shares.append((x, y))
+
             return shares
 
-    def reconstruct_secret(self, shares: List[int]) -> int:
-        """Reconstruct secret from shares."""
-        return sum(shares) % (2**32)
+    def reconstruct(self, shares: List[Tuple[int, int]]) -> int:
+        """
+        Reconstruct the secret from shares using Lagrange interpolation.
+
+        Given t or more shares (points on the polynomial), this recovers
+        the original secret by computing the polynomial's value at x=0.
+
+        The Lagrange interpolation formula for f(0) is:
+        f(0) = sum_{i} y_i * product_{j != i} (-x_j) / (x_i - x_j)
+
+        Args:
+            shares: List of shares as (x, y) tuples. Must have at least t shares
+                    where t is the threshold used during splitting.
+
+        Returns:
+            The reconstructed secret integer
+
+        Raises:
+            ValueError: If shares list is empty or contains duplicate x values
+
+        Example:
+            >>> sss = ShamirSecretSharing()
+            >>> shares = sss.split(42, n=5, t=3)
+            >>> sss.reconstruct(shares[:3])  # Use any 3 shares
+            42
+            >>> sss.reconstruct(shares[2:])  # Use different 3 shares
+            42
+        """
+        if not shares:
+            raise ValueError("Cannot reconstruct from empty shares list")
+
+        # Check for duplicate x values
+        x_values = [s[0] for s in shares]
+        if len(x_values) != len(set(x_values)):
+            raise ValueError("Shares contain duplicate x values")
+
+        # Lagrange interpolation to find f(0)
+        # f(0) = sum_{i} y_i * L_i(0)
+        # where L_i(0) = product_{j != i} (0 - x_j) / (x_i - x_j)
+        #             = product_{j != i} (-x_j) / (x_i - x_j)
+
+        secret = 0
+        k = len(shares)
+
+        for i in range(k):
+            x_i, y_i = shares[i]
+
+            # Compute Lagrange basis polynomial L_i(0)
+            numerator = 1
+            denominator = 1
+
+            for j in range(k):
+                if i != j:
+                    x_j = shares[j][0]
+                    # L_i(0) = product_{j != i} (0 - x_j) / (x_i - x_j)
+                    numerator = (numerator * (-x_j)) % self.PRIME
+                    denominator = (denominator * (x_i - x_j)) % self.PRIME
+
+            # Compute L_i(0) = numerator / denominator (mod PRIME)
+            lagrange_coeff = (numerator * self._mod_inverse(denominator, self.PRIME)) % self.PRIME
+
+            # Add y_i * L_i(0) to the sum
+            secret = (secret + y_i * lagrange_coeff) % self.PRIME
+
+        return secret
+
+    # Backward compatibility methods to match the old interface
+
+    def secret_share(self, value: int, num_parties: int = 3, threshold: int = None) -> List[Tuple[int, int]]:
+        """
+        Create secret shares of a value (backward-compatible interface).
+
+        This method provides compatibility with the old additive secret sharing
+        interface while using Shamir's threshold scheme underneath.
+
+        Args:
+            value: The integer value to share
+            num_parties: Number of shares to create (n)
+            threshold: Minimum shares needed for reconstruction (t).
+                       Defaults to num_parties (all shares required).
+
+        Returns:
+            List of shares as (x, y) tuples
+
+        Note:
+            When threshold equals num_parties, this provides similar security
+            to n-of-n additive sharing but with the flexibility to use fewer
+            shares if threshold is set lower.
+        """
+        if threshold is None:
+            threshold = num_parties  # Default to n-of-n for backward compatibility
+
+        # Normalize value to be within prime range
+        normalized_value = value % self.PRIME
+
+        return self.split(normalized_value, num_parties, threshold)
+
+    def reconstruct_secret(self, shares: List[Tuple[int, int]]) -> int:
+        """
+        Reconstruct the secret from shares (backward-compatible interface).
+
+        Args:
+            shares: List of shares as (x, y) tuples
+
+        Returns:
+            The reconstructed secret value
+        """
+        return self.reconstruct(shares)
 
 
-class ZeroKnowledgeProof:
-    """Zero-knowledge proof system for MAIF."""
+# Backward compatibility alias
+SecureMultipartyComputation = ShamirSecretSharing
+
+
+class CommitmentScheme:
+    """
+    Hash-based commitment scheme for MAIF.
+
+    IMPORTANT: This is a COMMITMENT SCHEME, not a zero-knowledge proof system.
+
+    A commitment scheme allows a party to commit to a value without revealing it,
+    and later reveal the value along with proof that it matches the commitment.
+    This provides:
+    - Hiding: The commitment reveals nothing about the committed value
+    - Binding: The committer cannot change the value after committing
+
+    This is NOT a zero-knowledge proof because:
+    - There is no challenge-response protocol
+    - Verification requires revealing the actual value and nonce
+    - A true ZKP would allow proving knowledge of a value without revealing it
+
+    For true zero-knowledge proofs, use the SchnorrZKP class instead.
+
+    Implementation: SHA-256 hash commitment with random nonce
+    commitment = SHA256(value || nonce)
+    """
 
     def __init__(self):
         self.commitments: Dict[str, bytes] = {}
         self._lock = threading.RLock()
 
     def commit(self, value: bytes, nonce: Optional[bytes] = None) -> bytes:
-        """Create a commitment to a value."""
+        """
+        Create a commitment to a value.
+
+        Args:
+            value: The value to commit to
+            nonce: Optional random nonce (generated if not provided)
+
+        Returns:
+            The commitment hash
+
+        Note:
+            Store the nonce securely - it's needed to reveal the commitment later.
+        """
         if not value:
             raise ValueError("Value is required for commitment")
 
@@ -1156,9 +1512,492 @@ class ZeroKnowledgeProof:
             return commitment
 
     def verify_commitment(self, commitment: bytes, value: bytes, nonce: bytes) -> bool:
-        """Verify a commitment."""
+        """
+        Verify a commitment by checking if the value and nonce produce the same hash.
+
+        Args:
+            commitment: The original commitment hash
+            value: The revealed value
+            nonce: The nonce used during commitment
+
+        Returns:
+            True if the commitment is valid, False otherwise
+
+        Note:
+            This requires revealing the actual value, which is why this is
+            a commitment scheme and not a zero-knowledge proof.
+        """
         expected_commitment = hashlib.sha256(value + nonce).digest()
         return commitment == expected_commitment
+
+
+@dataclass
+class SchnorrProof:
+    """
+    Represents a Schnorr zero-knowledge proof.
+
+    This dataclass holds all components needed to verify a Schnorr proof:
+    - commitment: The prover's initial commitment r = g^k mod p
+    - challenge: The verifier's challenge c (or Fiat-Shamir hash)
+    - response: The prover's response s = k + c*x mod q
+    """
+    commitment: int  # r = g^k mod p
+    challenge: int   # c (random or Fiat-Shamir hash)
+    response: int    # s = k + c*x mod q
+
+
+class SchnorrZKP:
+    """
+    Real Schnorr Zero-Knowledge Proof implementation.
+
+    This class implements the Schnorr identification protocol, which is a TRUE
+    zero-knowledge proof system. It allows a prover to demonstrate knowledge
+    of a secret value x without revealing any information about x itself.
+
+    The Schnorr protocol works as follows:
+    1. Setup: Prover has secret x, public key y = g^x mod p
+    2. Commitment: Prover chooses random k, sends r = g^k mod p
+    3. Challenge: Verifier sends random challenge c (or use Fiat-Shamir)
+    4. Response: Prover computes s = k + c*x mod q
+    5. Verification: Verifier checks g^s == r * y^c mod p
+
+    Security properties:
+    - Completeness: Honest prover always convinces honest verifier
+    - Soundness: Cheating prover cannot convince verifier (without knowing x)
+    - Zero-knowledge: Verifier learns nothing about x beyond its existence
+
+    This implementation uses safe prime parameters from RFC 3526 (MODP Group 14)
+    which provides 2048-bit security, suitable for production use.
+
+    For non-interactive proofs, we use the Fiat-Shamir heuristic which converts
+    the interactive protocol to non-interactive by deriving the challenge from
+    a hash of the commitment and public parameters.
+
+    References:
+    - Schnorr, C.P. "Efficient Signature Generation by Smart Cards" (1991)
+    - RFC 3526: More Modular Exponential (MODP) Diffie-Hellman groups
+    - Fiat, A. and Shamir, A. "How to Prove Yourself" (1986)
+
+    Example:
+        >>> zkp = SchnorrZKP()
+        >>> secret_key, public_key = zkp.generate_keypair()
+        >>> proof = zkp.create_proof(secret_key, public_key)
+        >>> assert zkp.verify_proof(proof, public_key)  # True - valid proof
+    """
+
+    # RFC 3526 MODP Group 14 (2048-bit safe prime)
+    # p is a safe prime: p = 2q + 1 where q is also prime
+    # This provides 2048-bit security level
+    P = int(
+        "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1"
+        "29024E088A67CC74020BBEA63B139B22514A08798E3404DD"
+        "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245"
+        "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED"
+        "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D"
+        "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F"
+        "83655D23DCA3AD961C62F356208552BB9ED529077096966D"
+        "670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B"
+        "E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9"
+        "DE2BCBF6955817183995497CEA956AE515D2261898FA0510"
+        "15728E5A8AACAA68FFFFFFFFFFFFFFFF",
+        16
+    )
+
+    # q = (p - 1) / 2 (the Sophie Germain prime)
+    Q = (P - 1) // 2
+
+    # Generator g = 2 (standard generator for this group)
+    G = 2
+
+    def __init__(self):
+        """
+        Initialize the Schnorr ZKP system.
+
+        The system uses pre-defined safe prime parameters from RFC 3526
+        which are well-studied and provide strong security guarantees.
+        """
+        self._lock = threading.RLock()
+        # Store generated key pairs for convenience
+        self._key_pairs: Dict[str, Tuple[int, int]] = {}
+
+    def generate_keypair(self) -> Tuple[int, int]:
+        """
+        Generate a new Schnorr key pair.
+
+        Returns:
+            Tuple of (secret_key x, public_key y) where y = g^x mod p
+
+        The secret key x is chosen uniformly at random from [1, q-1].
+        The public key y is computed as y = g^x mod p.
+
+        Security: The discrete logarithm problem ensures that given y,
+        it is computationally infeasible to recover x.
+        """
+        with self._lock:
+            # Generate random secret key x in range [1, q-1]
+            x = secrets.randbelow(self.Q - 1) + 1
+
+            # Compute public key y = g^x mod p
+            y = pow(self.G, x, self.P)
+
+            return (x, y)
+
+    def create_proof(
+        self,
+        secret_key: int,
+        public_key: int,
+        message: Optional[bytes] = None
+    ) -> SchnorrProof:
+        """
+        Create a Schnorr zero-knowledge proof of knowledge of the secret key.
+
+        This proves knowledge of x such that y = g^x mod p, without revealing x.
+
+        Args:
+            secret_key: The secret value x
+            public_key: The public value y = g^x mod p
+            message: Optional message to bind to the proof (for signatures)
+
+        Returns:
+            SchnorrProof containing (commitment r, challenge c, response s)
+
+        The proof is non-interactive using the Fiat-Shamir heuristic:
+        challenge c = H(g || y || r || message) mod q
+
+        This makes the proof publicly verifiable without interaction.
+        """
+        with self._lock:
+            # Step 1: Generate random commitment
+            # k is chosen uniformly at random from [1, q-1]
+            k = secrets.randbelow(self.Q - 1) + 1
+
+            # r = g^k mod p (commitment)
+            r = pow(self.G, k, self.P)
+
+            # Step 2: Compute challenge using Fiat-Shamir heuristic
+            # c = H(g || y || r || message) mod q
+            challenge_input = (
+                self.G.to_bytes(256, 'big') +
+                public_key.to_bytes(256, 'big') +
+                r.to_bytes(256, 'big')
+            )
+            if message:
+                challenge_input += message
+
+            c = int.from_bytes(
+                hashlib.sha256(challenge_input).digest(),
+                'big'
+            ) % self.Q
+
+            # Step 3: Compute response
+            # s = k + c * x mod q
+            s = (k + c * secret_key) % self.Q
+
+            return SchnorrProof(commitment=r, challenge=c, response=s)
+
+    def verify_proof(
+        self,
+        proof: SchnorrProof,
+        public_key: int,
+        message: Optional[bytes] = None
+    ) -> bool:
+        """
+        Verify a Schnorr zero-knowledge proof.
+
+        This verifies that the prover knows x such that y = g^x mod p,
+        without learning anything about x.
+
+        Args:
+            proof: The SchnorrProof to verify
+            public_key: The public key y = g^x mod p
+            message: Optional message that was bound to the proof
+
+        Returns:
+            True if the proof is valid, False otherwise
+
+        Verification equation: g^s == r * y^c mod p
+
+        Mathematical proof of correctness:
+        - If prover is honest: s = k + c*x, so g^s = g^(k+cx) = g^k * g^(cx) = r * y^c
+        - Soundness: Without knowing x, prover cannot compute valid s
+        - Zero-knowledge: Proof can be simulated without x (by choosing s, c first)
+        """
+        # Validate proof components are in valid range
+        if not (1 <= proof.commitment < self.P):
+            return False
+        if not (0 <= proof.challenge < self.Q):
+            return False
+        if not (0 <= proof.response < self.Q):
+            return False
+        if not (1 <= public_key < self.P):
+            return False
+
+        # Recompute challenge using Fiat-Shamir (for non-interactive verification)
+        challenge_input = (
+            self.G.to_bytes(256, 'big') +
+            public_key.to_bytes(256, 'big') +
+            proof.commitment.to_bytes(256, 'big')
+        )
+        if message:
+            challenge_input += message
+
+        expected_challenge = int.from_bytes(
+            hashlib.sha256(challenge_input).digest(),
+            'big'
+        ) % self.Q
+
+        # Verify challenge matches (for non-interactive proofs)
+        if proof.challenge != expected_challenge:
+            return False
+
+        # Verify the Schnorr equation: g^s == r * y^c mod p
+        # Left side: g^s mod p
+        lhs = pow(self.G, proof.response, self.P)
+
+        # Right side: r * y^c mod p
+        y_c = pow(public_key, proof.challenge, self.P)
+        rhs = (proof.commitment * y_c) % self.P
+
+        return lhs == rhs
+
+    def create_interactive_proof_commitment(self, secret_key: int) -> Tuple[int, int]:
+        """
+        Create the commitment phase of an interactive Schnorr proof.
+
+        In the interactive protocol, this is step 1 where the prover
+        generates and sends the commitment r = g^k mod p.
+
+        Args:
+            secret_key: The secret value x (needed to later compute response)
+
+        Returns:
+            Tuple of (commitment r, random value k) where r = g^k mod p
+            The k value must be kept secret and used in create_response()
+
+        Note: For interactive proofs, the verifier provides the challenge.
+        """
+        with self._lock:
+            # Generate random k
+            k = secrets.randbelow(self.Q - 1) + 1
+            # Compute commitment r = g^k mod p
+            r = pow(self.G, k, self.P)
+            return (r, k)
+
+    def create_interactive_proof_response(
+        self,
+        secret_key: int,
+        k: int,
+        challenge: int
+    ) -> int:
+        """
+        Create the response phase of an interactive Schnorr proof.
+
+        In the interactive protocol, this is step 3 where the prover
+        computes s = k + c*x mod q after receiving the verifier's challenge.
+
+        Args:
+            secret_key: The secret value x
+            k: The random value from commitment phase
+            challenge: The verifier's challenge c
+
+        Returns:
+            The response s = k + c*x mod q
+        """
+        return (k + challenge * secret_key) % self.Q
+
+    def verify_interactive_proof(
+        self,
+        commitment: int,
+        challenge: int,
+        response: int,
+        public_key: int
+    ) -> bool:
+        """
+        Verify an interactive Schnorr proof.
+
+        Args:
+            commitment: The prover's commitment r
+            challenge: The verifier's challenge c
+            response: The prover's response s
+            public_key: The public key y = g^x mod p
+
+        Returns:
+            True if g^s == r * y^c mod p, False otherwise
+        """
+        # Validate inputs
+        if not (1 <= commitment < self.P):
+            return False
+        if not (0 <= challenge < self.Q):
+            return False
+        if not (0 <= response < self.Q):
+            return False
+        if not (1 <= public_key < self.P):
+            return False
+
+        # Verify: g^s == r * y^c mod p
+        lhs = pow(self.G, response, self.P)
+        y_c = pow(public_key, challenge, self.P)
+        rhs = (commitment * y_c) % self.P
+
+        return lhs == rhs
+
+    def generate_challenge(self) -> int:
+        """
+        Generate a random challenge for interactive proofs.
+
+        Returns:
+            A random integer in range [0, q-1]
+
+        This is used by the verifier in the interactive protocol.
+        """
+        return secrets.randbelow(self.Q)
+
+    # Convenience methods for common use cases
+
+    def prove_knowledge(self, value: bytes) -> Tuple[int, SchnorrProof]:
+        """
+        Prove knowledge of a value without revealing it.
+
+        This is a convenience method that:
+        1. Derives a secret key from the value
+        2. Computes the corresponding public key
+        3. Creates a proof of knowledge
+
+        Args:
+            value: The secret value to prove knowledge of
+
+        Returns:
+            Tuple of (public_key, proof) that can be verified
+
+        Note: The value is converted to a secret key via hashing.
+        This allows proving knowledge of arbitrary data.
+        """
+        # Derive secret key from value using hash
+        x = int.from_bytes(
+            hashlib.sha256(value).digest(),
+            'big'
+        ) % (self.Q - 1) + 1
+
+        # Compute public key
+        y = pow(self.G, x, self.P)
+
+        # Create proof
+        proof = self.create_proof(x, y, value)
+
+        return (y, proof)
+
+    def verify_knowledge(
+        self,
+        public_key: int,
+        proof: SchnorrProof,
+        message: Optional[bytes] = None
+    ) -> bool:
+        """
+        Verify a proof of knowledge.
+
+        Args:
+            public_key: The public key from prove_knowledge()
+            proof: The proof from prove_knowledge()
+            message: Optional message that was bound to the proof
+
+        Returns:
+            True if the proof is valid
+        """
+        return self.verify_proof(proof, public_key, message)
+
+    def serialize_proof(self, proof: SchnorrProof) -> bytes:
+        """
+        Serialize a proof for transmission or storage.
+
+        Args:
+            proof: The SchnorrProof to serialize
+
+        Returns:
+            Bytes representation of the proof
+        """
+        data = {
+            'commitment': proof.commitment,
+            'challenge': proof.challenge,
+            'response': proof.response
+        }
+        return json.dumps(data).encode('utf-8')
+
+    def deserialize_proof(self, data: bytes) -> SchnorrProof:
+        """
+        Deserialize a proof from bytes.
+
+        Args:
+            data: Bytes from serialize_proof()
+
+        Returns:
+            The deserialized SchnorrProof
+        """
+        parsed = json.loads(data.decode('utf-8'))
+        return SchnorrProof(
+            commitment=parsed['commitment'],
+            challenge=parsed['challenge'],
+            response=parsed['response']
+        )
+
+    # Backward compatibility methods to match old CommitmentScheme interface
+
+    def commit(self, value: bytes, nonce: Optional[bytes] = None) -> bytes:
+        """
+        Create a commitment using Schnorr ZKP (backward-compatible interface).
+
+        This provides backward compatibility with the old CommitmentScheme.
+        Instead of a simple hash commitment, it creates a full ZKP.
+
+        Args:
+            value: The value to commit to
+            nonce: Optional nonce (used as additional entropy)
+
+        Returns:
+            The serialized proof as bytes
+        """
+        if not value:
+            raise ValueError("Value is required for commitment")
+
+        # Use nonce as additional message binding if provided
+        message = value + nonce if nonce else value
+        public_key, proof = self.prove_knowledge(message)
+
+        # Return serialized proof with public key
+        data = {
+            'public_key': public_key,
+            'commitment': proof.commitment,
+            'challenge': proof.challenge,
+            'response': proof.response
+        }
+        return json.dumps(data).encode('utf-8')
+
+    def verify_commitment(self, commitment: bytes, value: bytes, nonce: bytes) -> bool:
+        """
+        Verify a commitment (backward-compatible interface).
+
+        Args:
+            commitment: The commitment from commit()
+            value: The original value
+            nonce: The nonce used during commitment
+
+        Returns:
+            True if the commitment is valid
+        """
+        try:
+            data = json.loads(commitment.decode('utf-8'))
+            proof = SchnorrProof(
+                commitment=data['commitment'],
+                challenge=data['challenge'],
+                response=data['response']
+            )
+            message = value + nonce if nonce else value
+            return self.verify_proof(proof, data['public_key'], message)
+        except (json.JSONDecodeError, KeyError):
+            return False
+
+
+# Backward compatibility alias - now points to REAL ZKP implementation
+ZeroKnowledgeProof = SchnorrZKP
 
 
 # Global privacy engine instance

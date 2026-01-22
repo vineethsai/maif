@@ -2,9 +2,12 @@
 MAIF Semantic Module
 
 Contains semantic/ML features:
-- Semantic embeddings
+- Semantic embeddings (TF-IDF based, lightweight)
 - Knowledge graph support
 - Novel algorithms (ACAM, HSC, CSB)
+
+Note: This module uses TF-IDF for embeddings by default.
+No TensorFlow or sentence-transformers dependencies required.
 """
 
 try:
@@ -18,8 +21,10 @@ try:
         DeepSemanticUnderstanding,
         KnowledgeGraphBuilder,
         AttentionWeights,
-        SENTENCE_TRANSFORMERS_AVAILABLE,
-        SentenceTransformer,
+        # TF-IDF fallback (lightweight, no TensorFlow)
+        TFIDFEmbedder,
+        get_embedder,
+        _check_tfidf_available,
     )
 except ImportError:
     SemanticEmbedder = None
@@ -31,8 +36,9 @@ except ImportError:
     DeepSemanticUnderstanding = None
     KnowledgeGraphBuilder = None
     AttentionWeights = None
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-    SentenceTransformer = None
+    TFIDFEmbedder = None
+    get_embedder = None
+    _check_tfidf_available = lambda: False
 
 try:
     from .semantic_optimized import (
@@ -56,8 +62,10 @@ __all__ = [
     "KnowledgeTriple",
     "KnowledgeGraphBuilder",
     "AttentionWeights",
-    "SENTENCE_TRANSFORMERS_AVAILABLE",
-    "SentenceTransformer",
+    # TF-IDF embeddings (lightweight, no TensorFlow)
+    "TFIDFEmbedder",
+    "get_embedder",
+    "_check_tfidf_available",
     # Novel algorithms
     "CrossModalAttention",
     "HierarchicalSemanticCompression",
@@ -70,4 +78,3 @@ __all__ = [
     "EnhancedCSB",
     "ENHANCED_ALGORITHMS_AVAILABLE",
 ]
-

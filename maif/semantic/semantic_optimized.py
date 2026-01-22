@@ -1,6 +1,9 @@
 """
 Enhanced semantic processing with improved ACAM, HSC, and CSB implementations.
 Brings the novel algorithms closer to paper specifications.
+
+This module uses only sklearn-based embeddings (TF-IDF) to avoid heavy dependencies
+like TensorFlow and PyTorch. All neural embedding functionality has been removed.
 """
 
 import numpy as np
@@ -10,12 +13,53 @@ import time
 import secrets
 import heapq
 import pickle
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from dataclasses import dataclass
 from collections import Counter
-from sklearn.cluster import DBSCAN
-from sklearn.decomposition import PCA
 import struct
+
+# LAZY IMPORTS: sklearn classes are imported lazily for faster module loading.
+
+_DBSCAN = None
+_PCA = None
+_KMeans = None
+_TfidfVectorizer = None
+
+
+def _get_dbscan():
+    """Lazily import DBSCAN."""
+    global _DBSCAN
+    if _DBSCAN is None:
+        from sklearn.cluster import DBSCAN
+        _DBSCAN = DBSCAN
+    return _DBSCAN
+
+
+def _get_pca():
+    """Lazily import PCA."""
+    global _PCA
+    if _PCA is None:
+        from sklearn.decomposition import PCA
+        _PCA = PCA
+    return _PCA
+
+
+def _get_kmeans():
+    """Lazily import KMeans."""
+    global _KMeans
+    if _KMeans is None:
+        from sklearn.cluster import KMeans
+        _KMeans = KMeans
+    return _KMeans
+
+
+def _get_tfidf_vectorizer():
+    """Lazily import TfidfVectorizer."""
+    global _TfidfVectorizer
+    if _TfidfVectorizer is None:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        _TfidfVectorizer = TfidfVectorizer
+    return _TfidfVectorizer
 
 
 @dataclass
@@ -26,12 +70,9 @@ class HuffmanNode:
     left: Optional["HuffmanNode"] = None
     right: Optional["HuffmanNode"] = None
 
-# Import the base semantic classes
-from .semantic import SemanticEmbedder, SemanticEmbedding, AttentionWeights
 
 try:
     import faiss
-
     FAISS_AVAILABLE = True
 except ImportError:
     FAISS_AVAILABLE = False
@@ -73,17 +114,75 @@ def fast_top_k_indices(similarities, k):
     return top_k_indices
 
 
-class OptimizedSemanticEmbedder(SemanticEmbedder):
+@dataclass
+class SemanticEmbedding:
+    """Represents a semantic embedding with metadata."""
+    vector: List[float]
+    source_hash: str = ""
+    model_name: str = ""
+    timestamp: float = 0.0
+    metadata: Optional[Dict] = None
+
+
+@dataclass
+class AttentionWeights:
+    """Structured attention weights for ACAM."""
+    query_key_weights: np.ndarray
+    trust_scores: Dict[str, float]
+    coherence_matrix: np.ndarray
+    normalized_weights: np.ndarray
+    modalities: List[str] = None
+    query_modality: str = None
+
+    def __post_init__(self):
+        """Initialize modalities list if not provided."""
+        if self.modalities is None:
+            self.modalities = list(self.trust_scores.keys())
+
+    def __len__(self):
+        """Return the number of modalities."""
+        return len(self.modalities)
+
+    def __iter__(self):
+        """Make it iterable like the old dict interface."""
+        return iter(self.modalities)
+
+
+class OptimizedSemanticEmbedder:
     """
-    High-performance semantic embedder with FAISS indexing and batch processing.
-    Optimized for large-scale semantic search operations.
+    TF-IDF based semantic embedder with FAISS indexing and batch processing.
+    Optimized for large-scale semantic search operations without neural dependencies.
+
+    This class uses sklearn's TfidfVectorizer for embeddings, providing a lightweight
+    CPU-friendly alternative to neural embedding models.
     """
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", use_gpu: bool = False):
-        super().__init__(model_name)
+    def __init__(self, model_name: str = "tfidf-384", use_gpu: bool = False, max_features: int = 384):
+        """
+        Initialize the TF-IDF based embedder.
+
+        Args:
+            model_name: Identifier for this embedder (default: tfidf-384).
+            use_gpu: Whether to use GPU for FAISS (if available).
+            max_features: Maximum vocabulary size for TF-IDF vectors.
+        """
+        TfidfVectorizer = _get_tfidf_vectorizer()
+
+        self.max_features = max_features
+        self.vectorizer = TfidfVectorizer(
+            max_features=max_features,
+            stop_words='english',
+            ngram_range=(1, 2),
+            sublinear_tf=True,
+        )
+        self.embeddings: List[SemanticEmbedding] = []
+        self.model_name = model_name if model_name != "all-MiniLM-L6-v2" else f"tfidf-{max_features}"
+        self._fitted = False
+        self._corpus: List[str] = []
+
         self.use_gpu = use_gpu and FAISS_AVAILABLE
         self.index = None
-        self.embedding_dimension = None
+        self.embedding_dimension = max_features
         self.indexed_embeddings = []
 
         # Performance optimization settings
@@ -92,8 +191,105 @@ class OptimizedSemanticEmbedder(SemanticEmbedder):
         self.nlist = 100  # Number of clusters for IVF
 
         print(
-            f"OptimizedSemanticEmbedder initialized (GPU: {self.use_gpu}, FAISS: {FAISS_AVAILABLE})"
+            f"OptimizedSemanticEmbedder initialized (TF-IDF, GPU: {self.use_gpu}, FAISS: {FAISS_AVAILABLE})"
         )
+
+    def _ensure_fitted(self, texts: List[str]):
+        """Ensure the vectorizer is fitted on the corpus."""
+        new_texts = [t for t in texts if t not in self._corpus]
+        if new_texts or not self._fitted:
+            self._corpus.extend(new_texts)
+            if self._corpus:
+                self.vectorizer.fit(self._corpus)
+                self._fitted = True
+
+    def embed_text(
+        self, text: str, metadata: Optional[Dict] = None
+    ) -> SemanticEmbedding:
+        """
+        Generate a TF-IDF embedding for a single text.
+
+        Args:
+            text: The input text to embed.
+            metadata: Optional metadata dictionary.
+
+        Returns:
+            SemanticEmbedding object containing the TF-IDF vector.
+        """
+        self._ensure_fitted([text])
+
+        # Transform text to TF-IDF vector
+        tfidf_matrix = self.vectorizer.transform([text])
+        vector = tfidf_matrix.toarray()[0].tolist()
+
+        # Pad to exact max_features size
+        if len(vector) < self.max_features:
+            vector = vector + [0.0] * (self.max_features - len(vector))
+
+        source_hash = hashlib.sha256(text.encode()).hexdigest()
+
+        final_metadata = metadata.copy() if metadata else {}
+        final_metadata["embedder_type"] = "tfidf"
+
+        embedding = SemanticEmbedding(
+            vector=vector,
+            source_hash=source_hash,
+            model_name=self.model_name,
+            timestamp=time.time(),
+            metadata=final_metadata,
+        )
+
+        self.embeddings.append(embedding)
+        return embedding
+
+    def embed_texts(
+        self, texts: List[str], metadata_list: Optional[List[Dict]] = None
+    ) -> List[SemanticEmbedding]:
+        """
+        Generate TF-IDF embeddings for multiple texts.
+
+        Args:
+            texts: List of input texts to embed.
+            metadata_list: Optional list of metadata dicts.
+
+        Returns:
+            List of SemanticEmbedding objects.
+        """
+        if not texts:
+            return []
+
+        self._ensure_fitted(texts)
+
+        # Transform all texts at once
+        tfidf_matrix = self.vectorizer.transform(texts)
+        vectors = tfidf_matrix.toarray()
+
+        embeddings = []
+        metadata_list = metadata_list or [None] * len(texts)
+
+        for i, (text, vector) in enumerate(zip(texts, vectors)):
+            vector_list = vector.tolist()
+
+            # Pad to exact max_features size
+            if len(vector_list) < self.max_features:
+                vector_list = vector_list + [0.0] * (self.max_features - len(vector_list))
+
+            metadata = metadata_list[i] if i < len(metadata_list) else None
+            final_metadata = metadata.copy() if metadata else {}
+            final_metadata["text"] = text
+            final_metadata["embedder_type"] = "tfidf"
+
+            embedding = SemanticEmbedding(
+                vector=vector_list,
+                source_hash=hashlib.sha256(text.encode()).hexdigest(),
+                model_name=self.model_name,
+                timestamp=time.time(),
+                metadata=final_metadata,
+            )
+            embeddings.append(embedding)
+            self.embeddings.append(embedding)
+
+        return embeddings
 
     def embed_texts_batch(
         self,
@@ -114,7 +310,6 @@ class OptimizedSemanticEmbedder(SemanticEmbedder):
                 metadata_list[i : i + batch_size] if metadata_list else None
             )
 
-            # Use parent class batch processing
             batch_embeddings = self.embed_texts(batch_texts, batch_metadata)
             embeddings.extend(batch_embeddings)
 
@@ -125,6 +320,22 @@ class OptimizedSemanticEmbedder(SemanticEmbedder):
     ) -> SemanticEmbedding:
         """Single text embedding - optimized version."""
         return self.embed_text(text, metadata)
+
+    def compute_similarity(
+        self, embedding1: SemanticEmbedding, embedding2: SemanticEmbedding
+    ) -> float:
+        """Compute cosine similarity between two embeddings."""
+        v1 = np.array(embedding1.vector)
+        v2 = np.array(embedding2.vector)
+
+        dot_product = np.dot(v1, v2)
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+
+        return dot_product / (norm1 * norm2)
 
     def build_search_index(self, embeddings: List[SemanticEmbedding]):
         """
@@ -198,10 +409,17 @@ class OptimizedSemanticEmbedder(SemanticEmbedder):
         Returns list of (index, similarity_score) tuples.
         """
         if self.index is None:
-            # Fallback to parent class method
-            results = super().search_similar(query_embedding, top_k)
-            # Convert to (index, score) format
-            return [(i, score) for i, (emb, score) in enumerate(results)]
+            # Fallback to linear search
+            if not self.embeddings:
+                return []
+
+            similarities = []
+            for i, embedding in enumerate(self.embeddings):
+                similarity = self.compute_similarity(query_embedding, embedding)
+                similarities.append((i, similarity))
+
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            return similarities[:top_k]
 
         # Prepare query vector
         if isinstance(query_embedding.vector, list):
@@ -252,14 +470,36 @@ class OptimizedSemanticEmbedder(SemanticEmbedder):
 
                 return results
             else:
-                # Ultimate fallback
-                return super().search_similar(query_embedding, top_k)
+                # Ultimate fallback - linear search
+                if not self.indexed_embeddings:
+                    return []
+
+                similarities = []
+                for i, embedding in enumerate(self.indexed_embeddings):
+                    similarity = self.compute_similarity(query_embedding, embedding)
+                    similarities.append((i, similarity))
+
+                similarities.sort(key=lambda x: x[1], reverse=True)
+                return similarities[:top_k]
+
+    def get_embeddings_data(self) -> List[Dict]:
+        """Get embeddings in serializable format."""
+        return [
+            {
+                "vector": emb.vector,
+                "source_hash": emb.source_hash,
+                "model_name": emb.model_name,
+                "timestamp": emb.timestamp,
+                "metadata": emb.metadata or {},
+            }
+            for emb in self.embeddings
+        ]
 
 
 class AdaptiveCrossModalAttention:
     """
     Enhanced ACAM implementation closer to paper specifications.
-    Implements: α_{ij} = softmax(Q_i K_j^T / √d_k · CS(E_i, E_j))
+    Implements: alpha_{ij} = softmax(Q_i K_j^T / sqrt(d_k) * CS(E_i, E_j))
     """
 
     def __init__(self, embedding_dim: int = 384, num_heads: int = 8):
@@ -277,7 +517,7 @@ class AdaptiveCrossModalAttention:
         self,
         embeddings: Dict[str, np.ndarray],
         trust_scores: Optional[Dict[str, float]] = None,
-    ) -> AttentionWeights:
+    ):
         """
         Compute attention weights using proper Q, K, V transformations.
         """
@@ -307,7 +547,7 @@ class AdaptiveCrossModalAttention:
         for i, mod_i in enumerate(modalities):
             for j, mod_j in enumerate(modalities):
                 if i != j:
-                    # Q_i K_j^T / √d_k
+                    # Q_i K_j^T / sqrt(d_k)
                     qk_score = (
                         np.dot(queries[mod_i].flatten(), keys[mod_j].flatten())
                         / self.scale
@@ -374,7 +614,7 @@ class AdaptiveCrossModalAttention:
     def get_attended_representation(
         self,
         embeddings: Dict[str, np.ndarray],
-        attention_weights: AttentionWeights,
+        attention_weights,
         query_modality: str,
     ) -> np.ndarray:
         """Get attention-weighted representation for query modality."""
@@ -463,6 +703,9 @@ class HierarchicalSemanticCompression:
     def _tier1_semantic_clustering(self, embeddings: np.ndarray) -> Dict[str, Any]:
         """Tier 1: DBSCAN-based semantic clustering."""
         try:
+            # Lazy import DBSCAN
+            DBSCAN = _get_dbscan()
+
             # Use DBSCAN for density-based clustering
             eps = 0.5  # Adjust based on embedding space
             min_samples = max(2, len(embeddings) // 20)
@@ -507,7 +750,7 @@ class HierarchicalSemanticCompression:
 
         except Exception:
             # Fallback to k-means if DBSCAN fails
-            from sklearn.cluster import KMeans
+            KMeans = _get_kmeans()
 
             n_clusters = min(max(1, len(embeddings) // 10), 20)
             kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -530,7 +773,7 @@ class HierarchicalSemanticCompression:
             codebook = cluster_centers
             quantization_indices = list(range(len(cluster_centers)))
         else:
-            from sklearn.cluster import KMeans
+            KMeans = _get_kmeans()
 
             kmeans = KMeans(n_clusters=codebook_size, random_state=42, n_init=10)
             quantization_indices = kmeans.fit_predict(cluster_centers)

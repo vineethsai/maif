@@ -61,26 +61,19 @@ __all__ = [
 
 def __getattr__(name: str):
     """Lazy loading of framework-specific modules."""
-    
-    # LangGraph
-    if name == "langgraph":
-        from maif.integrations import langgraph as _langgraph
-        return _langgraph
-    
-    # LangChain
-    if name == "langchain":
-        from maif.integrations import langchain as _langchain
-        return _langchain
-    
-    # CrewAI
-    if name == "crewai":
-        from maif.integrations import crewai as _crewai
-        return _crewai
-    
-    # Strands
-    if name == "strands":
-        from maif.integrations import strands as _strands
-        return _strands
-    
+    import importlib
+
+    _submodules = {
+        "langgraph": "maif.integrations.langgraph",
+        "langchain": "maif.integrations.langchain",
+        "crewai": "maif.integrations.crewai",
+        "strands": "maif.integrations.strands",
+    }
+
+    if name in _submodules:
+        module = importlib.import_module(_submodules[name])
+        globals()[name] = module  # Cache it
+        return module
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

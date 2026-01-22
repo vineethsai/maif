@@ -1,8 +1,21 @@
 """
 MAIF VectorStore for LangChain.
 
-A vector store that persists embeddings to MAIF artifacts
-with full provenance tracking.
+Status: Experimental - In-memory only, suitable for small datasets (<10k docs)
+
+A vector store that logs document additions and searches to MAIF artifacts
+for provenance tracking. Uses simple in-memory storage with numpy cosine
+similarity.
+
+Limitations:
+- In-memory only: All vectors stored in RAM, no disk persistence of full embeddings
+- Only stores first 10 embedding dimensions to MAIF (for audit trail, not retrieval)
+- No delete or update operations
+- No filtering or metadata-based search
+- Basic cosine similarity (no ANN/HNSW indexing)
+
+For production use with large datasets, consider using a dedicated vector database
+(Pinecone, Weaviate, Chroma) with MAIFCallbackHandler for provenance tracking.
 """
 
 import time
