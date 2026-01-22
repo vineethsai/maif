@@ -301,11 +301,14 @@ except ImportError:
 
 try:
     from .compliance import ForensicAnalyzer, ForensicEvidence
+    # Also import the forensics module itself so `maif.forensics` works
+    from .compliance import forensics
     FORENSICS_AVAILABLE = True
 except ImportError as e:
     _logger.debug(f"Forensics module not available: {e}")
     ForensicAnalyzer = None
     ForensicEvidence = None
+    forensics = None
 
 try:
     from .utils import MAIFValidator, MAIFRepairTool
@@ -732,6 +735,7 @@ if FORENSICS_AVAILABLE:
     __all__.extend([
         "ForensicAnalyzer",
         "ForensicEvidence",
+        "forensics",  # Module itself for `maif.forensics` access
     ])
 
 # Validator (always try to include)

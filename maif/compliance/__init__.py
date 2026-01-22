@@ -25,9 +25,12 @@ except ImportError:
 
 try:
     from .forensics import ForensicAnalyzer, ForensicEvidence
+    # Import the module itself so it can be re-exported
+    from . import forensics
 except ImportError:
     ForensicAnalyzer = None
     ForensicEvidence = None
+    forensics = None
 
 ForensicReport = None  # Not implemented
 
@@ -47,6 +50,7 @@ __all__ = [
     "ForensicAnalyzer",
     "ForensicEvidence",
     "ForensicReport",
+    "forensics",  # Module itself for `maif.forensics` access
     # Logging config
     "configure_logging",
     "get_logger",
