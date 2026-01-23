@@ -46,6 +46,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "structlog>=23.0.0",
     "tenacity>=8.0.0",
+    "requests>=2.25.0",
 ]
 
 [project.optional-dependencies]

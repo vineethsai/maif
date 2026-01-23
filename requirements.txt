@@ -29,6 +29,7 @@ pillow==11.3.0
 scipy==1.13.1
 lz4==4.4.5
 numba==0.60.0
+requests==2.32.3
 
 # Production monitoring
 prometheus-client==0.23.1
