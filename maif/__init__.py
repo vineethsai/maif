@@ -483,21 +483,6 @@ except ImportError as e:
 
 
 # =============================================================================
-# AWS Integrations - PLANNED (NOT YET IMPLEMENTED)
-# =============================================================================
-# NOTE: These files do not exist in the codebase. This is a planned feature.
-# AWS_IMPORTS_AVAILABLE remains False. Do not use these imports.
-
-# Placeholder for future implementation:
-# - AWSLambdaIntegration
-# - AWSStepFunctionsIntegration
-# - MAIFXRayIntegration
-# - DeploymentManager
-# - CloudFormationGenerator
-# - LambdaPackager
-# - DockerfileGenerator
-
-
 # =============================================================================
 # Convenience API - BETA
 # =============================================================================

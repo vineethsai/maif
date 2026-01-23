@@ -13,7 +13,6 @@ from typing import Optional
 @click.command()
 @click.option("--input", "input_file", help="Input file path")
 @click.option("--output", required=True, help="Output MAIF file path")
-@click.option("--manifest", help="Output manifest file path (deprecated in v3)")
 @click.option("--text", multiple=True, help="Add text content")
 @click.option("--file", "files", multiple=True, help="Add file content")
 @click.option("--agent-id", help="Agent identifier")
@@ -53,7 +52,6 @@ from typing import Optional
 def create_privacy_maif(
     input_file,
     output,
-    manifest,
     text,
     files,
     agent_id,
@@ -134,7 +132,6 @@ def create_privacy_maif(
 
 @click.command()
 @click.option("--maif-file", required=True, help="MAIF file to access")
-@click.option("--manifest", help="Manifest file path (deprecated in v3)")
 @click.option("--user-id", required=True, help="User ID requesting access")
 @click.option(
     "--permission",
@@ -142,7 +139,7 @@ def create_privacy_maif(
     required=True,
     help="Permission level",
 )
-def access_privacy_maif(maif_file, manifest, user_id, permission):
+def access_privacy_maif(maif_file, user_id, permission):
     """CLI command to access MAIF files with privacy controls."""
     try:
         from .core import MAIFDecoder
@@ -175,7 +172,6 @@ def access_privacy_maif(maif_file, manifest, user_id, permission):
 
 @click.command()
 @click.option("--maif-file", required=True, help="MAIF file to manage")
-@click.option("--manifest", help="Manifest file path (deprecated in v3)")
 @click.option(
     "--action",
     type=click.Choice(["status", "audit", "revoke"]),
@@ -183,7 +179,7 @@ def access_privacy_maif(maif_file, manifest, user_id, permission):
     help="Management action",
 )
 @click.option("--user-id", help="User ID for action")
-def manage_privacy(maif_file, manifest, action, user_id):
+def manage_privacy(maif_file, action, user_id):
     """CLI command to manage privacy settings."""
     try:
         from .core import MAIFDecoder
@@ -225,12 +221,11 @@ def manage_privacy(maif_file, manifest, action, user_id):
 @click.command()
 @click.option("--input", "input_file", help="Input file path")
 @click.option("--output", required=True, help="Output MAIF file path")
-@click.option("--manifest", help="Output manifest file path (deprecated in v3)")
 @click.option("--text", multiple=True, help="Add text content")
 @click.option("--agent-id", default="cli-agent", help="Agent identifier")
 @click.option("--compress", is_flag=True, help="Enable compression")
 @click.option("--sign", is_flag=True, default=True, help="Sign the file")
-def create_maif(input_file, output, manifest, text, agent_id, compress, sign):
+def create_maif(input_file, output, text, agent_id, compress, sign):
     """CLI command to create a MAIF file."""
     try:
         from .core import MAIFEncoder, BlockType
@@ -271,9 +266,8 @@ def create_maif(input_file, output, manifest, text, agent_id, compress, sign):
 
 @click.command()
 @click.option("--maif-file", required=True, help="MAIF file to verify")
-@click.option("--manifest", help="Manifest file path (deprecated in v3)")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
-def verify_maif(maif_file, manifest, verbose):
+def verify_maif(maif_file, verbose):
     """CLI command to verify a MAIF file."""
     try:
         from .core import MAIFDecoder
@@ -311,14 +305,13 @@ def verify_maif(maif_file, manifest, verbose):
 
 @click.command()
 @click.option("--maif-file", required=True, help="MAIF file to analyze")
-@click.option("--manifest", help="Manifest file path (deprecated in v3)")
 @click.option(
     "--output-format",
     type=click.Choice(["text", "json"]),
     default="text",
     help="Output format",
 )
-def analyze_maif(maif_file, manifest, output_format):
+def analyze_maif(maif_file, output_format):
     """CLI command to analyze a MAIF file."""
     try:
         from .core import MAIFDecoder
@@ -369,10 +362,9 @@ def analyze_maif(maif_file, manifest, output_format):
 
 @click.command()
 @click.option("--maif-file", required=True, help="MAIF file to extract from")
-@click.option("--manifest", help="Manifest file path (deprecated in v3)")
 @click.option("--output-dir", required=True, help="Output directory")
 @click.option("--block-index", type=int, help="Extract specific block by index")
-def extract_content(maif_file, manifest, output_dir, block_index):
+def extract_content(maif_file, output_dir, block_index):
     """CLI command to extract content from a MAIF file."""
     try:
         from .core import MAIFDecoder, BlockType

@@ -2,7 +2,7 @@
 MAIF Core Module - Encoding, Decoding, and Parsing
 
 This module provides the primary interface for creating and reading MAIF files.
-MAIF v2.x uses a self-contained binary format with embedded security (Ed25519 signatures)
+MAIF v3 uses a self-contained binary format with embedded security (Ed25519 signatures)
 and provenance tracking. No external manifest files are required.
 
 Key Features:

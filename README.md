@@ -51,8 +51,8 @@ MAIF provides drop-in integrations for popular AI agent frameworks:
 |-----------|--------|-------------|
 | LangGraph | Available | State checkpointer with provenance |
 | CrewAI | Available | Crew/Agent callbacks, Memory |
-| LangChain | Coming Soon | Callbacks, VectorStore, Memory |
-| AWS Strands | Coming Soon | Agent callbacks |
+| LangChain | Available | Callbacks, VectorStore, Memory |
+| AWS Strands | Available | Agent callbacks |
 
 ```bash
 pip install maif[integrations]
@@ -316,7 +316,7 @@ acam.save_weights("acam_weights.pkl")
 acam.load_weights("acam_weights.pkl")
 ```
 
-- **HSC** - Hierarchical Semantic Compression (up to 64× compression)
+- **HSC** - Hierarchical Semantic Compression (2.5-4× typical, up to 10× maximum)
 - **CSB** - Cryptographic Semantic Binding for embedding authenticity
 
 ---
@@ -325,8 +325,8 @@ acam.load_weights("acam_weights.pkl")
 
 | Metric | Performance |
 |--------|-------------|
-| Semantic Search | ~30ms for 1M+ vectors |
-| Compression Ratio | Up to 64× (HSC) |
+| Semantic Search | ~30ms for 1K vectors (tested at 1K, scales linearly) |
+| Compression Ratio | 2.5-4× typical, up to 10× maximum (HSC) |
 | Integrity Verification | ~0.1ms per file |
 | Read Performance | 11× faster than legacy format |
 | Tamper Detection | 100% detection in <0.1ms |
