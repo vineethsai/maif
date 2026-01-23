@@ -8,15 +8,13 @@ like TensorFlow and PyTorch. All neural embedding functionality has been removed
 
 import numpy as np
 import hashlib
-import json
 import time
 import secrets
 import heapq
 import pickle
-from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from collections import Counter
-import struct
 
 # LAZY IMPORTS: sklearn classes are imported lazily for faster module loading.
 
@@ -157,7 +155,12 @@ class OptimizedSemanticEmbedder:
     CPU-friendly alternative to neural embedding models.
     """
 
-    def __init__(self, model_name: str = "tfidf-384", use_gpu: bool = False, max_features: int = 384):
+    def __init__(
+        self,
+        model_name: str = "tfidf-384",
+        use_gpu: bool = False,
+        max_features: int = 384,
+    ):
         """
         Initialize the TF-IDF based embedder.
 
@@ -176,7 +179,10 @@ class OptimizedSemanticEmbedder:
             sublinear_tf=True,
         )
         self.embeddings: List[SemanticEmbedding] = []
-        self.model_name = model_name if model_name != "all-MiniLM-L6-v2" else f"tfidf-{max_features}"
+        if model_name != "all-MiniLM-L6-v2":
+            self.model_name = model_name
+        else:
+            self.model_name = f"tfidf-{max_features}"
         self._fitted = False
         self._corpus: List[str] = []
 
@@ -190,9 +196,10 @@ class OptimizedSemanticEmbedder:
         self.index_type = "IVF"  # Inverted File index for fast search
         self.nlist = 100  # Number of clusters for IVF
 
-        print(
-            f"OptimizedSemanticEmbedder initialized (TF-IDF, GPU: {self.use_gpu}, FAISS: {FAISS_AVAILABLE})"
-        )
+        faiss_status = "available" if FAISS_AVAILABLE else "unavailable"
+        gpu_status = "enabled" if self.use_gpu else "disabled"
+        msg = f"OptimizedSemanticEmbedder (TF-IDF, GPU: {gpu_status}, FAISS: {faiss_status})"
+        print(msg)
 
     def _ensure_fitted(self, texts: List[str]):
         """Ensure the vectorizer is fitted on the corpus."""
@@ -272,7 +279,8 @@ class OptimizedSemanticEmbedder:
 
             # Pad to exact max_features size
             if len(vector_list) < self.max_features:
-                vector_list = vector_list + [0.0] * (self.max_features - len(vector_list))
+                padding = [0.0] * (self.max_features - len(vector_list))
+                vector_list = vector_list + padding
 
             metadata = metadata_list[i] if i < len(metadata_list) else None
             final_metadata = metadata.copy() if metadata else {}
@@ -397,9 +405,8 @@ class OptimizedSemanticEmbedder:
             norms = np.linalg.norm(vector_matrix, axis=1, keepdims=True)
             self.index = vector_matrix / (norms + 1e-8)  # Normalized vectors
 
-        print(
-            f"Search index built: {len(embeddings)} embeddings, dimension {self.embedding_dimension}"
-        )
+        index_msg = f"Index built: {len(embeddings)} embeddings, dim {self.embedding_dimension}"
+        print(index_msg)
 
     def search_similar(
         self, query_embedding: SemanticEmbedding, top_k: int = 5
