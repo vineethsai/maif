@@ -500,18 +500,27 @@ class AdaptiveCrossModalAttention:
     """
     Enhanced ACAM implementation closer to paper specifications.
     Implements: alpha_{ij} = softmax(Q_i K_j^T / sqrt(d_k) * CS(E_i, E_j))
+
+    The W_q, W_k, W_v matrices are trainable parameters initialized with Xavier initialization.
+    Use fit() method to train on multimodal data, or load_weights() to use pre-trained weights.
     """
 
-    def __init__(self, embedding_dim: int = 384, num_heads: int = 8):
+    def __init__(self, embedding_dim: int = 384, num_heads: int = 8, learning_rate: float = 0.001):
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
         self.head_dim = embedding_dim // num_heads
         self.scale = np.sqrt(self.head_dim)
+        self.learning_rate = learning_rate
+        self.training_history = []
 
-        # Initialize learnable parameters (simplified)
-        self.W_q = np.random.normal(0, 0.02, (embedding_dim, embedding_dim))
-        self.W_k = np.random.normal(0, 0.02, (embedding_dim, embedding_dim))
-        self.W_v = np.random.normal(0, 0.02, (embedding_dim, embedding_dim))
+        # Initialize with Xavier/Glorot initialization for better convergence
+        xavier_scale = np.sqrt(2.0 / (embedding_dim + embedding_dim))
+        self.W_q = np.random.normal(0, xavier_scale, (embedding_dim, embedding_dim))
+        self.W_k = np.random.normal(0, xavier_scale, (embedding_dim, embedding_dim))
+        self.W_v = np.random.normal(0, xavier_scale, (embedding_dim, embedding_dim))
+
+        # For production use, consider loading pre-trained weights
+        self._is_trained = False
 
     def compute_attention_weights(
         self,
@@ -633,6 +642,132 @@ class AdaptiveCrossModalAttention:
                 attended += weight * np.array(embeddings[mod]).flatten()
 
         return attended
+
+    def fit(self, training_data: List[Dict[str, np.ndarray]], epochs: int = 10) -> Dict[str, Any]:
+        """
+        Train ACAM parameters on multimodal data using gradient descent.
+
+        Args:
+            training_data: List of dicts with modality embeddings to align
+            epochs: Number of training epochs
+
+        Returns:
+            Dictionary with training statistics
+        """
+        if not training_data:
+            return {"epochs": 0, "loss_history": []}
+
+        loss_history = []
+
+        for epoch in range(epochs):
+            epoch_loss = 0.0
+
+            for sample in training_data:
+                # Compute attention weights
+                weights = self.compute_attention_weights(sample)
+
+                # Simple loss: maximize coherence between modalities
+                coherence_loss = -np.mean(weights.coherence_matrix)
+                epoch_loss += coherence_loss
+
+                # Compute gradients (simple finite differences for numpy)
+                grad_q = self._compute_gradient(self.W_q, sample, "q")
+                grad_k = self._compute_gradient(self.W_k, sample, "k")
+                grad_v = self._compute_gradient(self.W_v, sample, "v")
+
+                # Update weights
+                self.W_q -= self.learning_rate * grad_q
+                self.W_k -= self.learning_rate * grad_k
+                self.W_v -= self.learning_rate * grad_v
+
+            avg_loss = epoch_loss / len(training_data)
+            loss_history.append(avg_loss)
+            self.training_history.append(avg_loss)
+
+        self._is_trained = True
+        return {
+            "epochs": epochs,
+            "loss_history": loss_history,
+            "final_loss": loss_history[-1] if loss_history else 0.0,
+        }
+
+    def _compute_gradient(self, W: np.ndarray, sample: Dict[str, np.ndarray], matrix_type: str, epsilon: float = 1e-5) -> np.ndarray:
+        """Compute numerical gradient for weight matrix using finite differences."""
+        gradient = np.zeros_like(W)
+
+        for i in range(W.shape[0]):
+            for j in range(W.shape[1]):
+                # Perturb +epsilon
+                W_plus = W.copy()
+                W_plus[i, j] += epsilon
+
+                # Perturb -epsilon
+                W_minus = W.copy()
+                W_minus[i, j] -= epsilon
+
+                # Set temporary weights
+                if matrix_type == "q":
+                    original = self.W_q.copy()
+                    self.W_q = W_plus
+                    loss_plus = self._compute_loss(sample)
+                    self.W_q = W_minus
+                    loss_minus = self._compute_loss(sample)
+                    self.W_q = original
+                elif matrix_type == "k":
+                    original = self.W_k.copy()
+                    self.W_k = W_plus
+                    loss_plus = self._compute_loss(sample)
+                    self.W_k = W_minus
+                    loss_minus = self._compute_loss(sample)
+                    self.W_k = original
+                else:
+                    original = self.W_v.copy()
+                    self.W_v = W_plus
+                    loss_plus = self._compute_loss(sample)
+                    self.W_v = W_minus
+                    loss_minus = self._compute_loss(sample)
+                    self.W_v = original
+
+                gradient[i, j] = (loss_plus - loss_minus) / (2 * epsilon)
+
+        return gradient
+
+    def _compute_loss(self, sample: Dict[str, np.ndarray]) -> float:
+        """Compute loss for a sample (negative mean coherence)."""
+        try:
+            weights = self.compute_attention_weights(sample)
+            return -np.mean(weights.coherence_matrix)
+        except Exception:
+            return 0.0
+
+    def save_weights(self, path: str) -> None:
+        """Save trained weights to file."""
+        weights = {
+            "W_q": self.W_q,
+            "W_k": self.W_k,
+            "W_v": self.W_v,
+            "embedding_dim": self.embedding_dim,
+            "num_heads": self.num_heads,
+            "is_trained": self._is_trained,
+            "training_history": self.training_history,
+        }
+        with open(path, "wb") as f:
+            pickle.dump(weights, f)
+
+    def load_weights(self, path: str) -> None:
+        """Load pre-trained weights from file."""
+        with open(path, "rb") as f:
+            weights = pickle.load(f)
+
+        self.W_q = weights["W_q"]
+        self.W_k = weights["W_k"]
+        self.W_v = weights["W_v"]
+        self._is_trained = weights.get("is_trained", False)
+        self.training_history = weights.get("training_history", [])
+
+    def is_trained(self) -> bool:
+        """Check if the ACAM model has been trained."""
+        return self._is_trained
 
 
 class HierarchicalSemanticCompression:

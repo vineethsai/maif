@@ -17,6 +17,7 @@ Usage:
 """
 
 import os
+import numpy as np
 from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 
@@ -94,18 +95,43 @@ class MAIF:
         return self
 
     def add_embeddings(
-        self, vectors: List[List[float]], metadata: Optional[Dict] = None
+        self,
+        vectors: Union[List[List[float]], np.ndarray],
+        metadata: Optional[Dict] = None,
+        model_name: Optional[str] = None,
     ) -> "MAIF":
         """
         Add embedding vectors.
 
         Args:
-            vectors: List of embedding vectors
+            vectors: List of embedding vectors (or numpy array)
             metadata: Optional metadata
+            model_name: DEPRECATED. Model name is informational only (TF-IDF is used for generation).
+                       For pre-computed vectors, this can document the source model.
 
         Returns:
             self (for chaining)
+
+        Note:
+            MAIF uses TF-IDF for generating embeddings (lightweight, CPU-only).
+            For pre-computed embeddings from other models, pass vectors directly.
         """
+        import warnings
+        import numpy as np
+
+        if model_name is not None:
+            warnings.warn(
+                "model_name parameter is deprecated for add_embeddings(). "
+                "MAIF generates embeddings using TF-IDF. "
+                "For pre-computed embeddings, pass vectors directly.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # Convert numpy arrays to lists
+        if isinstance(vectors, np.ndarray):
+            vectors = vectors.tolist()
+
         self._embeddings.extend(vectors)
         return self
 
@@ -145,6 +171,59 @@ class MAIF:
         meta["filename"] = os.path.basename(path)
 
         return self.add_binary(data, f"image:{os.path.basename(path)}", meta)
+
+    def add_multimodal(self, content: Dict[str, Any], metadata: Optional[Dict] = None) -> "MAIF":
+        """
+        Add multimodal content (text, images, embeddings, etc.) in a single block.
+
+        Args:
+            content: Dictionary containing multimodal content:
+                - "text": str (text content)
+                - "image_path": str (path to image file)
+                - "embeddings": List[float] (embedding vectors)
+                - "metadata": dict (additional metadata)
+            metadata: Optional top-level metadata
+
+        Returns:
+            self (for chaining)
+
+        Example:
+            maif.add_multimodal({
+                "text": "Product description",
+                "image_path": "product.jpg",
+                "embeddings": [0.1, 0.2, 0.3, ...],
+                "metadata": {"category": "electronics"}
+            })
+        """
+        combined_metadata = metadata or {}
+
+        # Add text if present
+        if "text" in content:
+            text_meta = combined_metadata.copy()
+            if "metadata" in content:
+                text_meta.update(content["metadata"])
+            text_meta["multimodal"] = True
+            self.add_text(content["text"], text_meta)
+
+        # Add image if present
+        if "image_path" in content:
+            image_meta = combined_metadata.copy()
+            if "metadata" in content:
+                image_meta.update(content["metadata"])
+            image_meta["multimodal"] = True
+            self.add_image(content["image_path"], image_meta)
+
+        # Add embeddings if present
+        if "embeddings" in content:
+            embeddings_data = content["embeddings"]
+            if not isinstance(embeddings_data, list):
+                embeddings_data = [embeddings_data]
+            # Ensure it's a list of vectors
+            if embeddings_data and not isinstance(embeddings_data[0], (list, np.ndarray)):
+                embeddings_data = [embeddings_data]
+            self.add_embeddings(embeddings_data, combined_metadata)
+
+        return self
 
     # =========================================================================
     # Save and Load

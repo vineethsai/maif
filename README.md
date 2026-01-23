@@ -251,28 +251,71 @@ maif.add_access_rule(AccessRule(
 Store and search across text, images, video, embeddings, and knowledge graphs.
 
 ```python
+from maif_api import MAIF
+
+maif = MAIF("my-agent")
+
 # Text with metadata
-maif.add_text("Analysis results", title="Report", language="en")
+maif.add_text("Analysis results", metadata={"title": "Report", "language": "en"})
 
 # Images with feature extraction
-maif.add_image("chart.png", title="Sales Chart")
+maif.add_image("chart.png", metadata={"title": "Sales Chart"})
 
-# Semantic embeddings
-maif.add_embeddings([[0.1, 0.2, ...]], model_name="all-MiniLM-L6-v2")
+# Semantic embeddings (pre-computed or from TF-IDF)
+maif.add_embeddings([[0.1, 0.2, 0.3], [0.2, 0.3, 0.4]])
 
-# Multimodal content
+# Multimodal content - combines text, images, and embeddings
 maif.add_multimodal({
     "text": "Product description",
     "image_path": "product.jpg",
+    "embeddings": [[0.1, 0.2, ...]],
     "metadata": {"category": "electronics"}
 })
+
+maif.save("output.maif")
 ```
 
 ### Novel Algorithms
 
 Advanced semantic processing capabilities:
 
-- **ACAM** - Adaptive Cross-Modal Attention for multimodal fusion
+#### ACAM - Adaptive Cross-Modal Attention
+
+Intelligently fuses multimodal embeddings using learned attention mechanisms.
+
+```python
+from maif.semantic import AdaptiveCrossModalAttention
+import numpy as np
+
+# Create ACAM instance
+acam = AdaptiveCrossModalAttention(embedding_dim=384, num_heads=8)
+
+# Train on multimodal data (optional but recommended)
+training_data = [
+    {
+        "text": np.random.randn(384),
+        "image": np.random.randn(384),
+        "audio": np.random.randn(384),
+    },
+    # ... more samples
+]
+stats = acam.fit(training_data, epochs=10)
+
+# Use trained ACAM for attention computation
+embeddings = {
+    "text": np.random.randn(384),
+    "image": np.random.randn(384),
+}
+weights = acam.compute_attention_weights(embeddings)
+
+# Get fused representation
+attended = acam.get_attended_representation(embeddings, weights, "text")
+
+# Save/load trained weights
+acam.save_weights("acam_weights.pkl")
+acam.load_weights("acam_weights.pkl")
+```
+
 - **HSC** - Hierarchical Semantic Compression (up to 64× compression)
 - **CSB** - Cryptographic Semantic Binding for embedding authenticity
 
