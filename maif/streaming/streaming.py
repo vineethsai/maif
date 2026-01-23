@@ -886,7 +886,15 @@ class RawFileStreamer:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        pass
+        """Cleanup on context manager exit."""
+        if self._start_time:
+            elapsed = time.time() - self._start_time
+            if self._total_bytes_read > 0:
+                throughput_mbps = (self._total_bytes_read / (1024 * 1024)) / elapsed if elapsed > 0 else 0
+                logger.debug(
+                    f"RawFileStreamer completed: {self._total_bytes_read} bytes in {elapsed:.2f}s "
+                    f"({throughput_mbps:.1f} MB/s)"
+                )
 
     def stream_mmap_raw(self) -> Iterator[bytes]:
         """Stream using memory mapping for maximum speed."""

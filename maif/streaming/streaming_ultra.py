@@ -54,8 +54,16 @@ class UltraHighThroughputReader:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        pass
+        """Context manager exit - cleanup resources."""
+        if self._start_time:
+            elapsed = time.time() - self._start_time
+            if self._total_bytes_read > 0:
+                throughput_mbps = (self._total_bytes_read / (1024 * 1024)) / elapsed if elapsed > 0 else 0
+                logger.debug(
+                    f"UltraHighThroughputReader completed: {self._total_bytes_read} bytes "
+                    f"in {elapsed:.2f}s ({throughput_mbps:.1f} MB/s)"
+                )
+        return False  # Don't suppress exceptions
 
     def stream_blocks_ultra(self) -> Iterator[Tuple[str, bytes]]:
         """Ultra-fast streaming using advanced techniques."""
