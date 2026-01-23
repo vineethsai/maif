@@ -21,6 +21,7 @@ import shutil
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
+from unittest.mock import patch
 
 
 # Mock CrewAI objects for unit testing without CrewAI installed
@@ -903,14 +904,11 @@ class TestInstrumentFunction:
         from maif.integrations.crewai import instrument
         assert callable(instrument)
     
+    @patch("maif.integrations.crewai.patterns.CREWAI_AVAILABLE", True)
     def test_instrument_mock_crew(self):
-        """Test instrument() with a mock crew."""
+        """Test instrument() with a mock crew (mocks CREWAI_AVAILABLE)."""
         from maif.integrations.crewai import instrument
-        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
-        
-        if not CREWAI_AVAILABLE:
-            pytest.skip("CrewAI not installed")
-        
+
         # Create a mock crew
         class MockCrew:
             name = "Test Crew"
@@ -947,13 +945,10 @@ class TestInstrumentFunction:
         assert is_valid
         assert len(decoder.blocks) >= 4
     
+    @patch("maif.integrations.crewai.patterns.CREWAI_AVAILABLE", True)
     def test_instrument_auto_finalize(self):
-        """Test instrument() auto-finalizes by default."""
+        """Test instrument() auto-finalizes by default (mocks CREWAI_AVAILABLE)."""
         from maif.integrations.crewai import instrument
-        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
-        
-        if not CREWAI_AVAILABLE:
-            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Auto Finalize Test"
@@ -976,13 +971,10 @@ class TestInstrumentFunction:
         is_valid, _ = decoder.verify_integrity()
         assert is_valid
     
+    @patch("maif.integrations.crewai.patterns.CREWAI_AVAILABLE", True)
     def test_instrument_no_auto_finalize(self):
-        """Test instrument() with auto_finalize=False."""
+        """Test instrument() with auto_finalize=False (mocks CREWAI_AVAILABLE)."""
         from maif.integrations.crewai import instrument
-        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
-        
-        if not CREWAI_AVAILABLE:
-            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Manual Finalize Test"
@@ -1008,13 +1000,10 @@ class TestInstrumentFunction:
         is_valid, _ = decoder.verify_integrity()
         assert is_valid
     
+    @patch("maif.integrations.crewai.patterns.CREWAI_AVAILABLE", True)
     def test_instrument_with_error(self):
-        """Test instrument() handles errors in kickoff."""
+        """Test instrument() handles errors in kickoff (mocks CREWAI_AVAILABLE)."""
         from maif.integrations.crewai import instrument
-        from maif.integrations.crewai.patterns import CREWAI_AVAILABLE
-        
-        if not CREWAI_AVAILABLE:
-            pytest.skip("CrewAI not installed")
         
         class MockCrew:
             name = "Error Test"

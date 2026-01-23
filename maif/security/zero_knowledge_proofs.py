@@ -258,9 +258,10 @@ class SchnorrProofSystem:
         R = self.curve_ops.point_multiply(r, generator)
 
         # Generate challenge using Fiat-Shamir heuristic
+        # Use to_bytes for large EC coordinates (256-bit integers)
         challenge_input = (
-            struct.pack(">Q", R[0])
-            + struct.pack(">Q", R[1])
+            R[0].to_bytes(32, "big")
+            + R[1].to_bytes(32, "big")
             + statement.encode()
             + prover_id.encode()
             + nonce
@@ -323,9 +324,10 @@ class SchnorrProofSystem:
                 return False
 
             # Verify challenge was computed correctly
+            # Use to_bytes for large EC coordinates (256-bit integers)
             challenge_input = (
-                struct.pack(">Q", R[0])
-                + struct.pack(">Q", R[1])
+                R[0].to_bytes(32, "big")
+                + R[1].to_bytes(32, "big")
                 + proof.statement.encode()
                 + proof.creator_id.encode()
                 + nonce
@@ -407,10 +409,8 @@ class PedersenCommitmentScheme:
         randomness_point = self.curve_ops.point_multiply(randomness, self.generator_h)
         commitment_point = self.curve_ops.point_add(value_point, randomness_point)
 
-        # Serialize commitment point
-        commitment_bytes = struct.pack(">Q", commitment_point[0]) + struct.pack(
-            ">Q", commitment_point[1]
-        )
+        # Serialize commitment point using to_bytes for large EC coordinates
+        commitment_bytes = commitment_point[0].to_bytes(32, "big") + commitment_point[1].to_bytes(32, "big")
 
         commitment_id = hashlib.sha256(
             commitment_bytes + randomness.to_bytes(32, "big")
@@ -479,11 +479,11 @@ class PedersenCommitmentScheme:
         )
         T = self.curve_ops.point_add(t_value_point, t_randomness_point)
 
-        # Generate challenge
+        # Generate challenge using to_bytes for large EC coordinates
         challenge_input = (
             commitment.commitment_value
-            + struct.pack(">Q", T[0])
-            + struct.pack(">Q", T[1])
+            + T[0].to_bytes(32, "big")
+            + T[1].to_bytes(32, "big")
             + prover_id.encode()
         )
         challenge_hash = hashlib.sha256(challenge_input).digest()
@@ -551,14 +551,12 @@ class PedersenCommitmentScheme:
                 proof.proof_data["generators"]["h"]["y"],
             )
 
-            # Verify challenge
-            commitment_bytes = struct.pack(">Q", commitment_point[0]) + struct.pack(
-                ">Q", commitment_point[1]
-            )
+            # Verify challenge using to_bytes for large EC coordinates
+            commitment_bytes = commitment_point[0].to_bytes(32, "big") + commitment_point[1].to_bytes(32, "big")
             challenge_input = (
                 commitment_bytes
-                + struct.pack(">Q", T[0])
-                + struct.pack(">Q", T[1])
+                + T[0].to_bytes(32, "big")
+                + T[1].to_bytes(32, "big")
                 + proof.creator_id.encode()
             )
             expected_challenge_hash = hashlib.sha256(challenge_input).digest()

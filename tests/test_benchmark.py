@@ -54,14 +54,60 @@ def test_basic_maif_functionality():
 
 def test_benchmark_imports():
     """Test that benchmark imports work."""
-    import pytest
-    pytest.skip("Benchmarks are not a package - run directly with python benchmarks/...")
+    import sys
+    from pathlib import Path
+
+    # Add benchmarks directory to path
+    benchmark_dir = Path(__file__).parent.parent / "benchmarks"
+    sys.path.insert(0, str(benchmark_dir))
+
+    # Test that core MAIF imports used by benchmarks work
+    from maif.core import MAIFEncoder, MAIFDecoder
+    from maif.compression import MAIFCompressor, CompressionAlgorithm
+    from maif.privacy import PrivacyEngine
+
+    assert MAIFEncoder is not None
+    assert MAIFDecoder is not None
+    assert MAIFCompressor is not None
+    assert PrivacyEngine is not None
 
 
 def test_quick_benchmark():
     """Run a very quick benchmark test."""
-    import pytest
-    pytest.skip("Benchmarks are not a package - run directly with python benchmarks/...")
+    import tempfile
+    import time
+    from maif import MAIFEncoder, MAIFDecoder
+    from maif.compression import MAIFCompressor, CompressionAlgorithm
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        maif_path = os.path.join(tmpdir, "benchmark.maif")
+
+        # Benchmark encoding
+        start = time.time()
+        encoder = MAIFEncoder(maif_path, agent_id="benchmark")
+        for i in range(10):
+            encoder.add_text_block(f"Benchmark content block {i} " * 100)
+        encoder.finalize()
+        encode_time = time.time() - start
+
+        # Benchmark decoding
+        start = time.time()
+        decoder = MAIFDecoder(maif_path)
+        decoder.load()
+        decode_time = time.time() - start
+
+        # Benchmark compression
+        compressor = MAIFCompressor()
+        test_data = b"Benchmark test data " * 1000
+        start = time.time()
+        compressed = compressor.compress(test_data, CompressionAlgorithm.ZLIB)
+        compress_time = time.time() - start
+
+        # Verify reasonable performance (encoding 10 blocks in under 2 seconds)
+        assert encode_time < 2.0, f"Encoding too slow: {encode_time}s"
+        assert decode_time < 1.0, f"Decoding too slow: {decode_time}s"
+        assert compress_time < 0.1, f"Compression too slow: {compress_time}s"
+        assert len(decoder.blocks) == 10
 
 
 def main():

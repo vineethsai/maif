@@ -97,23 +97,17 @@ class TestZKPSchnorrProofs:
 
         # Use a small private key to test the logic (avoiding struct.pack overflow)
         # The current implementation has issues with large EC coordinates
-        try:
-            private_key, public_key = schnorr.curve_ops.generate_keypair()
-            proof = schnorr.create_proof(
-                private_key=private_key,
-                statement="Test proof",
-                prover_id="test_prover",
-            )
+        private_key, public_key = schnorr.curve_ops.generate_keypair()
+        proof = schnorr.create_proof(
+            private_key=private_key,
+            statement="Test proof",
+            prover_id="test_prover",
+        )
 
-            # If we get here, proof was created successfully
-            assert proof is not None
-            assert proof.proof_type == ZKProofType.SCHNORR
-            assert proof.statement == "Test proof"
-
-        except struct.error:
-            # Known issue with struct.pack for large EC coordinates
-            # This is expected behavior until the implementation is fixed
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        # Proof was created successfully
+        assert proof is not None
+        assert proof.proof_type == ZKProofType.SCHNORR
+        assert proof.statement == "Test proof"
 
     def test_schnorr_invalid_proof_detection(self):
         """Test that tampered data is detected."""
@@ -192,19 +186,14 @@ class TestZKPComprehensiveSystem:
 
         system = ComprehensiveZKProofSystem()
 
-        try:
-            proof = system.create_proof(
-                proof_type=ZKProofType.COMMITMENT_SCHEME,
-                proof_params={"value": 42},
-                prover_id="test",
-            )
+        proof = system.create_proof(
+            proof_type=ZKProofType.COMMITMENT_SCHEME,
+            proof_params={"value": 42},
+            prover_id="test",
+        )
 
-            assert proof is not None
-            assert proof.proof_id in system.proofs
-
-        except struct.error:
-            # Known issue with struct.pack for large EC coordinates
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        assert proof is not None
+        assert proof.proof_id in system.proofs
 
     def test_proof_status_enum(self):
         """Test ProofStatus enum values."""
@@ -635,17 +624,12 @@ class TestPedersenCommitment:
         scheme = PedersenCommitmentScheme()
         value = 42
 
-        try:
-            commitment = scheme.commit(value)
+        commitment = scheme.commit(value)
 
-            assert commitment is not None
-            assert commitment.commitment_id is not None
-            assert commitment.commitment_value is not None
-            assert commitment.metadata is not None
-
-        except struct.error:
-            # Known issue with struct.pack for large EC coordinates
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        assert commitment is not None
+        assert commitment.commitment_id is not None
+        assert commitment.commitment_value is not None
+        assert commitment.metadata is not None
 
     def test_commitment_binding_property(self):
         """Test that commitments are binding (same value, same randomness = same commitment)."""
@@ -655,22 +639,18 @@ class TestPedersenCommitment:
         value = 100
         randomness = 12345
 
-        try:
-            commitment1 = scheme.commit(value, randomness)
-            commitment2 = scheme.commit(value, randomness)
+        commitment1 = scheme.commit(value, randomness)
+        commitment2 = scheme.commit(value, randomness)
 
-            # Same value and randomness should produce same commitment point
-            assert (
-                commitment1.metadata["commitment_point"]["x"]
-                == commitment2.metadata["commitment_point"]["x"]
-            )
-            assert (
-                commitment1.metadata["commitment_point"]["y"]
-                == commitment2.metadata["commitment_point"]["y"]
-            )
-
-        except struct.error:
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        # Same value and randomness should produce same commitment point
+        assert (
+            commitment1.metadata["commitment_point"]["x"]
+            == commitment2.metadata["commitment_point"]["x"]
+        )
+        assert (
+            commitment1.metadata["commitment_point"]["y"]
+            == commitment2.metadata["commitment_point"]["y"]
+        )
 
     def test_commitment_hiding_property(self):
         """Test that commitments are hiding (different randomness = different commitment)."""
@@ -679,19 +659,15 @@ class TestPedersenCommitment:
         scheme = PedersenCommitmentScheme()
         value = 100
 
-        try:
-            # Same value with different randomness
-            commitment1 = scheme.commit(value, randomness=11111)
-            commitment2 = scheme.commit(value, randomness=22222)
+        # Same value with different randomness
+        commitment1 = scheme.commit(value, randomness=11111)
+        commitment2 = scheme.commit(value, randomness=22222)
 
-            # Should produce different commitments
-            assert (
-                commitment1.metadata["commitment_point"]
-                != commitment2.metadata["commitment_point"]
-            )
-
-        except struct.error:
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        # Should produce different commitments
+        assert (
+            commitment1.metadata["commitment_point"]
+            != commitment2.metadata["commitment_point"]
+        )
 
     def test_commitment_reveal(self):
         """Test commitment reveal (opening)."""
@@ -701,19 +677,15 @@ class TestPedersenCommitment:
         value = 50
         randomness = 99999
 
-        try:
-            commitment = scheme.commit(value, randomness)
+        commitment = scheme.commit(value, randomness)
 
-            # Reveal should succeed with correct values
-            is_valid = scheme.reveal(commitment.commitment_id, value, randomness)
-            assert is_valid is True
+        # Reveal should succeed with correct values
+        is_valid = scheme.reveal(commitment.commitment_id, value, randomness)
+        assert is_valid is True
 
-            # Reveal should fail with wrong value
-            is_invalid = scheme.reveal(commitment.commitment_id, value + 1, randomness)
-            assert is_invalid is False
-
-        except struct.error:
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        # Reveal should fail with wrong value
+        is_invalid = scheme.reveal(commitment.commitment_id, value + 1, randomness)
+        assert is_invalid is False
 
     def test_commitment_proof_of_knowledge(self):
         """Test zero-knowledge proof of knowledge for committed value."""
@@ -722,26 +694,22 @@ class TestPedersenCommitment:
         scheme = PedersenCommitmentScheme()
         value = 75
 
-        try:
-            commitment = scheme.commit(value)
+        commitment = scheme.commit(value)
 
-            # Create proof of knowledge
-            proof = scheme.create_proof_of_knowledge(
-                commitment.commitment_id,
-                prover_id="knowledge_test",
-            )
+        # Create proof of knowledge
+        proof = scheme.create_proof_of_knowledge(
+            commitment.commitment_id,
+            prover_id="knowledge_test",
+        )
 
-            assert proof is not None
-            assert "proof_commitment" in proof.proof_data
-            assert "challenge" in proof.proof_data
-            assert "response_value" in proof.proof_data
+        assert proof is not None
+        assert "proof_commitment" in proof.proof_data
+        assert "challenge" in proof.proof_data
+        assert "response_value" in proof.proof_data
 
-            # Verify proof
-            is_valid = scheme.verify_proof_of_knowledge(proof)
-            assert is_valid is True
-
-        except struct.error:
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        # Verify proof
+        is_valid = scheme.verify_proof_of_knowledge(proof)
+        assert is_valid is True
 
 
 class TestHashCommitment:
@@ -1139,7 +1107,6 @@ class TestMultiAgentOrchestration:
         assert capabilities.agent_id == "agent_1"
         assert capabilities.name == "Agent One"
 
-    @pytest.mark.skip(reason="Skipping due to TensorFlow import crash in test environment")
     @pytest.mark.asyncio
     async def test_orchestrator_registration(self):
         """Test agent registration with orchestrator."""
@@ -1165,7 +1132,8 @@ class TestMultiAgentOrchestration:
         )
 
         agent = MAIFExchangeProtocol("agent_1", capabilities)
-        orchestrator.register_agent(agent)
+        # Use legacy method for backward compatible registration
+        orchestrator.register_agent_legacy(agent)
 
         assert "agent_1" in orchestrator.agents
 
@@ -1230,28 +1198,22 @@ class TestEndToEndWorkflows:
         assert embedding.vector == [0.1, 0.2, 0.3, 0.4, 0.5]
         assert embedding.source_hash == "test_hash"
 
-        try:
-            # Step 2: Commit to a derived value
-            scheme = PedersenCommitmentScheme()
-            # Use embedding norm as committed value
-            norm_value = int(sum(x * x for x in embedding.vector) * 1000)
-            commitment = scheme.commit(norm_value)
+        # Step 2: Commit to a derived value
+        scheme = PedersenCommitmentScheme()
+        # Use embedding norm as committed value
+        norm_value = int(sum(x * x for x in embedding.vector) * 1000)
+        commitment = scheme.commit(norm_value)
 
-            # Step 3: Create proof of knowledge
-            proof = scheme.create_proof_of_knowledge(
-                commitment.commitment_id,
-                prover_id="semantic_prover",
-            )
+        # Step 3: Create proof of knowledge
+        proof = scheme.create_proof_of_knowledge(
+            commitment.commitment_id,
+            prover_id="semantic_prover",
+        )
 
-            # Step 4: Verify proof
-            is_valid = scheme.verify_proof_of_knowledge(proof)
+        # Step 4: Verify proof
+        is_valid = scheme.verify_proof_of_knowledge(proof)
 
-            assert is_valid is True
-
-        except struct.error:
-            # Known issue with struct.pack for large EC coordinates
-            # The embedding part of the workflow works, just the ZKP part has issues
-            pytest.skip("struct.pack overflow with large EC coordinates - known issue")
+        assert is_valid is True
 
 
 class TestErrorHandling:

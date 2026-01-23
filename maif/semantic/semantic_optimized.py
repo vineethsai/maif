@@ -12,6 +12,7 @@ import time
 import secrets
 import heapq
 import pickle
+import struct
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 from collections import Counter

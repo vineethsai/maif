@@ -43,7 +43,7 @@ def test_enhanced_semantic_algorithms():
     print("Testing Enhanced Semantic Algorithms...")
 
     try:
-        from maif.semantic_optimized import (
+        from maif.semantic.semantic_optimized import (
             AdaptiveCrossModalAttention,
             HierarchicalSemanticCompression,
             CryptographicSemanticBinding,
@@ -78,9 +78,9 @@ def test_enhanced_semantic_algorithms():
 
         print("Enhanced Semantic Algorithms: PASSED")
 
-    except ImportError:
-        print("Semantic algorithms not available - skipping")
-        pytest.skip("Semantic algorithms not available")
+    except ImportError as e:
+        print(f"Semantic algorithms import error: {e}")
+        pytest.fail(f"Semantic algorithms import failed: {e}")
     except Exception as e:
         print(f"Enhanced Semantic Algorithms: FAILED - {e}")
         pytest.fail(str(e))
