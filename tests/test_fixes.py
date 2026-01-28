@@ -67,27 +67,24 @@ def test_validation():
     try:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create a simple MAIF file
-            encoder = MAIFEncoder(agent_id="test_agent", enable_privacy=False)
-            encoder.add_text_block("Test content")
-
             maif_path = os.path.join(temp_dir, "test.maif")
-            manifest_path = os.path.join(temp_dir, "test_manifest.json")
-
-            encoder.build_maif(maif_path, manifest_path)
+            encoder = MAIFEncoder(file_path=maif_path, agent_id="test_agent")
+            encoder.add_text_block("Test content")
+            encoder.finalize()
 
             # Validate it
             validator = MAIFValidator()
-            result = validator.validate_file(maif_path, manifest_path)
+            result = validator.validate_file(maif_path)
 
             if result.is_valid:
                 print("Validation works")
                 assert True  # Test passed
             else:
                 print(f"Validation failed: {result.errors}")
-                return False
+                assert False, f"Validation failed: {result.errors}"
     except Exception as e:
         print(f"Validation test failed: {e}")
-        return False
+        assert False, f"Validation test failed: {e}"
 
 
 def test_semantic_embedder():
@@ -95,7 +92,7 @@ def test_semantic_embedder():
     from maif.semantic import SemanticEmbedder
 
     try:
-        embedder = SemanticEmbedder(model_name="test-model")
+        embedder = SemanticEmbedder()
 
         # Test embedding
         embedding = embedder.embed_text("Test text")
@@ -105,10 +102,10 @@ def test_semantic_embedder():
             assert True  # Test passed
         else:
             print("Semantic embedder failed to create embedding")
-            return False
+            assert False, "Semantic embedder failed to create embedding"
     except Exception as e:
         print(f"Semantic embedder test failed: {e}")
-        return False
+        assert False, f"Semantic embedder test failed: {e}"
 
 
 def test_hierarchical_compression():
@@ -126,10 +123,10 @@ def test_hierarchical_compression():
             assert True  # Test passed
         else:
             print("Hierarchical compression failed")
-            return False
+            assert False, "Hierarchical compression failed"
     except Exception as e:
         print(f"Hierarchical compression test failed: {e}")
-        return False
+        assert False, f"Hierarchical compression test failed: {e}"
 
 
 def main():
