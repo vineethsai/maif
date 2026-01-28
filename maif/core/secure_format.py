@@ -48,7 +48,7 @@ from cryptography.exceptions import InvalidSignature
 MAGIC_HEADER = b"MAIF"
 MAGIC_FOOTER = b"FIAM"  # MAIF reversed
 FORMAT_VERSION_MAJOR = 2
-FORMAT_VERSION_MINOR = 2  # Bumped for new binary HSC compression format
+FORMAT_VERSION_MINOR = 1  # Bumped for Ed25519
 
 
 # =============================================================================
@@ -700,7 +700,6 @@ class SecureMAIFWriter:
             # Build file header
             merkle_root = self._calculate_merkle_root()
 
-            # New files always use version 2.2 (binary HSC format)
             file_header = SecureFileHeader(
                 magic=MAGIC_HEADER,
                 version_major=FORMAT_VERSION_MAJOR,
@@ -832,18 +831,10 @@ class SecureMAIFReader:
 
     Automatically detects tampering through signature verification.
 
-    Version Support:
-        v2.1 (legacy): Uses JSON-based HSC compression for embeddings
-        v2.2 (current): Uses binary HSC compression format for embeddings
-
-    The reader automatically detects the file version and applies the appropriate
-    decompression strategy. Both versions are fully supported for reading.
-
     Usage:
         reader = SecureMAIFReader("file.maif")
         if reader.verify_integrity()[0]:
             blocks = reader.get_blocks()
-            embeddings = reader.get_embeddings_content(block_index)
             provenance = reader.get_provenance()
     """
 
@@ -859,73 +850,6 @@ class SecureMAIFReader:
         self._integrity_verified = False
         self._tampering_detected = False
         self._tampered_blocks: List[int] = []
-        self._use_legacy_hsc = False  # True for v2.1 (legacy JSON HSC), False for v2.2 (new binary)
-
-    def _decompress_embeddings_block(self, block: SecureBlock) -> List[List[float]]:
-        """
-        Decompress embeddings block using the appropriate decompressor.
-
-        Uses legacy JSON decompressor for v2.1 files, binary decompressor for v2.2 files.
-        """
-        if self._use_legacy_hsc:
-            # v2.1: Legacy JSON-based HSC compression
-            return self._decompress_embeddings_legacy_json(block)
-        else:
-            # v2.2: New binary HSC compression format
-            return self._decompress_embeddings_binary(block)
-
-    def _decompress_embeddings_legacy_json(self, block: SecureBlock) -> List[List[float]]:
-        """
-        Decompress embeddings from legacy v2.1 JSON HSC format.
-
-        Expected format: JSON-encoded array of floating point arrays.
-        """
-        try:
-            if isinstance(block.data, bytes):
-                data_str = block.data.decode('utf-8')
-            else:
-                data_str = block.data
-
-            embeddings = json.loads(data_str)
-            return embeddings
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise ValueError(f"Failed to decompress legacy JSON embeddings: {str(e)}")
-
-    def _decompress_embeddings_binary(self, block: SecureBlock) -> List[List[float]]:
-        """
-        Decompress embeddings from new v2.2 binary HSC format.
-
-        Expected format: metadata (dimensions, count) followed by packed float32 values.
-        """
-        try:
-            # First 8 bytes: dimensions (4 bytes) and count (4 bytes)
-            if len(block.data) < 8:
-                raise ValueError("Binary embeddings block too small for header")
-
-            dimensions = struct.unpack(">I", block.data[0:4])[0]
-            count = struct.unpack(">I", block.data[4:8])[0]
-
-            # Remaining bytes: packed float32 values
-            num_floats = dimensions * count
-            expected_size = 8 + (num_floats * 4)
-
-            if len(block.data) < expected_size:
-                raise ValueError(
-                    f"Binary embeddings block too small: "
-                    f"expected {expected_size} bytes, got {len(block.data)}"
-                )
-
-            float_data = struct.unpack(f">{num_floats}f", block.data[8:8 + num_floats * 4])
-
-            # Reshape flat array into list of embeddings
-            embeddings = [
-                list(float_data[i * dimensions:(i + 1) * dimensions])
-                for i in range(count)
-            ]
-
-            return embeddings
-        except struct.error as e:
-            raise ValueError(f"Failed to decompress binary embeddings: {str(e)}")
 
     def _is_ed25519_signature(self, sig: bytes) -> bool:
         """Check if signature is Ed25519 (marked with prefix)."""
@@ -947,20 +871,6 @@ class SecureMAIFReader:
 
                 if self.file_header.magic != MAGIC_HEADER:
                     raise ValueError(f"Invalid magic number: {self.file_header.magic}")
-
-                # Version detection for HSC decompression strategy
-                file_version = (self.file_header.version_major, self.file_header.version_minor)
-                if file_version == (2, 1):
-                    # v2.1 uses legacy JSON-based HSC compression
-                    self._use_legacy_hsc = True
-                elif file_version == (2, 2):
-                    # v2.2 uses new binary HSC compression format
-                    self._use_legacy_hsc = False
-                else:
-                    raise ValueError(
-                        f"Unsupported MAIF version {file_version[0]}.{file_version[1]}. "
-                        f"Supported versions: 2.1 (legacy JSON HSC), 2.2 (binary HSC)"
-                    )
 
                 # Read blocks
                 f.seek(SecureFileHeader.HEADER_SIZE)
@@ -1167,29 +1077,6 @@ class SecureMAIFReader:
         block = self.get_block(block_index)
         if block and block.header.block_type == SecureBlockType.TEXT:
             return block.data.decode("utf-8")
-        return None
-
-    def get_embeddings_content(self, block_index: int) -> Optional[List[List[float]]]:
-        """
-        Get embeddings content from an embeddings block.
-
-        Automatically decompresses using the appropriate format based on file version:
-        - v2.1: Legacy JSON HSC format
-        - v2.2: New binary HSC format
-
-        Returns None if block is not an embeddings block or decompression fails.
-        """
-        if not self._loaded:
-            self.load()
-
-        block = self.get_block(block_index)
-        if block and block.header.block_type == SecureBlockType.EMBEDDINGS:
-            try:
-                return self._decompress_embeddings_block(block)
-            except Exception as e:
-                raise ValueError(
-                    f"Failed to decompress embeddings block {block_index}: {str(e)}"
-                )
         return None
 
     def get_provenance(self) -> List[ProvenanceEntry]:
