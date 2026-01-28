@@ -148,7 +148,7 @@ for i, block in enumerate(decoder.blocks):
 
 ## Featured Example: Multi-Agent RAG System
 
-A production-ready multi-agent system with **LangGraph orchestration** and **MAIF provenance tracking**.
+A multi-agent system example with **LangGraph orchestration** and **MAIF provenance tracking** for demonstration purposes.
 
 ```bash
 cd examples/langgraph
@@ -275,19 +275,33 @@ maif.add_multimodal({
 maif.save("output.maif")
 ```
 
-### Novel Algorithms
+## What's Working
 
-Advanced semantic processing capabilities:
+The following features are fully tested and working:
 
-#### ACAM - Adaptive Cross-Modal Attention
+- **Ed25519 cryptographic signatures** - Fast, compact 64-byte signatures ✓
+- **Multiple compression formats** - ZLIB, BROTLI, GZIP, and other standard formats ✓
+- **Framework integrations** - LangGraph, CrewAI, LangChain, AWS Strands ✓
+- **Provenance tracking** - Hash-chained blocks with tamper detection ✓
+- **TF-IDF embeddings** - Lightweight semantic search with sklearn ✓
 
-Intelligently fuses multimodal embeddings using learned attention mechanisms.
+## What's In Progress / Research Phase
 
+The following are research implementations with known limitations:
+
+### Hierarchical Semantic Compression (HSC)
+- **Status**: Research implementation
+- **Current performance**: ~1.5x compression ratio on embeddings
+- **What works**: DBSCAN clustering, vector quantization, Huffman coding
+- **Limitations**: Not achieving claimed 2.5-4x ratio, not production-ready
+- **Roadmap**: Plan to implement proper Product Quantization in v2.2
+
+### Adaptive Cross-Modal Attention (ACAM)
 ```python
 from maif.semantic import AdaptiveCrossModalAttention
 import numpy as np
 
-# Create ACAM instance
+# ⚠ RESEARCH IMPLEMENTATION - Use with caution
 acam = AdaptiveCrossModalAttention(embedding_dim=384, num_heads=8)
 
 # Train on multimodal data (optional but recommended)
@@ -301,7 +315,7 @@ training_data = [
 ]
 stats = acam.fit(training_data, epochs=10)
 
-# Use trained ACAM for attention computation
+# Use for attention computation
 embeddings = {
     "text": np.random.randn(384),
     "image": np.random.randn(384),
@@ -315,22 +329,35 @@ attended = acam.get_attended_representation(embeddings, weights, "text")
 acam.save_weights("acam_weights.pkl")
 acam.load_weights("acam_weights.pkl")
 ```
+- **Status**: Research implementation
+- **Current capability**: Computes cross-modal attention weights
+- **Known limitations**: Training uses simple gradient descent, not optimized
 
-- **HSC** - Hierarchical Semantic Compression (2.5-4× typical, up to 10× maximum)
-- **CSB** - Cryptographic Semantic Binding for embedding authenticity
+### Cryptographic Semantic Binding (CSB)
+- **Status**: Research implementation
+- **Current capability**: SHA-256 based commitment schemes
+- **Note**: Infrastructure in place, not validated for production use
+
+### Neural Embeddings
+- **Status**: ❌ Not implemented
+- **Current**: TF-IDF only (sklearn-based)
+- **Planned**: Optional sentence-transformers integration in future versions
+- **Note**: Infrastructure exists but neural models not functional
 
 ---
 
 ## Performance
 
-| Metric | Performance |
-|--------|-------------|
-| Semantic Search | ~30ms for 1K vectors (tested at 1K, scales linearly) |
-| Compression Ratio | 2.5-4× typical, up to 10× maximum (HSC) |
-| Integrity Verification | ~0.1ms per file |
-| Read Performance | 11× faster than legacy format |
-| Tamper Detection | 100% detection in <0.1ms |
-| Signature Overhead | Only 64 bytes per block (Ed25519) |
+| Metric | Performance | Notes |
+|--------|-------------|-------|
+| Semantic Search | ~30ms for 1K vectors | TF-IDF based, tested at 1K, scales linearly |
+| Standard Compression (ZLIB) | 2-3× typical | Proven, well-tested |
+| Hierarchical Semantic Compression (HSC) | ~1.5× average | Research implementation, not production-ready |
+| Integrity Verification | ~0.1ms per file | Ed25519 signature verification |
+| Tamper Detection | 100% detection in <0.1ms | Hash-chain verification |
+| Signature Overhead | 64 bytes per block | Ed25519 signatures |
+
+**Note:** HSC claims of "2.5-4x compression up to 10x maximum" were not verified and are not guaranteed. Current implementation achieves ~1.5x on embeddings.
 
 ---
 
