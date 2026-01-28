@@ -91,6 +91,26 @@ def _check_tfidf_available():
     return TFIDF_AVAILABLE
 
 
+# Lazy import for neural embeddings (sentence-transformers)
+NEURAL_AVAILABLE = None
+
+
+def _check_neural_available():
+    """Lazily check if neural embeddings (sentence-transformers) are available."""
+    global NEURAL_AVAILABLE
+
+    if NEURAL_AVAILABLE is not None:
+        return NEURAL_AVAILABLE
+
+    try:
+        import sentence_transformers
+        NEURAL_AVAILABLE = True
+    except ImportError:
+        NEURAL_AVAILABLE = False
+
+    return NEURAL_AVAILABLE
+
+
 # High-performance numpy-based similarity search
 def fast_cosine_similarity_batch(query_vectors, database_vectors):
     """Fast batch cosine similarity computation using numpy."""
@@ -368,27 +388,51 @@ class TFIDFEmbedder:
         ]
 
 
-def get_embedder(model_name: str = "tfidf-384", **kwargs):
+def get_embedder(model_name: str = "tfidf-384", prefer_neural=False, **kwargs):
     """
-    Factory function to get the default embedder (TFIDFEmbedder).
+    Factory to get embedder with automatic fallback.
 
-    Returns a TFIDFEmbedder instance for text embedding. This embedder uses
-    TF-IDF vectors and only requires sklearn as a dependency.
+    Returns a TFIDFEmbedder or NeuralEmbedder instance for text embedding.
+    This function supports both TF-IDF (lightweight) and neural embeddings (high quality)
+    with automatic fallback to TF-IDF if neural embeddings are not available.
 
-    Args:
-        model_name: Ignored (kept for backward compatibility). TFIDFEmbedder is always used.
-        **kwargs: Additional arguments (ignored for backward compatibility).
+    Parameters:
+        model_name: Model name (e.g., "tfidf-384", "all-MiniLM-L6-v2").
+                   Defaults to "tfidf-384" for backward compatibility.
+        prefer_neural: If True, try to use neural embeddings (requires sentence-transformers).
+                      If neural is unavailable, falls back to TF-IDF.
+                      Defaults to False for backward compatibility.
+        **kwargs: Additional arguments passed to embedder constructor.
 
     Returns:
-        TFIDFEmbedder instance.
+        TFIDFEmbedder or NeuralEmbedder instance.
 
     Raises:
-        ImportError: If sklearn is not available.
+        ImportError: If sklearn is not available (TF-IDF fallback).
 
     Example:
-        >>> embedder = get_embedder()
+        >>> embedder = get_embedder()  # Returns TFIDFEmbedder
         >>> embedding = embedder.embed_text("Hello world")
+        >>>
+        >>> # With neural embeddings (if sentence-transformers installed)
+        >>> embedder = get_embedder(model_name="all-MiniLM-L6-v2", prefer_neural=True)
     """
+    # If neural requested and available
+    if prefer_neural:
+        if _check_neural_available():
+            try:
+                from .neural_embedder import NeuralEmbedder
+                return NeuralEmbedder(model_name=model_name, **kwargs)
+            except ImportError:
+                pass
+
+        # If neural requested but unavailable
+        logger.warning(
+            "Neural embeddings requested but sentence-transformers not installed. "
+            "Falling back to TF-IDF. Install with: pip install maif[neural]"
+        )
+
+    # Default: TF-IDF
     if not _check_tfidf_available():
         raise ImportError(
             "sklearn is required for TFIDFEmbedder. "

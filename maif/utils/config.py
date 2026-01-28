@@ -126,6 +126,28 @@ class ProductionConfig(BaseSettings):
     cache_enabled: bool = Field(default=True, env="MAIF_CACHE_ENABLED")
     cache_ttl: int = Field(default=3600, env="MAIF_CACHE_TTL")
 
+    # Neural & PQ Features (from environment variables)
+    use_neural_embeddings: bool = Field(
+        default=False,
+        env="MAIF_USE_NEURAL_EMBEDDINGS",
+        description="Enable neural embeddings (sentence-transformers)"
+    )
+    use_pq_hsc: bool = Field(
+        default=True,
+        env="MAIF_USE_PQ_HSC",
+        description="Use Product Quantization for HSC compression"
+    )
+    legacy_hsc_mode: bool = Field(
+        default=False,
+        env="MAIF_LEGACY_HSC_MODE",
+        description="Force use of scipy-based HSC (v2.1 compatibility)"
+    )
+    format_version: str = Field(
+        default="2.2",
+        env="MAIF_FORMAT_VERSION",
+        description="Target MAIF format version for new files"
+    )
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

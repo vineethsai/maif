@@ -780,7 +780,7 @@ class MAIFCompressor:
     def _hsc_compression(
         self, data: bytes, semantic_context: Optional[Dict]
     ) -> CompressionResult:
-        """Apply HSC (Hierarchical Semantic Compression) to embedding data."""
+        """Apply HSC (Hierarchical Semantic Compression) to embedding data with Product Quantization."""
         try:
             # Import HSC from semantic module
             from ..semantic.semantic_optimized import HierarchicalSemanticCompression
@@ -807,35 +807,30 @@ class MAIFCompressor:
                 end_idx = start_idx + embedding_dim
                 embeddings.append(list(embeddings_flat[start_idx:end_idx]))
 
-            # Apply HSC compression
-            hsc = HierarchicalSemanticCompression()
+            # Apply HSC compression with Product Quantization (use_pq=True)
+            hsc = HierarchicalSemanticCompression(use_pq=True)
             compressed_result = hsc.compress_embeddings(
                 embeddings, preserve_fidelity=True
             )
 
-            # Serialize compressed result
-            import json
+            # Extract binary data (no JSON serialization for v2.0)
+            binary_data = compressed_result.get("compressed_data", b"")
 
-            serialized_data = json.dumps(compressed_result, default=str).encode("utf-8")
-
-            # Apply standard compression to serialized data
-            final_compressed = self._apply_standard_compression(
-                serialized_data, CompressionAlgorithm.ZLIB
-            )
-
+            # Add metadata field for version tracking
             metadata = {
                 "original_embedding_count": num_embeddings,
                 "original_embedding_dim": embedding_dim,
+                "hsc_version": "2.0",  # Version 2.0 indicates PQ-based compression
                 "hsc_metadata": compressed_result.get("metadata", {}),
-                "base_algorithm": "zlib",
-                "compression_type": "hsc",
+                "compression_type": "hsc_pq",
+                "algorithm": "hsc",
             }
 
             return CompressionResult(
-                compressed_data=final_compressed,
+                compressed_data=binary_data,  # Binary data, NOT JSON serialized
                 original_size=len(data),
-                compressed_size=len(final_compressed),
-                compression_ratio=len(data) / len(final_compressed),
+                compressed_size=len(binary_data),
+                compression_ratio=len(data) / len(binary_data) if binary_data else 1.0,
                 algorithm="hsc",
                 metadata=metadata,
                 semantic_fidelity=compressed_result.get("metadata", {}).get(
@@ -861,8 +856,48 @@ class MAIFCompressor:
                 semantic_fidelity=1.0,
             )
 
+    def _hsc_decompression_pq(self, data: bytes, metadata: Dict[str, Any]) -> bytes:
+        """Decompress HSC with Product Quantization (v2.0) using binary format."""
+        try:
+            from ..semantic.hsc_binary_format import HSCBinaryFormat
+
+            # Deserialize binary format
+            pq, codes, pq_metadata = HSCBinaryFormat.deserialize(data)
+
+            # Decode PQ codes to reconstructed embeddings
+            reconstructed = pq.decode(codes)
+
+            # Convert back to bytes
+            embedding_data = b""
+            for embedding in reconstructed:
+                for value in embedding:
+                    embedding_data += struct.pack("f", float(value))
+
+            return embedding_data
+
+        except Exception:
+            # Fallback to standard decompression
+            return self._apply_standard_decompression(data, "zlib")
+
     def _hsc_decompression(self, data: bytes, metadata: Dict[str, Any]) -> bytes:
-        """Decompress HSC-compressed embedding data."""
+        """Dispatch decompression based on HSC version (v2.0 PQ or v1.0 legacy)."""
+        try:
+            # Check metadata for version information
+            hsc_version = metadata.get("hsc_version", "1.0")
+
+            if hsc_version == "2.0":
+                # Route to Product Quantization decompression
+                return self._hsc_decompression_pq(data, metadata)
+            else:
+                # Route to legacy decompression (backward compatibility for v1.0)
+                return self._hsc_decompression_legacy(data, metadata)
+
+        except Exception:
+            # Fallback to standard decompression
+            return self._apply_standard_decompression(data, "zlib")
+
+    def _hsc_decompression_legacy(self, data: bytes, metadata: Dict[str, Any]) -> bytes:
+        """Decompress legacy HSC-compressed embedding data (v1.0) with JSON format."""
         try:
             # First decompress with base algorithm
             base_algorithm = metadata.get("base_algorithm", "zlib")
